@@ -1,0 +1,6 @@
+[package]
+name = "dark_net"
+edition = "2024"
+
+[addresses]
+dark_net = "0x0"
