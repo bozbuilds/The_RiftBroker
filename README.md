@@ -10,9 +10,9 @@ EVE Frontier is CCP Games' blockchain-integrated space MMO. After migrating from
 
 | Concept | Description | Status |
 |---------|-------------|--------|
-| **The Frontier Exchange** | AMM resource markets with cross-system arbitrage | Planning |
-| **The Dark Net** | Encrypted intel marketplace (Seal + Walrus) | Planning |
-| **The Underwriter** | Ship insurance with automated bounty loops | Planning |
+| **The Dark Net** | Encrypted intel marketplace (Seal + Walrus) | **Phase 2 complete** — contract (17 tests) + frontend (21 tests) |
+| **The Frontier Exchange** | AMM resource markets with cross-system arbitrage | Backlog |
+| **The Underwriter** | Ship insurance with automated bounty loops | Backlog |
 
 See [`docs/eve_frontier_hackathon26.md`](docs/eve_frontier_hackathon26.md) for the full strategic playbook.
 
@@ -41,11 +41,12 @@ python -m venv venv
 venv\Scripts\activate        # Windows
 source venv/bin/activate     # macOS/Linux
 
-# SUI local devnet
-sui start
+# Move contracts
+sui move build --path contracts
+sui move test --path contracts
 
-# Frontend (once scaffolded)
-pnpm create @mysten/dapp --template react-client-dapp
+# Frontend
+cd frontend
 pnpm install
 pnpm dev
 ```
@@ -56,9 +57,26 @@ pnpm dev
 EF_intel/
 ├── CLAUDE.md                              # Claude Code project context
 ├── README.md                              # This file
+├── contracts/
+│   ├── Move.toml                          # Move package manifest (edition 2024)
+│   ├── sources/marketplace.move           # Listing, purchase, delist, Seal policies
+│   └── tests/marketplace_tests.move       # 17 tests covering all functions
+├── frontend/
+│   ├── package.json                       # React + dApp Kit + Seal + Walrus
+│   ├── src/
+│   │   ├── App.tsx                        # Browse/Create nav with full flow
+│   │   ├── providers/AppProviders.tsx     # SUI client + wallet providers
+│   │   ├── lib/                           # PTB builders, Seal/Walrus wrappers, Zod schemas
+│   │   ├── hooks/                         # useListings, usePurchase, useDecrypt
+│   │   └── components/                    # CreateListing, ListingBrowser, PurchaseFlow, IntelViewer
+│   └── vite.config.ts
 ├── docs/
 │   ├── eve_frontier_hackathon26.md        # Strategic hackathon playbook
-│   └── ARCHITECTURE.md                    # System architecture
+│   ├── ARCHITECTURE.md                    # System architecture
+│   ├── seal-spike.md                      # Seal encryption research
+│   ├── walrus-spike.md                    # Walrus storage research
+│   ├── brainstorms/                       # Design exploration docs
+│   └── plans/                             # Implementation plans
 └── venv/                                  # Python virtual environment
 ```
 

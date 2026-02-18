@@ -5,6 +5,7 @@ use sui::coin::{Self, Coin};
 use sui::clock::Clock;
 use sui::event;
 use sui::sui::SUI;
+use sui::bcs;
 
 // === Error constants (EPascalCase) ===
 
@@ -12,8 +13,15 @@ const ENotScout: u64 = 0;
 const EInsufficientPayment: u64 = 1;
 const EListingExpired: u64 = 2;
 const EListingDelisted: u64 = 3;
+const ENotBuyer: u64 = 4;
+const EWrongListing: u64 = 5;
+const EBlobIdAlreadySet: u64 = 6;
+const EInvalidIntelType: u64 = 7;
+const EDecayTooLarge: u64 = 8;
 
 // === Regular constants (ALL_CAPS) ===
+
+const MAX_DECAY_HOURS: u64 = 8760; // 1 year
 
 #[allow(unused_const)]
 const INTEL_TYPE_RESOURCE: u8 = 0;
@@ -83,6 +91,9 @@ public fun create_listing(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    assert!(intel_type <= INTEL_TYPE_ROUTE, EInvalidIntelType);
+    assert!(decay_hours <= MAX_DECAY_HOURS, EDecayTooLarge);
+
     let listing = IntelListing {
         id: object::new(ctx),
         scout: ctx.sender(),
@@ -106,9 +117,10 @@ public fun create_listing(
     transfer::share_object(listing);
 }
 
+#[allow(lint(self_transfer))]
 public fun purchase(
     listing: &mut IntelListing,
-    payment: Coin<SUI>,
+    mut payment: Coin<SUI>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -119,7 +131,14 @@ public fun purchase(
     );
     assert!(payment.value() >= listing.individual_price, EInsufficientPayment);
 
-    transfer::public_transfer(payment, listing.scout);
+    // Split exact price for scout; refund any excess to buyer
+    let paid = payment.split(listing.individual_price, ctx);
+    transfer::public_transfer(paid, listing.scout);
+    if (payment.value() > 0) {
+        transfer::public_transfer(payment, ctx.sender());
+    } else {
+        payment.destroy_zero();
+    };
 
     let receipt = PurchaseReceipt {
         id: object::new(ctx),
@@ -175,3 +194,45 @@ public fun is_expired(listing: &IntelListing, clock: &Clock): bool {
 public fun buyer(receipt: &PurchaseReceipt): address { receipt.buyer }
 public fun listing_id(receipt: &PurchaseReceipt): ID { receipt.listing_id }
 public fun paid_at(receipt: &PurchaseReceipt): u64 { receipt.paid_at }
+
+public fun set_walrus_blob_id(
+    listing: &mut IntelListing,
+    walrus_blob_id: vector<u8>,
+    ctx: &TxContext,
+) {
+    assert!(listing.scout == ctx.sender(), ENotScout);
+    assert!(listing.walrus_blob_id.is_empty(), EBlobIdAlreadySet);
+    listing.walrus_blob_id = walrus_blob_id;
+}
+
+// === Seal policies (side-effect free, entry for key server simulation) ===
+
+/// Seal policy: approve decryption if caller owns a valid PurchaseReceipt.
+/// `id` is the BCS-serialized listing address (inner identity for Seal).
+entry fun seal_approve(
+    id: vector<u8>,
+    receipt: &PurchaseReceipt,
+    ctx: &TxContext,
+) {
+    assert!(receipt.buyer == ctx.sender(), ENotBuyer);
+
+    let mut bcs_id = bcs::new(id);
+    let listing_addr = bcs_id.peel_address();
+    assert!(object::id_to_address(&receipt.listing_id) == listing_addr, EWrongListing);
+}
+
+/// Seal policy: scout can always decrypt their own intel.
+entry fun seal_approve_scout(
+    _id: vector<u8>,
+    listing: &IntelListing,
+    ctx: &TxContext,
+) {
+    assert!(listing.scout == ctx.sender(), ENotScout);
+}
+
+// === Test-only helpers ===
+
+#[test_only]
+public fun transfer_receipt_for_testing(receipt: PurchaseReceipt, to: address) {
+    transfer::transfer(receipt, to);
+}

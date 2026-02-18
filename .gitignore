@@ -8,6 +8,7 @@ node_modules/
 dist/
 .env
 .env.local
+*.tsbuildinfo
 
 # SUI / Move
 build/
@@ -21,3 +22,5 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+.claude/settings.local.json
+contracts/Move.lock

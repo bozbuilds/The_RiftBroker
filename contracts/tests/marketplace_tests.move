@@ -264,3 +264,288 @@ fun purchase_delisted_listing_aborts() {
     clock::destroy_for_testing(clk);
     scenario.end();
 }
+
+// === Seal approve ===
+
+#[test]
+fun seal_approve_works() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // Buyer purchases
+    scenario.next_tx(BUYER);
+    let mut listing = scenario.take_shared<IntelListing>();
+    let listing_id = object::id(&listing);
+    let payment = coin::mint_for_testing<SUI>(500_000, scenario.ctx());
+    marketplace::purchase(&mut listing, payment, &clk, scenario.ctx());
+    test_scenario::return_shared(listing);
+
+    // Buyer calls seal_approve with their receipt
+    scenario.next_tx(BUYER);
+    let receipt = scenario.take_from_sender<PurchaseReceipt>();
+    let id_bytes = sui::bcs::to_bytes(&object::id_to_address(&listing_id));
+
+    marketplace::seal_approve(id_bytes, &receipt, scenario.ctx());
+
+    std::unit_test::destroy(receipt);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::ENotBuyer)]
+fun seal_approve_wrong_buyer_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // Buyer purchases
+    scenario.next_tx(BUYER);
+    let mut listing = scenario.take_shared<IntelListing>();
+    let listing_id = object::id(&listing);
+    let payment = coin::mint_for_testing<SUI>(500_000, scenario.ctx());
+    marketplace::purchase(&mut listing, payment, &clk, scenario.ctx());
+    test_scenario::return_shared(listing);
+
+    // Buyer takes receipt and transfers it to stranger via test-only helper
+    // (PurchaseReceipt has key-only, so transfer::transfer is module-restricted)
+    scenario.next_tx(BUYER);
+    let receipt = scenario.take_from_sender<PurchaseReceipt>();
+    marketplace::transfer_receipt_for_testing(receipt, STRANGER);
+
+    // Stranger has the receipt but receipt.buyer is still BUYER
+    scenario.next_tx(STRANGER);
+    let receipt = scenario.take_from_sender<PurchaseReceipt>();
+    let id_bytes = sui::bcs::to_bytes(&object::id_to_address(&listing_id));
+
+    marketplace::seal_approve(id_bytes, &receipt, scenario.ctx()); // should abort
+
+    std::unit_test::destroy(receipt);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EWrongListing)]
+fun seal_approve_wrong_listing_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // Buyer purchases
+    scenario.next_tx(BUYER);
+    let mut listing = scenario.take_shared<IntelListing>();
+    let payment = coin::mint_for_testing<SUI>(500_000, scenario.ctx());
+    marketplace::purchase(&mut listing, payment, &clk, scenario.ctx());
+    test_scenario::return_shared(listing);
+
+    // Buyer tries seal_approve but with a WRONG listing id
+    scenario.next_tx(BUYER);
+    let receipt = scenario.take_from_sender<PurchaseReceipt>();
+    let wrong_addr = @0xDEAD;
+    let id_bytes = sui::bcs::to_bytes(&wrong_addr);
+
+    marketplace::seal_approve(id_bytes, &receipt, scenario.ctx()); // should abort
+
+    std::unit_test::destroy(receipt);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test]
+fun seal_approve_scout_works() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // Scout calls seal_approve_scout on their own listing
+    scenario.next_tx(SCOUT);
+    let listing = scenario.take_shared<IntelListing>();
+
+    marketplace::seal_approve_scout(b"unused", &listing, scenario.ctx());
+
+    test_scenario::return_shared(listing);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::ENotScout)]
+fun seal_approve_scout_non_scout_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // Stranger tries seal_approve_scout on someone else's listing
+    scenario.next_tx(STRANGER);
+    let listing = scenario.take_shared<IntelListing>();
+
+    marketplace::seal_approve_scout(b"unused", &listing, scenario.ctx()); // should abort
+
+    test_scenario::return_shared(listing);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+// === set_walrus_blob_id ===
+
+#[test]
+fun set_walrus_blob_id_works() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    // Create listing with empty blob_id
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"", stake, &clk, ctx,
+    );
+
+    // Scout sets the blob_id
+    scenario.next_tx(SCOUT);
+    let mut listing = scenario.take_shared<IntelListing>();
+
+    assert!(listing.walrus_blob_id() == b"");
+    marketplace::set_walrus_blob_id(&mut listing, b"real_blob_id_abc", scenario.ctx());
+    assert!(listing.walrus_blob_id() == b"real_blob_id_abc");
+
+    test_scenario::return_shared(listing);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::ENotScout)]
+fun set_walrus_blob_id_non_scout_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"", stake, &clk, ctx,
+    );
+
+    // Stranger tries to set blob_id
+    scenario.next_tx(STRANGER);
+    let mut listing = scenario.take_shared<IntelListing>();
+
+    marketplace::set_walrus_blob_id(&mut listing, b"evil_blob", scenario.ctx()); // should abort
+
+    test_scenario::return_shared(listing);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EBlobIdAlreadySet)]
+fun set_walrus_blob_id_already_set_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"initial_blob", stake, &clk, ctx,
+    );
+
+    // Scout tries to change an already-set blob_id
+    scenario.next_tx(SCOUT);
+    let mut listing = scenario.take_shared<IntelListing>();
+
+    marketplace::set_walrus_blob_id(&mut listing, b"new_blob", scenario.ctx()); // should abort
+
+    test_scenario::return_shared(listing);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+// === Input validation ===
+
+#[test, expected_failure(abort_code = marketplace::EInvalidIntelType)]
+fun create_listing_invalid_intel_type_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        99, // invalid intel_type
+        42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EDecayTooLarge)]
+fun create_listing_excessive_decay_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000,
+        10_000, // > MAX_DECAY_HOURS (8760 = 1 year)
+        b"blob", stake, &clk, ctx,
+    );
+
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test]
+fun purchase_overpayment_refunds_buyer() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // Buyer pays 2x the price
+    scenario.next_tx(BUYER);
+    let mut listing = scenario.take_shared<IntelListing>();
+    let payment = coin::mint_for_testing<SUI>(1_000_000, scenario.ctx());
+    marketplace::purchase(&mut listing, payment, &clk, scenario.ctx());
+    test_scenario::return_shared(listing);
+
+    // Verify scout received exactly the listing price
+    scenario.next_tx(SCOUT);
+    let scout_payment = scenario.take_from_sender<coin::Coin<SUI>>();
+    assert!(scout_payment.value() == 500_000);
+    scout_payment.burn_for_testing();
+
+    // Verify buyer received refund of excess
+    scenario.next_tx(BUYER);
+    let refund = scenario.take_from_sender<coin::Coin<SUI>>();
+    assert!(refund.value() == 500_000);
+    refund.burn_for_testing();
+
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
