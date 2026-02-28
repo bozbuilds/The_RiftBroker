@@ -12,7 +12,7 @@ The strategic planning document lives at `docs/eve_frontier_hackathon26.md`.
 
 Encrypted intel marketplace using SUI Seal + Walrus for scout-sold intelligence. Scouts encrypt intel payloads, store on Walrus, list on-chain. Buyers browse metadata, pay to unlock Seal decryption. Hero feature: live intel heat map.
 
-**Status**: Phase 3 complete (contract: 20/20 tests, frontend: 33/33 tests). Full end-to-end flow built: create listing, browse, purchase, decrypt. Heat map with 20 demo systems, dark theme, error boundaries, responsive layout. Phase 4 (deploy + submit) is next.
+**Status**: Phase 4 in progress. Contract deployed to SUI testnet (`0xa5e33645...`). Contract: 20/20 tests, frontend: 40/40 tests (33 + 7 seed-data). Seal key servers wired. Seed script + data ready. Frontend build passes.
 
 See `docs/plans/2026-02-12-feat-dark-net-encrypted-intel-marketplace-plan.md` for the full implementation plan.
 
@@ -88,7 +88,7 @@ EF_intel/
 │   │   ├── index.css                 # Dark theme, responsive layout
 │   │   ├── providers/AppProviders.tsx
 │   │   ├── lib/
-│   │   │   ├── constants.ts          # Package ID, Clock ID, intel type labels
+│   │   │   ├── constants.ts          # Package ID, Clock ID, Seal key servers, intel type labels
 │   │   │   ├── types.ts             # On-chain type mirrors (bigint for u64)
 │   │   │   ├── intel-schemas.ts     # Zod discriminated union (4 intel types)
 │   │   │   ├── transactions.ts      # Pure PTB builders
@@ -97,6 +97,9 @@ EF_intel/
 │   │   │   ├── heat-map-data.ts     # Aggregation + filtering (12 tests)
 │   │   │   ├── format.ts            # Shared timeRemaining, truncateAddress
 │   │   │   └── systems.ts           # 20 demo star systems
+│   │   ├── scripts/
+│   │   │   ├── seed-data.ts         # 15 demo listing definitions (7 tests)
+│   │   │   └── seed.ts              # CLI seed script for testnet
 │   │   ├── hooks/
 │   │   │   ├── useListings.ts       # Event query → object fetch → parse
 │   │   │   ├── useHeatMapData.ts    # Aggregate listings for heat map

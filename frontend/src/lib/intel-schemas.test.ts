@@ -6,11 +6,22 @@ describe('intelPayloadSchema', () => {
     const result = intelPayloadSchema.safeParse({
       type: 0,
       systemId: '30004759',
-      coordinates: { x: 100, y: 200, z: -50 },
-      resourceType: 'Veldspar',
-      yieldEstimate: 15000,
+      nearbyBody: 'P1-M2',
+      resourceType: 'Feldspar Crystals',
+      yieldTier: 'low',
     })
     expect(result.success).toBe(true)
+  })
+
+  it('rejects resource with invalid yieldTier', () => {
+    const result = intelPayloadSchema.safeParse({
+      type: 0,
+      systemId: '30004759',
+      nearbyBody: 'P1-M2',
+      resourceType: 'Feldspar Crystals',
+      yieldTier: 'mega',
+    })
+    expect(result.success).toBe(false)
   })
 
   it('parses valid fleet intel', () => {
@@ -55,12 +66,12 @@ describe('intelPayloadSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('rejects resource with missing coordinates', () => {
+  it('rejects resource with missing nearbyBody', () => {
     const result = intelPayloadSchema.safeParse({
       type: 0,
       systemId: '30004759',
-      resourceType: 'Veldspar',
-      yieldEstimate: 15000,
+      resourceType: 'Feldspar Crystals',
+      yieldTier: 'low',
     })
     expect(result.success).toBe(false)
   })
@@ -73,6 +84,28 @@ describe('intelPayloadSchema', () => {
       defenseLevel: 11,
     })
     expect(result.success).toBe(false)
+  })
+
+  it('accepts optional notes on any intel type', () => {
+    const resource = intelPayloadSchema.safeParse({
+      type: 0,
+      systemId: '30004759',
+      nearbyBody: 'Planet 1 Moon 1',
+      resourceType: 'Ice Shards',
+      yieldTier: 'high',
+      notes: 'Contested area, bring escort',
+    })
+    expect(resource.success).toBe(true)
+
+    const fleet = intelPayloadSchema.safeParse({
+      type: 1,
+      systemId: '30004759',
+      fleetSize: 5,
+      shipTypes: ['Frigate'],
+      observedAt: '2026-02-27T10:00:00Z',
+      notes: 'Appeared to be AFK',
+    })
+    expect(fleet.success).toBe(true)
   })
 
   it('rejects fleet with negative fleetSize', () => {

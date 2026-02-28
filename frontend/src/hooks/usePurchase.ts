@@ -19,10 +19,24 @@ export function usePurchase() {
       // Wait for transaction to be indexed
       await suiClient.waitForTransaction({ digest: result.digest })
 
-      // Invalidate listings cache so UI refreshes
-      await queryClient.invalidateQueries({ queryKey: ['listings'] })
+      // Extract PurchaseReceipt object ID from transaction
+      const txDetails = await suiClient.getTransactionBlock({
+        digest: result.digest,
+        options: { showObjectChanges: true },
+      })
+      const receiptObj = txDetails.objectChanges?.find(
+        (c) => c.type === 'created' && 'objectType' in c
+          && (c.objectType as string).includes('PurchaseReceipt'),
+      )
+      const receiptId = receiptObj && 'objectId' in receiptObj
+        ? (receiptObj as { objectId: string }).objectId
+        : undefined
 
-      return result
+      // Invalidate listings + receipts cache so UI refreshes
+      await queryClient.invalidateQueries({ queryKey: ['listings'] })
+      await queryClient.invalidateQueries({ queryKey: ['receipts'] })
+
+      return { digest: result.digest, receiptId }
     } finally {
       setIsPurchasing(false)
     }
@@ -37,6 +51,7 @@ export function usePurchase() {
       const result = await signAndExecute({ transaction: tx })
       await suiClient.waitForTransaction({ digest: result.digest })
       await queryClient.invalidateQueries({ queryKey: ['listings'] })
+      await queryClient.invalidateQueries({ queryKey: ['receipts'] })
       return result
     } finally {
       setIsPurchasing(false)

@@ -10,7 +10,7 @@ export function PurchaseFlow({
   onClose,
 }: {
   listing: IntelListingFields
-  onPurchased: (listing: IntelListingFields) => void
+  onPurchased: (listing: IntelListingFields, receiptId: string) => void
   onClose: () => void
 }) {
   const account = useCurrentAccount()
@@ -22,8 +22,10 @@ export function PurchaseFlow({
   async function handlePurchase() {
     setError(null)
     try {
-      await purchase(listing.id, listing.individualPrice)
-      onPurchased(listing)
+      const result = await purchase(listing.id, listing.individualPrice)
+      if (!result.receiptId)
+        throw new Error('Could not find PurchaseReceipt in transaction')
+      onPurchased(listing, result.receiptId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Purchase failed')
     }

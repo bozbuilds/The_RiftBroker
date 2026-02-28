@@ -3,11 +3,59 @@ import { SealClient } from '@mysten/seal'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 
-import { INTEL_TYPE_LABELS } from '../lib/constants'
+import { INTEL_TYPE_LABELS, SEAL_KEY_SERVERS } from '../lib/constants'
+import { mistToSui } from '../lib/format'
 import { intelPayloadSchema } from '../lib/intel-schemas'
 import { encryptIntel } from '../lib/seal'
+import { DEMO_SYSTEMS } from '../lib/systems'
 import { buildCreateListingTx, buildSetBlobIdTx } from '../lib/transactions'
 import { uploadBlob } from '../lib/walrus'
+
+const SYSTEMS_BY_REGION = DEMO_SYSTEMS.reduce<Record<string, typeof DEMO_SYSTEMS[number][]>>(
+  (acc, s) => { (acc[s.region] ??= []).push(s); return acc },
+  {},
+)
+
+function MistHint({ mist }: { mist: string }) {
+  const sui = mistToSui(mist)
+  if (!sui) return null
+  return <div className="form-hint"><span className="form-hint-value">{sui} SUI</span></div>
+}
+
+function SystemDropdown({
+  value,
+  onChange,
+  label,
+  required,
+}: {
+  value: string
+  onChange: (v: string) => void
+  label: string
+  required?: boolean
+}) {
+  return (
+    <div className="form-group">
+      <label className="form-label">{label}</label>
+      <select
+        className="form-select"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+      >
+        <option value="">Select a system...</option>
+        {Object.entries(SYSTEMS_BY_REGION).map(([region, systems]) => (
+          <optgroup key={region} label={region}>
+            {systems.map((s) => (
+              <option key={s.id.toString()} value={s.id.toString()}>
+                {s.name}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    </div>
+  )
+}
 
 export function CreateListing() {
   const account = useCurrentAccount()
@@ -15,9 +63,8 @@ export function CreateListing() {
   const queryClient = useQueryClient()
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction()
 
-  // TODO(Phase 4): Replace empty serverConfigs with real testnet key server configs
   const sealClient = useMemo(
-    () => new SealClient({ suiClient, serverConfigs: [], verifyKeyServers: false }),
+    () => new SealClient({ suiClient, serverConfigs: SEAL_KEY_SERVERS, verifyKeyServers: false }),
     [suiClient],
   )
 
@@ -26,11 +73,79 @@ export function CreateListing() {
   const [price, setPrice] = useState('')
   const [decayHours, setDecayHours] = useState('24')
   const [stakeAmount, setStakeAmount] = useState('')
-  const [payloadJson, setPayloadJson] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Resource fields
+  const [resourceType, setResourceType] = useState('')
+  const [yieldTier, setYieldTier] = useState<'low' | 'mid' | 'high'>('low')
+  const [nearbyBody, setNearbyBody] = useState('')
+
+  // Fleet fields
+  const [fleetSize, setFleetSize] = useState('')
+  const [shipTypes, setShipTypes] = useState('')
+  const [heading, setHeading] = useState('')
+  const [observedAt, setObservedAt] = useState('')
+
+  // Base fields
+  const [structureType, setStructureType] = useState('')
+  const [defenseLevel, setDefenseLevel] = useState('5')
+  const [ownerTribe, setOwnerTribe] = useState('')
+
+  // Route fields
+  const [originSystem, setOriginSystem] = useState('')
+  const [destSystem, setDestSystem] = useState('')
+  const [threatLevel, setThreatLevel] = useState('5')
+  const [gateCamps, setGateCamps] = useState<{ systemId: string; description: string }[]>([])
+
+  // Shared
+  const [notes, setNotes] = useState('')
+
   if (!account) return null
+
+  function buildPayload() {
+    const sid = intelType === 3 ? originSystem : systemId
+    const n = notes.trim() || undefined
+    switch (intelType) {
+      case 0:
+        return {
+          type: 0 as const,
+          systemId: sid,
+          resourceType,
+          yieldTier,
+          nearbyBody,
+          notes: n,
+        }
+      case 1:
+        return {
+          type: 1 as const,
+          systemId: sid,
+          fleetSize: Number(fleetSize),
+          shipTypes: shipTypes.split(',').map((s) => s.trim()).filter(Boolean),
+          heading: heading || undefined,
+          observedAt: observedAt || new Date().toISOString(),
+          notes: n,
+        }
+      case 2:
+        return {
+          type: 2 as const,
+          systemId: sid,
+          structureType,
+          defenseLevel: Number(defenseLevel),
+          ownerTribe: ownerTribe || undefined,
+          notes: n,
+        }
+      case 3:
+        return {
+          type: 3 as const,
+          originSystemId: originSystem,
+          destSystemId: destSystem,
+          threatLevel: Number(threatLevel),
+          gateCamps,
+          notes: n,
+        }
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -38,20 +153,20 @@ export function CreateListing() {
     setStatus(null)
 
     try {
-      // 1. Validate payload
-      const parsed = JSON.parse(payloadJson)
-      const result = intelPayloadSchema.safeParse(parsed)
+      const assembled = buildPayload()
+      const result = intelPayloadSchema.safeParse(assembled)
       if (!result.success) {
-        setError('Invalid intel payload: ' + JSON.stringify(result.error.issues))
+        setError('Validation failed: ' + result.error.issues.map((i) => i.message).join(', '))
         return
       }
 
-      // 2. Create listing with empty blob_id (step 1 of 2)
+      const onChainSystemId = intelType === 3 ? originSystem : systemId
+
       setStatus('Creating listing...')
       const payload = new TextEncoder().encode(JSON.stringify(result.data))
       const createTx = buildCreateListingTx({
         intelType,
-        systemId: BigInt(systemId),
+        systemId: BigInt(onChainSystemId),
         price: BigInt(price),
         decayHours: BigInt(decayHours),
         walrusBlobId: new Uint8Array(0),
@@ -60,7 +175,6 @@ export function CreateListing() {
       const createResult = await signAndExecute({ transaction: createTx })
       await suiClient.waitForTransaction({ digest: createResult.digest })
 
-      // 3. Get listing ID from created objects
       const txDetails = await suiClient.getTransactionBlock({
         digest: createResult.digest,
         options: { showObjectChanges: true },
@@ -75,7 +189,6 @@ export function CreateListing() {
       }
       const listingId = created.objectId
 
-      // 4. Encrypt with Seal using listing ID as inner identity
       setStatus('Encrypting intel...')
       const ciphertext = await encryptIntel({
         sealClient,
@@ -83,11 +196,9 @@ export function CreateListing() {
         payload,
       })
 
-      // 5. Upload to Walrus
       setStatus('Uploading to Walrus...')
       const blobId = await uploadBlob(ciphertext)
 
-      // 6. Set blob_id on listing (step 2 of 2)
       setStatus('Finalizing listing...')
       const setBlobTx = buildSetBlobIdTx(
         listingId,
@@ -98,11 +209,17 @@ export function CreateListing() {
 
       await queryClient.invalidateQueries({ queryKey: ['listings'] })
       setStatus('Listing created successfully!')
-      setPayloadJson('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
       setStatus(null)
     }
+  }
+
+  function handleTypeChange(newType: number) {
+    setIntelType(newType)
+    setSystemId('')
+    setOriginSystem('')
+    setDestSystem('')
   }
 
   return (
@@ -115,7 +232,7 @@ export function CreateListing() {
           <select
             className="form-select"
             value={intelType}
-            onChange={(e) => setIntelType(Number(e.target.value))}
+            onChange={(e) => handleTypeChange(Number(e.target.value))}
           >
             {INTEL_TYPE_LABELS.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
@@ -123,17 +240,14 @@ export function CreateListing() {
           </select>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">System ID</label>
-          <input
-            className="form-input"
-            type="text"
+        {intelType !== 3 && (
+          <SystemDropdown
             value={systemId}
-            onChange={(e) => setSystemId(e.target.value)}
-            placeholder="e.g. 30004759"
+            onChange={setSystemId}
+            label="System"
             required
           />
-        </div>
+        )}
 
         <div className="form-group">
           <label className="form-label">Price (MIST)</label>
@@ -142,43 +256,251 @@ export function CreateListing() {
             type="text"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            placeholder="e.g. 1000000"
+            placeholder="e.g. 1000000000"
             required
           />
+          <MistHint mist={price} />
         </div>
 
         <div className="form-group">
           <label className="form-label">Decay Hours</label>
           <input
             className="form-input"
-            type="text"
+            type="number"
+            min="1"
             value={decayHours}
             onChange={(e) => setDecayHours(e.target.value)}
             required
           />
+          <div className="form-hint">How long until this intel expires</div>
         </div>
 
         <div className="form-group">
-          <label className="form-label">Stake Amount (MIST)</label>
+          <label className="form-label">Quality Deposit (MIST)</label>
           <input
             className="form-input"
             type="text"
             value={stakeAmount}
             onChange={(e) => setStakeAmount(e.target.value)}
-            placeholder="e.g. 500000"
+            placeholder="e.g. 500000000"
             required
           />
+          <MistHint mist={stakeAmount} />
+          <div className="form-hint">
+            Locked while your listing is active. Higher deposits signal confidence in your intel.
+          </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">Intel Payload (JSON)</label>
-          <textarea
-            className="form-textarea"
-            value={payloadJson}
-            onChange={(e) => setPayloadJson(e.target.value)}
-            placeholder={`{"type": ${intelType}, "systemId": "30004759", ...}`}
-            required
-          />
+        <div className="form-section">
+          <label className="form-label">Intel Details</label>
+
+          {intelType === 0 && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Resource Type</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={resourceType}
+                  onChange={(e) => setResourceType(e.target.value)}
+                  placeholder="e.g. Feldspar Crystals, Hydrated Sulfide Matrix, Ice Shards, Deep-Core Carbon"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Yield Tier</label>
+                <select
+                  className="form-select"
+                  value={yieldTier}
+                  onChange={(e) => setYieldTier(e.target.value as 'low' | 'mid' | 'high')}
+                >
+                  <option value="low">Low (1+ Basic)</option>
+                  <option value="mid">Mid (2+ Advanced)</option>
+                  <option value="high">High (Crude Matter)</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nearby Planetary Body</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={nearbyBody}
+                  onChange={(e) => setNearbyBody(e.target.value)}
+                  placeholder="e.g. Planet 1 Moon 1, P1-M2, P3"
+                  required
+                />
+              </div>
+            </>
+          )}
+
+          {intelType === 1 && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Fleet Size</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="1"
+                  value={fleetSize}
+                  onChange={(e) => setFleetSize(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Ship Types</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={shipTypes}
+                  onChange={(e) => setShipTypes(e.target.value)}
+                  placeholder="e.g. Frigate, Cruiser, Battleship"
+                  required
+                />
+                <div className="form-hint">Comma-separated list</div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Heading (optional)</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={heading}
+                  onChange={(e) => setHeading(e.target.value)}
+                  placeholder="e.g. Towards Core"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Observed At</label>
+                <input
+                  className="form-input"
+                  type="datetime-local"
+                  value={observedAt}
+                  onChange={(e) => setObservedAt(e.target.value)}
+                />
+                <div className="form-hint">Defaults to now if left blank</div>
+              </div>
+            </>
+          )}
+
+          {intelType === 2 && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Structure Type</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={structureType}
+                  onChange={(e) => setStructureType(e.target.value)}
+                  placeholder="e.g. Smart Storage Unit"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Defense Level (0-10)</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={defenseLevel}
+                  onChange={(e) => setDefenseLevel(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Owner Tribe (optional)</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={ownerTribe}
+                  onChange={(e) => setOwnerTribe(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+
+          {intelType === 3 && (
+            <>
+              <SystemDropdown
+                value={originSystem}
+                onChange={setOriginSystem}
+                label="Origin System"
+                required
+              />
+              <SystemDropdown
+                value={destSystem}
+                onChange={setDestSystem}
+                label="Destination System"
+                required
+              />
+              <div className="form-group">
+                <label className="form-label">Threat Level (0-10)</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={threatLevel}
+                  onChange={(e) => setThreatLevel(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Gate Camps</label>
+                {gateCamps.map((camp, i) => (
+                  <div key={i} className="form-row" style={{ marginBottom: 4 }}>
+                    <input
+                      className="form-input"
+                      type="text"
+                      value={camp.systemId}
+                      onChange={(e) => {
+                        const next = [...gateCamps]
+                        next[i] = { ...camp, systemId: e.target.value }
+                        setGateCamps(next)
+                      }}
+                      placeholder="System ID"
+                    />
+                    <input
+                      className="form-input"
+                      type="text"
+                      value={camp.description}
+                      onChange={(e) => {
+                        const next = [...gateCamps]
+                        next[i] = { ...camp, description: e.target.value }
+                        setGateCamps(next)
+                      }}
+                      placeholder="Description"
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setGateCamps(gateCamps.filter((_, j) => j !== i))}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                {gateCamps.length < 3 && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setGateCamps([...gateCamps, { systemId: '', description: '' }])}
+                  >
+                    Add gate camp
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+          <div className="form-group">
+            <label className="form-label">Misc Notes (optional)</label>
+            <textarea
+              className="form-textarea"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any other pertinent information for the buyer"
+              rows={2}
+            />
+          </div>
         </div>
 
         <button className="btn-primary" type="submit" disabled={!!status}>

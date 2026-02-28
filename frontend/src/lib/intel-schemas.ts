@@ -3,9 +3,10 @@ import { z } from 'zod'
 const resourceSchema = z.object({
   type: z.literal(0),
   systemId: z.string(),
-  coordinates: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+  nearbyBody: z.string(),
   resourceType: z.string(),
-  yieldEstimate: z.number(),
+  yieldTier: z.enum(['low', 'mid', 'high']),
+  notes: z.string().optional(),
 })
 
 const fleetSchema = z.object({
@@ -15,6 +16,7 @@ const fleetSchema = z.object({
   shipTypes: z.array(z.string()),
   heading: z.string().optional(),
   observedAt: z.string(),
+  notes: z.string().optional(),
 })
 
 const baseSchema = z.object({
@@ -23,6 +25,7 @@ const baseSchema = z.object({
   structureType: z.string(),
   defenseLevel: z.number().int().min(0).max(10),
   ownerTribe: z.string().optional(),
+  notes: z.string().optional(),
 })
 
 const routeSchema = z.object({
@@ -34,6 +37,7 @@ const routeSchema = z.object({
     systemId: z.string(),
     description: z.string(),
   })),
+  notes: z.string().optional(),
 })
 
 export const intelPayloadSchema = z.discriminatedUnion('type', [

@@ -1,8 +1,16 @@
-// TODO(Phase 4): Replace with actual deployed package ID after testnet deployment
-export const PACKAGE_ID = '0x0'
+// Deployed on SUI testnet (2026-02-27)
+export const PACKAGE_ID = '0xa5e33645e5d1b3f886aa6624157b131c389c9c61aedb744e20a761b5003608b8'
 
 // SUI shared Clock object
 export const CLOCK_ID = '0x6'
+
+// Seal testnet key servers (open mode)
+// Source: https://seal-docs.wal.app/Pricing/
+export const SEAL_KEY_SERVERS = [
+  { objectId: '0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75', weight: 1 },
+  { objectId: '0xf5d14a81a982144ae441cd7d64b09027f116a468bd36e7eca494f750591623c8', weight: 1 },
+  { objectId: '0x6068c0acb197dddbacd4746a9de7f025b2ed5a5b6c1b1ab44dade4426d141da2', weight: 1 },
+]
 
 // Canonical intel type labels and colors
 export const INTEL_TYPE_LABELS: readonly { value: number; label: string; color: string }[] = [
@@ -15,3 +23,9 @@ export const INTEL_TYPE_LABELS: readonly { value: number; label: string; color: 
 export const INTEL_TYPE_LABEL_MAP: Record<number, string> = Object.fromEntries(
   INTEL_TYPE_LABELS.map(({ value, label }) => [value, label]),
 )
+
+export const DECRYPT_STATUS_LABELS: Record<string, string> = {
+  signing: 'Sign session key in wallet...',
+  downloading: 'Downloading encrypted intel...',
+  decrypting: 'Decrypting payload...',
+}

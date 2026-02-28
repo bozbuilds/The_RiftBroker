@@ -16,6 +16,7 @@ export interface IntelListingFields {
   readonly decayHours: bigint
   readonly walrusBlobId: Uint8Array
   readonly individualPrice: bigint
+  readonly stakeValue: bigint
   readonly delisted: boolean
 }
 
@@ -24,4 +25,9 @@ export interface PurchaseReceiptFields {
   readonly listingId: string
   readonly buyer: string
   readonly paidAt: bigint
+}
+
+export interface EnrichedReceipt {
+  readonly receipt: PurchaseReceiptFields
+  readonly listing: IntelListingFields
 }

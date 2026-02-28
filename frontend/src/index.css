@@ -605,6 +605,38 @@ button {
   margin-bottom: 12px;
 }
 
+/* --- Owned Badges --- */
+
+.listing-item-owned {
+  border-color: var(--accent-purple);
+}
+
+.listing-item-expand {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+
+.listing-owned-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-purple);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border: 1px solid var(--accent-purple);
+  border-radius: var(--radius);
+  align-self: center;
+  margin-left: 8px;
+}
+
+.deposit-badge { font-size: 0.75rem; color: var(--text-muted); }
+
+.form-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.form-hint-value { color: var(--accent-green); }
+.form-row { display: flex; gap: 8px; }
+.form-row .form-input { flex: 1; }
+.form-section { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+
 /* --- Responsive --- */
 
 @media (max-width: 768px) {

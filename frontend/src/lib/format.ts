@@ -12,3 +12,13 @@ export function timeRemaining(listing: IntelListingFields): string {
 export function truncateAddress(addr: string): string {
   return addr.slice(0, 6) + '...' + addr.slice(-4)
 }
+
+const MIST_PER_SUI = 1_000_000_000
+
+export function mistToSui(mist: string): string | null {
+  if (!mist || !/^\d+$/.test(mist)) return null
+  const n = Number(mist)
+  if (n === 0) return '0'
+  const sui = n / MIST_PER_SUI
+  return parseFloat(sui.toFixed(9)).toString()
+}

@@ -2,7 +2,7 @@
 title: "feat: Dark Net Encrypted Intel Marketplace"
 type: feat
 date: 2026-02-13
-updated: 2026-02-19
+updated: 2026-02-27
 brainstorm: docs/brainstorms/2026-02-12-dark-net-intel-marketplace-brainstorm.md
 ---
 
@@ -16,9 +16,9 @@ brainstorm: docs/brainstorms/2026-02-12-dark-net-intel-marketplace-brainstorm.md
 | **Phase 1**: Core Marketplace Contract | **Complete** | `marketplace.move` (178 lines), 9/9 tests passing, zero warnings |
 | **Phase 2**: Frontend — List, Purchase, Decrypt | **Complete** | Contract: 17/17 tests (added `seal_approve`, `set_walrus_blob_id`). Frontend: 21/21 tests, all lib/hooks/components built. |
 | **Phase 3**: Heat Map + Polish | **Complete** | Heat map (SVG, 20 demo systems, glow/pulse), dark theme CSS, error boundaries, responsive layout. Contract: 20/20 tests. Frontend: 33/33 tests. |
-| **Phase 4**: Deploy + Submit | Not started | — |
+| **Phase 4**: Deploy + Submit | **In progress** | Contract deployed to testnet (`0xa5e33645...`). Seal key servers wired. Seed data (15 listings, 7 tests). Frontend: 40/40 tests. Build passes. |
 
-**Next up**: Phase 4 — Deploy contracts to testnet, deploy frontend, seed demo data, record video, submit.
+**Next up**: Run seed script, deploy frontend to Vercel, smoke test, record demo video, submit.
 
 ---
 
@@ -477,24 +477,29 @@ Code review identified 27 issues (3 critical, 5 high, 10 medium, 9 low). All fix
 
 ---
 
-#### Phase 4: Deploy + Submit (Week 5)
+#### Phase 4: Deploy + Submit (Week 5) — IN PROGRESS
 
 **Goal**: Deployed, recorded, and submitted.
 
-- [ ] Deploy contracts to SUI testnet
+- [x] Deploy contracts to SUI testnet → `0xa5e33645e5d1b3f886aa6624157b131c389c9c61aedb744e20a761b5003608b8`
+- [x] Wire Seal testnet key servers (3 open-mode: 2 Mysten Labs + Ruby Nodes)
+- [x] Seed data module: 15 demo listings across 12 systems, 4 intel types (7 tests via TDD)
+- [x] Seed script: CLI tool using `tsx`, reuses `lib/seal.ts` + `lib/walrus.ts`
+- [x] Update `PACKAGE_ID` in `constants.ts` with deployed address
+- [x] Frontend build passes (`tsc -b && vite build`)
+- [x] All tests pass: 20/20 contract, 40/40 frontend
+- [ ] Run seed script on testnet
 - [ ] Deploy frontend (Vercel or similar)
-- [ ] Seed 10–20 listings across different systems for demo
-- [ ] Record demo video:
-  - Scout creates encrypted listing → appears on heat map
-  - Buyer browses → purchases → sees decrypted intel (the "aha" moment)
-  - Show PTB batch purchase (2+ listings in one transaction)
-  - Show heat map real-time update
-- [ ] Write submission narrative emphasizing:
-  - Seal + Walrus as SUI-native differentiators (impossible on other chains)
-  - PTB composability for batch operations
-  - Information asymmetry as core EVE design philosophy
-  - Wormhole mapper background for spatial visualization credibility
+- [ ] Smoke test full flow (browse, purchase, decrypt)
+- [ ] Record demo video
+- [ ] Write submission narrative
 - [ ] Submit before voting period begins
+
+**Implementation notes**:
+- Seal key servers from https://seal-docs.wal.app/Pricing/ (open-mode testnet)
+- `scripts/` directory excluded from `tsconfig.json` — `tsx` handles its own TS compilation
+- Seed script builds transactions inline (not via `lib/transactions.ts`) to use `SuiClient.signAndExecuteTransaction` directly with `Ed25519Keypair`
+- UpgradeCap stored at `0x8d8e0088ae010d6a20c78de98b5982c1e07c445321483c4a080f6a0f7cd2b364`
 
 **Exit criteria**: Live on testnet. Demo video uploaded. Submission narrative complete.
 
@@ -565,7 +570,7 @@ const MAX_DECAY_HOURS: u64 = 8760; // 1 year
 
 - [x] Contract compiles with `sui move build` on edition 2024
 - [x] All contract tests pass via `sui move test` (20/20, zero warnings)
-- [x] All frontend tests pass via `pnpm test` (33/33)
+- [x] All frontend tests pass via `pnpm test` (40/40)
 - [x] Frontend follows code style: no semicolons, single quotes, 2-space indent
 - [x] All Move code follows the Code Quality Checklist (modern syntax, parameter ordering)
 - [x] All `u64` values in TypeScript use `bigint` (no overflow)
@@ -574,7 +579,7 @@ const MAX_DECAY_HOURS: u64 = 8760; // 1 year
 
 - [x] Phase 0 Seal spike produces research findings with viable architecture (hands-on verification deferred to Phase 2)
 - [x] Phase 0 Walrus spike produces research findings with SDK + HTTP API documented
-- [x] Each phase has passing tests before moving to next (Phase 0 → Phase 1: 9/9; Phase 1 → Phase 2: 17/17 contract + 21/21 frontend; Phase 2 → Phase 3: 20/20 contract + 33/33 frontend)
+- [x] Each phase has passing tests before moving to next (Phase 0 → Phase 1: 9/9; Phase 1 → Phase 2: 17/17 contract + 21/21 frontend; Phase 2 → Phase 3: 20/20 contract + 33/33 frontend; Phase 3 → Phase 4: 20/20 contract + 40/40 frontend)
 - [ ] Demo video recorded by week 5
 
 ---
@@ -632,6 +637,10 @@ EF_intel/
 │   │   │   ├── constants.ts                   ✅
 │   │   │   ├── intel-schemas.ts               ✅ (8 tests)
 │   │   │   └── intel-schemas.test.ts          ✅
+│   │   ├── scripts/
+│   │   │   ├── seed-data.ts                   ✅ (15 listings, 7 tests)
+│   │   │   ├── seed-data.test.ts              ✅
+│   │   │   └── seed.ts                        ✅ (CLI seed script)
 │   │   ├── hooks/
 │   │   │   ├── useListings.ts                 ✅ (paginated)
 │   │   │   ├── useHeatMapData.ts              ✅ (aggregation + refresh)

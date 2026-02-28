@@ -13,6 +13,7 @@ function makeListing(overrides: Partial<IntelListingFields> = {}): IntelListingF
     decayHours: 24n,
     walrusBlobId: new Uint8Array([1, 2, 3]),
     individualPrice: 1_000_000n,
+    stakeValue: 0n,
     delisted: false,
     ...overrides,
   }

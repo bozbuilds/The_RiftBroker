@@ -1,13 +1,25 @@
 import type { IntelPayload } from '../lib/intel-schemas'
 
+const YIELD_TIER_LABELS: Record<string, string> = {
+  low: 'Low (1+ Basic)',
+  mid: 'Mid (2+ Advanced)',
+  high: 'High (Crude Matter)',
+}
+
+function NotesLine({ notes }: { notes?: string }) {
+  if (!notes) return null
+  return <p>Notes: {notes}</p>
+}
+
 function ResourceView({ data }: { data: Extract<IntelPayload, { type: 0 }> }) {
   return (
     <div className="intel-type-view">
       <h4>Resource Intel</h4>
       <p>System: {data.systemId}</p>
       <p>Resource: {data.resourceType}</p>
-      <p>Yield Estimate: {data.yieldEstimate.toLocaleString()}</p>
-      <p>Coordinates: ({data.coordinates.x}, {data.coordinates.y}, {data.coordinates.z})</p>
+      <p>Yield: {YIELD_TIER_LABELS[data.yieldTier] ?? data.yieldTier}</p>
+      <p>Nearby Body: {data.nearbyBody}</p>
+      <NotesLine notes={data.notes} />
     </div>
   )
 }
@@ -21,6 +33,7 @@ function FleetView({ data }: { data: Extract<IntelPayload, { type: 1 }> }) {
       <p>Ship Types: {data.shipTypes.join(', ')}</p>
       {data.heading && <p>Heading: {data.heading}</p>}
       <p>Observed: {data.observedAt}</p>
+      <NotesLine notes={data.notes} />
     </div>
   )
 }
@@ -33,6 +46,7 @@ function BaseView({ data }: { data: Extract<IntelPayload, { type: 2 }> }) {
       <p>Structure: {data.structureType}</p>
       <p>Defense Level: {data.defenseLevel}/10</p>
       {data.ownerTribe && <p>Owner: {data.ownerTribe}</p>}
+      <NotesLine notes={data.notes} />
     </div>
   )
 }
@@ -54,6 +68,7 @@ function RouteView({ data }: { data: Extract<IntelPayload, { type: 3 }> }) {
           </ul>
         </div>
       )}
+      <NotesLine notes={data.notes} />
     </div>
   )
 }

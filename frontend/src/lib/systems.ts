@@ -47,3 +47,15 @@ export const DEMO_SYSTEMS: readonly StarSystem[] = [
 ]
 
 export const SYSTEM_MAP = new Map(DEMO_SYSTEMS.map((s) => [s.id, s]))
+
+export const REGION_SYSTEM_COUNTS: Record<string, number> = DEMO_SYSTEMS.reduce(
+  (acc, s) => { acc[s.region] = (acc[s.region] ?? 0) + 1; return acc },
+  {} as Record<string, number>,
+)
+
+export function obfuscatedLocation(systemId: bigint): string {
+  const system = SYSTEM_MAP.get(systemId)
+  if (!system) return 'Unknown Region'
+  const count = REGION_SYSTEM_COUNTS[system.region]
+  return `${system.region} (${count} systems)`
+}

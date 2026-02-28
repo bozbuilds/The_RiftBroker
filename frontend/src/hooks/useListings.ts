@@ -2,21 +2,7 @@ import { useSuiClient } from '@mysten/dapp-kit'
 import { useQuery } from '@tanstack/react-query'
 
 import { PACKAGE_ID } from '../lib/constants'
-import type { IntelListingFields } from '../lib/types'
-
-function parseListingFields(fields: Record<string, unknown>): IntelListingFields {
-  return {
-    id: fields.id as string,
-    scout: fields.scout as string,
-    intelType: fields.intel_type as IntelListingFields['intelType'],
-    systemId: BigInt(fields.system_id as string),
-    createdAt: BigInt(fields.created_at as string),
-    decayHours: BigInt(fields.decay_hours as string),
-    walrusBlobId: new Uint8Array(fields.walrus_blob_id as number[]),
-    individualPrice: BigInt(fields.individual_price as string),
-    delisted: fields.delisted as boolean,
-  }
-}
+import { parseListingFields } from '../lib/parse'
 
 const MAX_EVENT_PAGES = 10
 
@@ -67,7 +53,7 @@ export function useListings() {
             dataType: 'moveObject'
             fields: Record<string, unknown>
           }
-          return parseListingFields(content.fields)
+          return parseListingFields(o.data!.objectId, content.fields)
         })
     },
     refetchInterval: 10_000,
