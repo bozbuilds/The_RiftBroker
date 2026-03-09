@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 interface FloatingPanelProps {
   readonly children: ReactNode
+  readonly footer?: ReactNode
   readonly title: string
   readonly onClose: () => void
 }
@@ -10,7 +11,7 @@ interface FloatingPanelProps {
  * Centered floating card container for Browse/Create/My Intel views.
  * Overlays the 3D star map with semi-transparent background.
  */
-export function FloatingPanel({ children, title, onClose }: FloatingPanelProps) {
+export function FloatingPanel({ children, footer, title, onClose }: FloatingPanelProps) {
   return (
     <div className="floating-panel">
       <div className="floating-panel-header">
@@ -22,6 +23,11 @@ export function FloatingPanel({ children, title, onClose }: FloatingPanelProps) 
       <div className="floating-panel-body">
         {children}
       </div>
+      {footer && (
+        <div className="floating-panel-footer">
+          {footer}
+        </div>
+      )}
     </div>
   )
 }

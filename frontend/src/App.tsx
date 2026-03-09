@@ -186,7 +186,7 @@ export function App() {
       {/* Layer 1: HUD overlay (always visible) */}
       <div className="hud-overlay">
         <header className="hud-header">
-          <h1 className="hud-title">The Dark Net</h1>
+          <h1 className="hud-title">Frontier Intel</h1>
           <ConnectButton />
         </header>
 
@@ -237,9 +237,8 @@ export function App() {
           )}
 
           {panel.kind === 'browse' && (
-            <FloatingPanel title="Intel Marketplace" onClose={closePanel}>
+            <FloatingPanel title="Intel Marketplace" onClose={closePanel} footer={purchaseOrDecryptPanel}>
               <ListingBrowser onSelect={selectListing} />
-              {purchaseOrDecryptPanel}
             </FloatingPanel>
           )}
 

@@ -16,10 +16,6 @@ export function HeatMapControls({
   return (
     <div className="heatmap-controls">
       <div className="heatmap-controls-row">
-        <span className="heatmap-stat">
-          {activeSystems}/{totalSystems} systems active
-        </span>
-
         <div className="heatmap-type-filters">
           <button
             className={`filter-btn${filters.intelType === undefined ? ' active' : ''}`}
@@ -38,6 +34,9 @@ export function HeatMapControls({
             </button>
           ))}
         </div>
+        <span className="heatmap-stat">
+          {activeSystems}/{totalSystems} systems active
+        </span>
       </div>
     </div>
   )

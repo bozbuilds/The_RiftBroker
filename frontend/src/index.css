@@ -1,5 +1,5 @@
 /* ============================================================
-   The Dark Net — Intel Marketplace
+   Frontier Intel — Intel Marketplace
    Holographic HUD Theme
    ============================================================ */
 
@@ -150,9 +150,7 @@ p {
 }
 
 .hud-controls {
-  position: absolute;
-  top: 100px;
-  left: 24px;
+  padding: 0 24px;
   pointer-events: auto;
   max-width: 360px;
 }
@@ -363,6 +361,45 @@ button {
   padding: 16px 20px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
+}
+
+.floating-panel-footer {
+  flex-shrink: 0;
+  border-top: var(--hud-border);
+}
+
+.floating-panel-footer .purchase-panel {
+  padding: 12px 20px;
+  margin-top: 0;
+  border: none;
+  border-radius: 0;
+  backdrop-filter: none;
+}
+
+.floating-panel-footer .purchase-panel h3 {
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+
+.floating-panel-footer .purchase-details {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.floating-panel-footer .purchase-details p {
+  margin-bottom: 0;
+  font-size: 0.75rem;
+}
+
+.floating-panel-footer .purchase-actions {
+  gap: 6px;
+}
+
+.floating-panel-footer .purchase-actions button {
+  padding: 6px 14px;
+  font-size: 0.7rem;
 }
 
 /* --- Region Panel (slide-in drawer) --- */
@@ -753,10 +790,8 @@ button {
 
 .heatmap-controls-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .heatmap-stat {

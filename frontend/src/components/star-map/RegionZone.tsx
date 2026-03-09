@@ -27,8 +27,8 @@ export function RegionZone({ data, onClick }: RegionZoneProps) {
   useFrame(({ clock }) => {
     if (!fillRef.current || !isFresh) return
     const mat = fillRef.current.material as THREE.MeshBasicMaterial
-    const pulse = 0.04 + Math.sin(clock.elapsedTime * 2) * 0.04
-    mat.opacity = hovered ? 0.12 : pulse
+    const pulse = 0.02 + Math.sin(clock.elapsedTime * 2) * 0.02
+    mat.opacity = hovered ? 0.08 : pulse
   })
 
   // Convert 2D hull points to 3D positions on the grid plane (Y=0.1 to sit above grid)
@@ -75,7 +75,7 @@ export function RegionZone({ data, onClick }: RegionZoneProps) {
         <mesh
           ref={fillRef}
           geometry={fillGeometry}
-          rotation={[-Math.PI / 2, 0, 0]}
+          rotation={[Math.PI / 2, 0, 0]}
           position={[0, 0.05, 0]}
           onClick={() => onClick(data.regionName)}
           onPointerEnter={() => setHovered(true)}
@@ -84,7 +84,8 @@ export function RegionZone({ data, onClick }: RegionZoneProps) {
           <meshBasicMaterial
             color={color}
             transparent
-            opacity={hovered ? 0.12 : 0.04}
+            opacity={hovered ? 0.08 : 0.02}
+            depthWrite={false}
             side={THREE.DoubleSide}
           />
         </mesh>

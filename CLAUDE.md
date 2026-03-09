@@ -8,7 +8,7 @@ EF_intel is a project for the **EVE Frontier × SUI Hackathon** (March 11–31, 
 
 The strategic planning document lives at `docs/eve_frontier_hackathon26.md`.
 
-## Active Concept: The Dark Net
+## Active Concept: Frontier Intel
 
 Encrypted intel marketplace using SUI Seal + Walrus for scout-sold intelligence. Scouts encrypt intel payloads, store on Walrus, list on-chain. Buyers browse metadata, pay to unlock Seal decryption. Hero feature: live intel heat map.
 
