@@ -1,33 +1,72 @@
 import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit'
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { HeatMap } from './components/heat-map/HeatMap'
 import { HeatMapControls } from './components/heat-map/HeatMapControls'
 import { CreateListing } from './components/CreateListing'
+import { FloatingPanel } from './components/FloatingPanel'
 import { IntelViewer } from './components/IntelViewer'
 import { ListingBrowser } from './components/ListingBrowser'
 import { MyIntel } from './components/MyIntel'
 import { PurchaseFlow } from './components/PurchaseFlow'
+import { RegionPanel } from './components/RegionPanel'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { StarMapScene } from './components/star-map'
 import { useHeatMapData } from './hooks/useHeatMapData'
 import { useDecrypt } from './hooks/useDecrypt'
 import { useReceipts } from './hooks/useReceipts'
 import { DECRYPT_STATUS_LABELS } from './lib/constants'
 import type { IntelPayload } from './lib/intel-schemas'
+import { aggregateByRegion } from './lib/region-data'
 import { DEMO_SYSTEMS } from './lib/systems'
 import type { IntelListingFields } from './lib/types'
 
-type View = 'map' | 'browse' | 'my-intel' | 'create'
+// Panel state machine — only one panel at a time
+type PanelState =
+  | { kind: 'none' }
+  | { kind: 'region', regionName: string }
+  | { kind: 'browse' }
+  | { kind: 'create' }
+  | { kind: 'my-intel' }
+
+const NAV_ITEMS = [
+  { kind: 'none' as const, label: 'Map' },
+  { kind: 'browse' as const, label: 'Browse' },
+  { kind: 'my-intel' as const, label: 'My Intel' },
+  { kind: 'create' as const, label: 'Create' },
+]
 
 export function App() {
   const account = useCurrentAccount()
-  const [view, setView] = useState<View>('map')
+  const [panel, setPanel] = useState<PanelState>({ kind: 'none' })
   const [selectedListing, setSelectedListing] = useState<IntelListingFields | null>(null)
   const [receiptId, setReceiptId] = useState<string | null>(null)
   const [decryptedPayload, setDecryptedPayload] = useState<IntelPayload | null>(null)
   const heatMap = useHeatMapData()
   const { data: receiptData } = useReceipts()
   const { status: decryptStatus, error: decryptError, decrypt } = useDecrypt()
+
+  // Aggregate system heat data into region-level data for the 3D scene
+  const regionData = useMemo(
+    () => aggregateByRegion(heatMap.allSystems, DEMO_SYSTEMS),
+    [heatMap.allSystems],
+  )
+
+  const closePanel = useCallback(() => {
+    setPanel({ kind: 'none' })
+    setSelectedListing(null)
+    setReceiptId(null)
+    setDecryptedPayload(null)
+  }, [])
+
+  // Escape key closes the active panel
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && panel.kind !== 'none') closePanel()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [panel.kind, closePanel])
 
   function selectListing(listing: IntelListingFields) {
     setSelectedListing(listing)
@@ -43,6 +82,11 @@ export function App() {
 
   function handlePurchased(_listing: IntelListingFields, rid: string) {
     setReceiptId(rid)
+  }
+
+  function handleNavClick(kind: PanelState['kind']) {
+    clearSelection()
+    setPanel(kind === 'none' ? { kind: 'none' } : { kind } as PanelState)
   }
 
   // Check if user already owns a receipt for the selected listing
@@ -114,63 +158,105 @@ export function App() {
     </>
   )
 
-  return (
-    <div className="app-container">
-      <header className="app-header">
-        <h1 className="app-title">The Dark Net</h1>
-        <ConnectButton />
-      </header>
+  // Find region data for region panel
+  const activeRegion = panel.kind === 'region'
+    ? regionData.find((r) => r.regionName === panel.regionName)
+    : null
 
-      {!account ? (
-        <p className="connect-prompt">Connect your wallet to browse intel.</p>
-      ) : (
-        <>
-          <nav className="app-nav">
-            {(['map', 'browse', 'my-intel', 'create'] as const).map((v) => (
+  return (
+    <div className="app-viewport">
+      {/* Layer 0: 3D star map (persistent backdrop) */}
+      <ErrorBoundary fallback={
+        <div className="heatmap-fallback">
+          <HeatMap systems={heatMap.systems} onSelectListing={selectListing} />
+        </div>
+      }>
+        <StarMapScene
+          systems={DEMO_SYSTEMS}
+          regions={regionData}
+          systemHeats={heatMap.systems}
+          panelOpen={panel.kind !== 'none'}
+          onRegionClick={(name) => {
+            clearSelection()
+            setPanel({ kind: 'region', regionName: name })
+          }}
+        />
+      </ErrorBoundary>
+
+      {/* Layer 1: HUD overlay (always visible) */}
+      <div className="hud-overlay">
+        <header className="hud-header">
+          <h1 className="hud-title">The Dark Net</h1>
+          <ConnectButton />
+        </header>
+
+        {account && (
+          <nav className="hud-nav">
+            {NAV_ITEMS.map(({ kind, label }) => (
               <button
-                key={v}
-                className={`nav-btn${view === v ? ' active' : ''}`}
-                onClick={() => { setView(v); clearSelection() }}
+                key={kind}
+                className={`nav-btn${panel.kind === kind ? ' active' : ''}`}
+                onClick={() => handleNavClick(kind)}
               >
-                {v === 'map' ? 'Heat Map' : v === 'browse' ? 'Browse' : v === 'my-intel' ? 'My Intel' : 'Create'}
+                {label}
               </button>
             ))}
           </nav>
+        )}
 
-          {view === 'map' && (
-            <ErrorBoundary>
-              <HeatMapControls
-                filters={heatMap.filters}
-                onFilterChange={heatMap.setFilters}
-                totalSystems={DEMO_SYSTEMS.length}
-                activeSystems={heatMap.allSystems.length}
-              />
-              <HeatMap
-                systems={heatMap.systems}
-                onSelectListing={selectListing}
-              />
-              {purchaseOrDecryptPanel}
-            </ErrorBoundary>
+        {/* Heat map controls — visible when map is active */}
+        {account && panel.kind === 'none' && (
+          <div className="hud-controls">
+            <HeatMapControls
+              filters={heatMap.filters}
+              onFilterChange={heatMap.setFilters}
+              totalSystems={DEMO_SYSTEMS.length}
+              activeSystems={heatMap.allSystems.length}
+            />
+          </div>
+        )}
+
+        {!account && (
+          <div className="connect-prompt-overlay">
+            <p className="connect-prompt">Connect your wallet to browse intel.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Layer 2: Panel + backdrop (when panel is open) */}
+      {account && panel.kind !== 'none' && (
+        <>
+          <div className="panel-backdrop" onClick={closePanel} />
+
+          {panel.kind === 'region' && activeRegion && (
+            <RegionPanel
+              region={activeRegion}
+              onSelectListing={selectListing}
+              onClose={closePanel}
+            />
           )}
 
-          {view === 'my-intel' && (
-            <ErrorBoundary>
-              <MyIntel />
-            </ErrorBoundary>
-          )}
-
-          {view === 'create' && (
-            <ErrorBoundary>
-              <CreateListing />
-            </ErrorBoundary>
-          )}
-
-          {view === 'browse' && (
-            <ErrorBoundary>
+          {panel.kind === 'browse' && (
+            <FloatingPanel title="Intel Marketplace" onClose={closePanel}>
               <ListingBrowser onSelect={selectListing} />
               {purchaseOrDecryptPanel}
-            </ErrorBoundary>
+            </FloatingPanel>
           )}
+
+          {panel.kind === 'create' && (
+            <FloatingPanel title="Create Intel Listing" onClose={closePanel}>
+              <CreateListing />
+            </FloatingPanel>
+          )}
+
+          {panel.kind === 'my-intel' && (
+            <FloatingPanel title="My Intel" onClose={closePanel}>
+              <MyIntel />
+            </FloatingPanel>
+          )}
+
+          {/* Purchase/decrypt overlay for region panel */}
+          {panel.kind === 'region' && purchaseOrDecryptPanel}
         </>
       )}
     </div>
