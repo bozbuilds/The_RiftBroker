@@ -1,6 +1,6 @@
 /* ============================================================
    The Dark Net — Intel Marketplace
-   Dark theme CSS
+   Holographic HUD Theme
    ============================================================ */
 
 /* --- Reset & Base --- */
@@ -15,26 +15,40 @@
 
 :root {
   --bg-primary: #0a0e17;
-  --bg-secondary: #111827;
-  --bg-tertiary: #1a2332;
-  --bg-elevated: #1f2937;
-  --text-primary: #e5e7eb;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+  --bg-secondary: rgba(10, 14, 23, 0.85);
+  --bg-tertiary: rgba(15, 20, 30, 0.9);
+  --bg-elevated: rgba(20, 28, 40, 0.9);
+  --text-primary: #e0ecff;
+  --text-secondary: #8ecae6;
+  --text-muted: #4a6a7a;
   --accent-green: #10b981;
   --accent-red: #ef4444;
   --accent-orange: #f59e0b;
   --accent-blue: #3b82f6;
   --accent-purple: #8b5cf6;
-  --border: #1f2937;
-  --border-bright: #374151;
+  --border: rgba(14, 116, 144, 0.2);
+  --border-bright: rgba(14, 165, 233, 0.3);
   --success: #10b981;
   --error: #ef4444;
   --warning: #f59e0b;
-  --radius: 6px;
-  --radius-lg: 10px;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --radius: 4px;
+  --radius-lg: 8px;
+
+  /* Typography */
+  --font-display: 'Orbitron', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  /* HUD accents */
+  --hud-cyan: #0ea5e9;
+  --hud-cyan-dim: rgba(14, 116, 144, 0.3);
+  --hud-glow: 0 0 8px rgba(14, 165, 233, 0.4), 0 0 20px rgba(14, 165, 233, 0.1);
+  --hud-glow-strong: 0 0 12px rgba(14, 165, 233, 0.6), 0 0 30px rgba(14, 165, 233, 0.2);
+  --hud-border: 1px solid var(--hud-cyan-dim);
+
+  /* Panel */
+  --panel-bg: rgba(10, 14, 23, 0.92);
+  --panel-backdrop: rgba(0, 0, 0, 0.5);
 }
 
 html {
@@ -48,42 +62,110 @@ body {
   color: var(--text-primary);
   line-height: 1.5;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 /* --- Typography --- */
 
 h1, h2, h3, h4 {
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 700;
   line-height: 1.25;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 h1 {
-  font-size: 1.75rem;
-  letter-spacing: -0.02em;
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
 }
 
 h2 {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   color: var(--text-primary);
   margin-bottom: 12px;
 }
 
 h3 {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: var(--text-primary);
 }
 
 h4 {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
 }
 
 p {
   color: var(--text-secondary);
   margin-bottom: 6px;
+  font-size: 0.85rem;
 }
 
-/* --- Layout --- */
+/* --- App Viewport (Two-Layer Architecture) --- */
+
+.app-viewport {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* --- HUD Overlay (Layer 1) --- */
+
+.hud-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  pointer-events: auto;
+  background: linear-gradient(180deg, rgba(10, 14, 23, 0.8) 0%, transparent 100%);
+}
+
+.hud-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.4rem;
+  letter-spacing: 0.12em;
+  color: var(--hud-cyan);
+  text-shadow: 0 0 20px rgba(14, 165, 233, 0.5), 0 0 40px rgba(14, 165, 233, 0.2);
+}
+
+.hud-nav {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px 12px;
+  pointer-events: auto;
+}
+
+.hud-controls {
+  position: absolute;
+  top: 100px;
+  left: 24px;
+  pointer-events: auto;
+  max-width: 360px;
+}
+
+.connect-prompt-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+/* --- Legacy Layout (compat — used inside panels) --- */
 
 .app-container {
   max-width: 1100px;
@@ -96,15 +178,14 @@ p {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--hud-border);
   margin-bottom: 20px;
 }
 
 .app-title {
-  background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-family: var(--font-display);
+  color: var(--hud-cyan);
+  text-shadow: 0 0 20px rgba(14, 165, 233, 0.5);
 }
 
 .app-nav {
@@ -113,77 +194,94 @@ p {
   margin-bottom: 20px;
 }
 
+/* --- Nav Buttons --- */
+
 .nav-btn {
   padding: 8px 16px;
   background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 0.15s ease;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
 }
 
 .nav-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--border-bright);
-  background: var(--bg-secondary);
+  color: var(--hud-cyan);
+  border-color: var(--hud-cyan-dim);
+  text-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
 }
 
 .nav-btn.active {
-  color: var(--accent-green);
-  border-color: var(--accent-green);
-  background: rgba(16, 185, 129, 0.08);
+  color: var(--hud-cyan);
+  border-color: var(--hud-cyan);
+  background: rgba(14, 165, 233, 0.08);
+  box-shadow: var(--hud-glow);
+  text-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
 }
 
 /* --- Buttons --- */
 
 button {
-  font-family: inherit;
-  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
   cursor: pointer;
 }
 
 .btn-primary {
   padding: 10px 20px;
-  background: var(--accent-green);
-  color: #000;
+  background: var(--hud-cyan);
+  color: #0a0e17;
   border: none;
   border-radius: var(--radius);
-  font-weight: 600;
-  transition: opacity 0.15s ease;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
 }
 
 .btn-primary:hover {
-  opacity: 0.85;
+  box-shadow: var(--hud-glow-strong);
+  background: #38bdf8;
 }
 
 .btn-primary:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-secondary {
   padding: 10px 20px;
   background: transparent;
   color: var(--text-secondary);
-  border: 1px solid var(--border-bright);
+  border: 1px solid var(--hud-cyan-dim);
   border-radius: var(--radius);
-  transition: all 0.15s ease;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
-  color: var(--text-primary);
-  border-color: var(--text-secondary);
+  color: var(--hud-cyan);
+  border-color: var(--hud-cyan);
+  box-shadow: var(--hud-glow);
 }
 
 /* --- Cards & Panels --- */
 
 .card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
+  background: var(--panel-bg);
+  border: var(--hud-border);
   border-radius: var(--radius-lg);
   padding: 16px;
+  backdrop-filter: blur(12px);
 }
 
 .card-header {
@@ -191,6 +289,151 @@ button {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+}
+
+/* --- Panel Backdrop --- */
+
+.panel-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--panel-backdrop);
+  z-index: 20;
+  animation: fadeIn 0.2s ease;
+}
+
+/* --- Floating Panel --- */
+
+.floating-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  width: 90vw;
+  max-width: 800px;
+  max-height: 80vh;
+  background: var(--panel-bg);
+  border: var(--hud-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--hud-glow), 0 8px 32px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  animation: panelSlideIn 0.25s ease;
+}
+
+.floating-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: var(--hud-border);
+  flex-shrink: 0;
+}
+
+.floating-panel-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--hud-cyan);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
+  margin-bottom: 0;
+}
+
+.floating-panel-close {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  transition: all 0.15s ease;
+}
+
+.floating-panel-close:hover {
+  color: var(--hud-cyan);
+  border-color: var(--hud-cyan-dim);
+}
+
+.floating-panel-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* --- Region Panel (slide-in drawer) --- */
+
+.region-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 420px;
+  max-width: 90vw;
+  z-index: 30;
+  background: var(--panel-bg);
+  border-left: var(--hud-border);
+  backdrop-filter: blur(16px);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.3s ease;
+  overflow-y: auto;
+}
+
+.region-panel-header {
+  padding: 20px;
+  border-bottom: 2px solid;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.region-panel-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--hud-cyan);
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.region-panel-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* --- Region Tooltip (3D scene Html overlay) --- */
+
+.region-tooltip {
+  background: var(--panel-bg);
+  border: var(--hud-border);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.region-tooltip strong {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  color: var(--hud-cyan);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.region-tooltip span {
+  font-size: 0.65rem;
+  color: var(--text-muted);
 }
 
 /* --- Forms --- */
@@ -201,10 +444,11 @@ button {
 
 .form-label {
   display: block;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   margin-bottom: 4px;
 }
 
@@ -213,27 +457,28 @@ button {
 .form-textarea {
   width: 100%;
   padding: 10px 12px;
-  background: var(--bg-tertiary);
+  background: rgba(10, 14, 23, 0.6);
   color: var(--text-primary);
-  border: 1px solid var(--border-bright);
+  border: 1px solid var(--hud-cyan-dim);
   border-radius: var(--radius);
-  font-family: inherit;
-  font-size: 0.9rem;
-  transition: border-color 0.15s ease;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
 }
 
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: var(--accent-green);
+  border-color: var(--hud-cyan);
+  box-shadow: 0 0 8px rgba(14, 165, 233, 0.2);
 }
 
 .form-textarea {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   resize: vertical;
-  min-height: 120px;
+  min-height: 80px;
 }
 
 /* --- Listing Browser --- */
@@ -249,16 +494,16 @@ button {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .listing-item {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  background: rgba(10, 14, 23, 0.6);
+  border: 1px solid var(--hud-cyan-dim);
+  border-radius: var(--radius);
+  padding: 12px 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 4px;
@@ -266,41 +511,47 @@ button {
 }
 
 .listing-item:hover {
-  border-color: var(--border-bright);
-  background: var(--bg-tertiary);
+  border-color: var(--hud-cyan);
+  box-shadow: var(--hud-glow);
+  background: rgba(14, 165, 233, 0.04);
 }
 
 .listing-item-type {
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .listing-item-meta {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
 }
 
 .listing-item-price {
   font-weight: 600;
   color: var(--accent-green);
   text-align: right;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
 }
 
 .listing-item-time {
   color: var(--text-muted);
   text-align: right;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 /* --- Purchase Flow --- */
 
 .purchase-panel {
-  background: var(--bg-secondary);
-  border: 1px solid var(--accent-blue);
+  background: var(--panel-bg);
+  border: 1px solid var(--hud-cyan-dim);
   border-radius: var(--radius-lg);
   padding: 20px;
   margin-top: 16px;
+  backdrop-filter: blur(8px);
 }
 
 .purchase-panel h3 {
@@ -312,7 +563,7 @@ button {
 }
 
 .purchase-details p {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .purchase-actions {
@@ -323,16 +574,18 @@ button {
 /* --- Intel Viewer --- */
 
 .intel-panel {
-  background: var(--bg-secondary);
-  border: 1px solid var(--accent-green);
+  background: var(--panel-bg);
+  border: 1px solid rgba(16, 185, 129, 0.3);
   border-radius: var(--radius-lg);
   padding: 20px;
   margin-top: 16px;
+  backdrop-filter: blur(8px);
 }
 
 .intel-panel h3 {
   color: var(--accent-green);
   margin-bottom: 12px;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
 }
 
 .intel-type-view {
@@ -345,7 +598,7 @@ button {
 }
 
 .intel-type-view p {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .gate-camp-list {
@@ -355,7 +608,7 @@ button {
 
 .gate-camp-list li {
   padding: 4px 0;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
 }
@@ -364,7 +617,16 @@ button {
   border-bottom: none;
 }
 
-/* --- Heat Map --- */
+/* --- Heat Map (SVG fallback) --- */
+
+.heatmap-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
 
 .heatmap-container {
   position: relative;
@@ -374,8 +636,8 @@ button {
   width: 100%;
   height: auto;
   max-height: 600px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  border: var(--hud-border);
   border-radius: var(--radius-lg);
 }
 
@@ -406,27 +668,28 @@ button {
 
 @keyframes pulse {
   0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.5; }
 }
 
 .system-detail-panel {
   background: var(--bg-elevated);
-  border: 1px solid var(--border-bright);
+  border: var(--hud-border);
   border-radius: var(--radius-lg);
   padding: 16px;
   margin-top: 12px;
 }
 
 .system-detail-region {
-  font-size: 0.8rem;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   margin-bottom: 8px;
 }
 
 .system-detail-stat {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
   margin-bottom: 12px;
 }
@@ -444,20 +707,25 @@ button {
   gap: 12px;
   align-items: center;
   padding: 8px 10px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
+  background: rgba(10, 14, 23, 0.6);
+  border: 1px solid var(--hud-cyan-dim);
   border-radius: var(--radius);
   cursor: pointer;
-  font-size: 0.85rem;
-  transition: border-color 0.15s ease;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
 }
 
 .system-listing-item:hover {
-  border-color: var(--border-bright);
+  border-color: var(--hud-cyan);
+  box-shadow: var(--hud-glow);
 }
 
 .listing-type {
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-primary);
 }
 
@@ -468,13 +736,13 @@ button {
 
 .listing-time {
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .listing-scout {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 /* --- Heat Map Controls --- */
@@ -492,7 +760,7 @@ button {
 }
 
 .heatmap-stat {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
@@ -502,24 +770,28 @@ button {
 }
 
 .filter-btn {
-  padding: 6px 12px;
+  padding: 5px 10px;
   background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border: 1px solid var(--hud-cyan-dim);
   border-radius: var(--radius);
-  font-size: 0.8rem;
-  transition: all 0.15s ease;
+  font-size: 0.7rem;
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
 }
 
 .filter-btn:hover {
-  border-color: var(--border-bright);
-  color: var(--text-primary);
+  border-color: var(--hud-cyan);
+  color: var(--text-secondary);
 }
 
 .filter-btn.active {
-  border-color: var(--filter-color, var(--accent-green));
-  color: var(--filter-color, var(--accent-green));
-  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--filter-color, var(--hud-cyan));
+  color: var(--filter-color, var(--hud-cyan));
+  background: rgba(14, 165, 233, 0.06);
+  box-shadow: 0 0 6px rgba(14, 165, 233, 0.2);
 }
 
 /* --- Loading & Status --- */
@@ -527,41 +799,41 @@ button {
 .status-message {
   padding: 10px 14px;
   border-radius: var(--radius);
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   margin-top: 12px;
 }
 
 .status-info {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(59, 130, 246, 0.08);
   border: 1px solid rgba(59, 130, 246, 0.2);
   color: var(--accent-blue);
 }
 
 .status-success {
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(16, 185, 129, 0.08);
   border: 1px solid rgba(16, 185, 129, 0.2);
   color: var(--accent-green);
 }
 
 .status-error {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.2);
   color: var(--accent-red);
 }
 
 .loading-text {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   padding: 20px 0;
   text-align: center;
 }
 
 .loading-spinner {
   display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border-bright);
-  border-top-color: var(--accent-green);
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--hud-cyan-dim);
+  border-top-color: var(--hud-cyan);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   margin-right: 8px;
@@ -576,12 +848,16 @@ button {
   text-align: center;
   padding: 40px 20px;
   color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
 .connect-prompt {
   text-align: center;
   padding: 60px 20px;
   color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
 }
 
 /* --- Error Boundary --- */
@@ -601,7 +877,7 @@ button {
 }
 
 .error-boundary p {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   margin-bottom: 12px;
 }
 
@@ -617,11 +893,12 @@ button {
 }
 
 .listing-owned-badge {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
   color: var(--accent-purple);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   padding: 2px 8px;
   border: 1px solid var(--accent-purple);
   border-radius: var(--radius);
@@ -629,38 +906,88 @@ button {
   margin-left: 8px;
 }
 
-.deposit-badge { font-size: 0.75rem; color: var(--text-muted); }
+.deposit-badge { font-size: 0.7rem; color: var(--text-muted); }
 
-.form-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
-.form-hint-value { color: var(--accent-green); }
+.form-hint { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+.form-hint-value { color: var(--accent-green); text-shadow: 0 0 6px rgba(16, 185, 129, 0.3); }
 .form-row { display: flex; gap: 8px; }
 .form-row .form-input { flex: 1; }
-.form-section { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+.form-section { border-top: 1px solid var(--hud-cyan-dim); padding-top: 12px; margin-top: 4px; }
+
+/* --- Animations --- */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes panelSlideIn {
+  from { opacity: 0; transform: translate(-50%, -48%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* --- SUI Wallet Button Override --- */
+
+[class*="ConnectButton"] button,
+[data-dapp-kit] button {
+  font-family: var(--font-display) !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  border-radius: var(--radius) !important;
+}
+
+/* --- Scrollbar --- */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hud-cyan-dim);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--hud-cyan);
+}
 
 /* --- Responsive --- */
 
 @media (max-width: 768px) {
-  .app-container {
-    padding: 12px;
+  .hud-header {
+    padding: 12px 16px;
   }
 
-  .app-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+  .hud-title {
+    font-size: 1.1rem;
   }
 
-  h1 {
-    font-size: 1.4rem;
+  .hud-nav {
+    padding: 0 16px 8px;
   }
 
-  .heatmap-controls-row {
-    flex-direction: column;
-    align-items: flex-start;
+  .hud-controls {
+    left: 16px;
+    max-width: 280px;
   }
 
-  .heatmap-type-filters {
-    flex-wrap: wrap;
+  .floating-panel {
+    width: 95vw;
+    max-height: 85vh;
+  }
+
+  .region-panel {
+    width: 100vw;
   }
 
   .listing-item {
@@ -682,16 +1009,13 @@ button {
 }
 
 @media (max-width: 480px) {
-  .app-nav {
-    width: 100%;
+  .hud-nav {
+    flex-wrap: wrap;
   }
 
   .nav-btn {
     flex: 1;
     text-align: center;
-  }
-
-  .heatmap-svg {
-    max-height: 400px;
+    min-width: 60px;
   }
 }
