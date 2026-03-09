@@ -42,7 +42,6 @@ export function SystemDot({ system, listingCount = 0, dominantType = 0, freshnes
           color="#8ecae6"
           anchorX="center"
           anchorY="bottom"
-          font="https://fonts.gstatic.com/s/jetbrainsmono/v21/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2"
         >
           {system.name}
         </Text>

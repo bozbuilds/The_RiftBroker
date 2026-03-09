@@ -1,6 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 
+import '@mysten/dapp-kit/dist/index.css'
+
 import { AppProviders } from './providers/AppProviders'
 import { App } from './App'
 import './index.css'
