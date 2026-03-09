@@ -1,5 +1,6 @@
 import { Line, Html } from '@react-three/drei'
-import { useState, useMemo } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { useState, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
 import type { RegionHeatData } from '../../lib/region-data'
@@ -14,10 +15,21 @@ interface RegionZoneProps {
  * Neon wireframe boundary zone for a region.
  * Renders the convex hull as a glowing line loop with a transparent fill for hit-testing.
  * Hover shows region name + listing count. Click opens region panel.
+ * Fresh regions (freshness > 0.5) pulse with a sine-wave glow.
  */
 export function RegionZone({ data, onClick }: RegionZoneProps) {
   const [hovered, setHovered] = useState(false)
+  const fillRef = useRef<THREE.Mesh>(null)
   const color = TYPE_COLORS[data.dominantType]
+  const isFresh = data.freshness > 0.5
+
+  // Animate fill opacity for fresh regions
+  useFrame(({ clock }) => {
+    if (!fillRef.current || !isFresh) return
+    const mat = fillRef.current.material as THREE.MeshBasicMaterial
+    const pulse = 0.04 + Math.sin(clock.elapsedTime * 2) * 0.04
+    mat.opacity = hovered ? 0.12 : pulse
+  })
 
   // Convert 2D hull points to 3D positions on the grid plane (Y=0.1 to sit above grid)
   const hullPoints3D = useMemo(() => {
@@ -58,9 +70,10 @@ export function RegionZone({ data, onClick }: RegionZoneProps) {
         toneMapped={false}
       />
 
-      {/* Transparent fill for mouse interaction */}
+      {/* Transparent fill for mouse interaction + pulse animation */}
       {fillGeometry && (
         <mesh
+          ref={fillRef}
           geometry={fillGeometry}
           rotation={[-Math.PI / 2, 0, 0]}
           position={[0, 0.05, 0]}
