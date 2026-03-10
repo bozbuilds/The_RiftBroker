@@ -1,6 +1,59 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { mistToSui } from './format'
+import { isExpired, mistToSui } from './format'
+import type { IntelListingFields } from './types'
+
+function makeListing(overrides: Partial<IntelListingFields> = {}): IntelListingFields {
+  return {
+    id: '0xabc',
+    scout: '0x1',
+    intelType: 0,
+    systemId: 42n,
+    createdAt: BigInt(Date.now() - 3_600_000), // 1 hour ago
+    decayHours: 24n,
+    walrusBlobId: new Uint8Array([1, 2, 3]),
+    individualPrice: 500_000n,
+    stakeValue: 100_000n,
+    delisted: false,
+    ...overrides,
+  }
+}
+
+describe('isExpired', () => {
+  it('returns false for a fresh listing', () => {
+    expect(isExpired(makeListing())).toBe(false)
+  })
+
+  it('returns true when decay period has passed', () => {
+    const listing = makeListing({
+      createdAt: BigInt(Date.now() - 48 * 3_600_000), // 48 hours ago
+      decayHours: 24n,
+    })
+    expect(isExpired(listing)).toBe(true)
+  })
+
+  it('returns true exactly at expiry boundary', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_000_000_000)
+    const listing = makeListing({
+      createdAt: BigInt(1_000_000_000 - 24 * 3_600_000),
+      decayHours: 24n,
+    })
+    expect(isExpired(listing)).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('returns false just before expiry', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_000_000_000)
+    const listing = makeListing({
+      createdAt: BigInt(1_000_000_000 - 24 * 3_600_000 + 1),
+      decayHours: 24n,
+    })
+    expect(isExpired(listing)).toBe(false)
+    vi.useRealTimers()
+  })
+})
 
 describe('mistToSui', () => {
   it('converts 1 SUI worth of MIST', () => {

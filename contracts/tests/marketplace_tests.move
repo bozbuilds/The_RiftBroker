@@ -265,6 +265,71 @@ fun purchase_delisted_listing_aborts() {
     scenario.end();
 }
 
+// === Burn receipt ===
+
+#[test]
+fun burn_receipt_works() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // Buyer purchases
+    scenario.next_tx(BUYER);
+    let mut listing = scenario.take_shared<IntelListing>();
+    let payment = coin::mint_for_testing<SUI>(500_000, scenario.ctx());
+    marketplace::purchase(&mut listing, payment, &clk, scenario.ctx());
+    test_scenario::return_shared(listing);
+
+    // Buyer burns their receipt
+    scenario.next_tx(BUYER);
+    let receipt = scenario.take_from_sender<PurchaseReceipt>();
+    marketplace::burn_receipt(receipt, scenario.ctx());
+
+    // Verify receipt no longer exists
+    scenario.next_tx(BUYER);
+    assert!(!scenario.has_most_recent_for_sender<PurchaseReceipt>());
+
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::ENotBuyer)]
+fun burn_receipt_non_buyer_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // Buyer purchases
+    scenario.next_tx(BUYER);
+    let mut listing = scenario.take_shared<IntelListing>();
+    let payment = coin::mint_for_testing<SUI>(500_000, scenario.ctx());
+    marketplace::purchase(&mut listing, payment, &clk, scenario.ctx());
+    test_scenario::return_shared(listing);
+
+    // Transfer receipt to stranger for testing
+    scenario.next_tx(BUYER);
+    let receipt = scenario.take_from_sender<PurchaseReceipt>();
+    marketplace::transfer_receipt_for_testing(receipt, STRANGER);
+
+    // Stranger tries to burn — should abort (receipt.buyer is still BUYER)
+    scenario.next_tx(STRANGER);
+    let receipt = scenario.take_from_sender<PurchaseReceipt>();
+    marketplace::burn_receipt(receipt, scenario.ctx());
+
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
 // === Seal approve ===
 
 #[test]

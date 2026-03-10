@@ -941,6 +941,61 @@ button {
   margin-left: 8px;
 }
 
+/* --- Expired Items --- */
+
+.listing-item-expired {
+  border-color: var(--warning);
+  opacity: 0.55;
+}
+
+.listing-item-expired:hover {
+  opacity: 0.8;
+}
+
+.listing-expired-badge {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--warning);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  margin-left: 8px;
+}
+
+.btn-danger {
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--accent-red);
+  border: 1px solid var(--accent-red);
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+}
+
+.section-divider {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 16px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .deposit-badge { font-size: 0.7rem; color: var(--text-muted); }
 
 .form-hint { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }

@@ -1,6 +1,10 @@
 // Deployed on SUI testnet (2026-02-27)
 export const PACKAGE_ID = '0xa5e33645e5d1b3f886aa6624157b131c389c9c61aedb744e20a761b5003608b8'
 
+// Upgraded package (v2) — new functions like burn_receipt live here.
+// Object types still reference the original PACKAGE_ID.
+export const PACKAGE_V2_ID = '0xb5369b33fb321d9f8ffbac42232bf60f985c34e7d05b5178e9435a93eb710125'
+
 // SUI shared Clock object
 export const CLOCK_ID = '0x6'
 

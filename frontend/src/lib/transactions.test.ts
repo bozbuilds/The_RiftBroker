@@ -4,6 +4,7 @@ import {
   buildCreateListingTx,
   buildSetBlobIdTx,
   buildPurchaseTx,
+  buildBurnReceiptTx,
   buildBatchPurchaseTx,
 } from './transactions'
 
@@ -31,6 +32,13 @@ describe('buildSetBlobIdTx', () => {
 describe('buildPurchaseTx', () => {
   it('returns a Transaction', () => {
     const tx = buildPurchaseTx('0xabc', 500_000n)
+    expect(tx).toBeInstanceOf(Transaction)
+  })
+})
+
+describe('buildBurnReceiptTx', () => {
+  it('returns a Transaction', () => {
+    const tx = buildBurnReceiptTx('0xreceipt123')
     expect(tx).toBeInstanceOf(Transaction)
   })
 })

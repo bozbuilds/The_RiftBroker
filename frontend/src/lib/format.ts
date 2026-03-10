@@ -1,8 +1,15 @@
 import type { IntelListingFields } from './types'
 
+function expiryMs(listing: IntelListingFields): number {
+  return Number(listing.createdAt) + Number(listing.decayHours) * 3_600_000
+}
+
+export function isExpired(listing: IntelListingFields): boolean {
+  return expiryMs(listing) <= Date.now()
+}
+
 export function timeRemaining(listing: IntelListingFields): string {
-  const expiryMs = Number(listing.createdAt) + Number(listing.decayHours) * 3_600_000
-  const remaining = expiryMs - Date.now()
+  const remaining = expiryMs(listing) - Date.now()
   if (remaining <= 0) return 'Expired'
   const hours = Math.floor(remaining / 3_600_000)
   const minutes = Math.floor((remaining % 3_600_000) / 60_000)

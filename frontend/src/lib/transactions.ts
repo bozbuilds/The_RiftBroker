@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions'
 
-import { CLOCK_ID, PACKAGE_ID } from './constants'
+import { CLOCK_ID, PACKAGE_ID, PACKAGE_V2_ID } from './constants'
 
 export function buildCreateListingTx(params: {
   intelType: number
@@ -55,6 +55,15 @@ export function buildPurchaseTx(
       coin,
       tx.object(CLOCK_ID),
     ],
+  })
+  return tx
+}
+
+export function buildBurnReceiptTx(receiptId: string): Transaction {
+  const tx = new Transaction()
+  tx.moveCall({
+    target: `${PACKAGE_V2_ID}::marketplace::burn_receipt`,
+    arguments: [tx.object(receiptId)],
   })
   return tx
 }

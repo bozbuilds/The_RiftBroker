@@ -30,8 +30,11 @@ export async function downloadBlob(blobId: string): Promise<Uint8Array> {
     `${WALRUS_AGGREGATOR}/v1/blobs/${encodeURIComponent(blobId)}`,
   )
 
-  if (!res.ok)
+  if (!res.ok) {
+    if (res.status === 404)
+      throw new Error('Blob not found — testnet data expires after a few epochs. Re-run the seed script to refresh.')
     throw new Error(`Walrus download failed: ${res.status} ${res.statusText}`)
+  }
 
   return new Uint8Array(await res.arrayBuffer())
 }

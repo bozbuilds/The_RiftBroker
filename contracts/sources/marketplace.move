@@ -205,6 +205,15 @@ public fun set_walrus_blob_id(
     listing.walrus_blob_id = walrus_blob_id;
 }
 
+// === Receipt management ===
+
+/// Buyer can permanently delete their own receipt (cleanup expired/unwanted intel).
+public fun burn_receipt(receipt: PurchaseReceipt, ctx: &TxContext) {
+    assert!(receipt.buyer == ctx.sender(), ENotBuyer);
+    let PurchaseReceipt { id, listing_id: _, buyer: _, paid_at: _ } = receipt;
+    id.delete();
+}
+
 // === Seal policies (side-effect free, entry for key server simulation) ===
 
 /// Seal policy: approve decryption if caller owns a valid PurchaseReceipt.
