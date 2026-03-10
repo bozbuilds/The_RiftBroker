@@ -1,17 +1,18 @@
 import { describe, expect, test } from 'vitest'
 
-import type { StarSystem } from './systems'
+import type { GalaxySystem } from './galaxy-data'
 import type { SystemHeatData } from './heat-map-data'
 import { aggregateByRegion, convexHull2D, TYPE_COLORS } from './region-data'
 
-function makeSystem(overrides: Partial<StarSystem> = {}): StarSystem {
+function makeSystem(overrides: Partial<GalaxySystem> = {}): GalaxySystem {
   return {
     id: 30004759n,
     name: 'G-M4GK',
-    x: 500,
-    y: 480,
-    z: 10,
+    x: 0,
+    y: 0,
+    z: 0,
     region: 'Core',
+    regionId: null,
     ...overrides,
   }
 }
@@ -87,9 +88,9 @@ describe('aggregateByRegion', () => {
 
   test('groups systems by region name', () => {
     const systems = [
-      makeSystem({ id: 1n, region: 'Core', x: 500, y: 480, z: 10 }),
-      makeSystem({ id: 2n, region: 'Core', x: 540, y: 440, z: -15 }),
-      makeSystem({ id: 3n, region: 'North Frontier', x: 380, y: 200, z: 40 }),
+      makeSystem({ id: 1n, region: 'Core', x: 0, z: 0 }),
+      makeSystem({ id: 2n, region: 'Core', x: 5, z: 5 }),
+      makeSystem({ id: 3n, region: 'North Frontier', x: 20, z: 20 }),
     ]
     const heats = [
       makeHeat({ systemId: 1n, listingCount: 2 }),
@@ -132,11 +133,12 @@ describe('aggregateByRegion', () => {
     expect(result[0]!.freshness).toBe(0.9)
   })
 
-  test('computes convex hull from system x/z positions', () => {
+  test('computes convex hull from system x/z scene-space positions', () => {
+    // Three non-collinear points in XZ plane
     const systems = [
-      makeSystem({ id: 1n, region: 'Core', x: 500, y: 400 }),
-      makeSystem({ id: 2n, region: 'Core', x: 600, y: 500 }),
-      makeSystem({ id: 3n, region: 'Core', x: 400, y: 500 }),
+      makeSystem({ id: 1n, region: 'Core', x: 0, z: -10 }),
+      makeSystem({ id: 2n, region: 'Core', x: 10, z: 0 }),
+      makeSystem({ id: 3n, region: 'Core', x: -10, z: 0 }),
     ]
     const heats = [
       makeHeat({ systemId: 1n }),
@@ -150,7 +152,7 @@ describe('aggregateByRegion', () => {
 
   test('handles region with single system (hull is a point)', () => {
     const systems = [
-      makeSystem({ id: 1n, region: 'Solo', x: 300, y: 400, z: 0 }),
+      makeSystem({ id: 1n, region: 'Solo', x: 5, y: 0, z: 5 }),
     ]
     const heats = [makeHeat({ systemId: 1n })]
     const result = aggregateByRegion(heats, systems)

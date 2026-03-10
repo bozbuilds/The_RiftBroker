@@ -18,7 +18,6 @@ import { useReceipts } from './hooks/useReceipts'
 import { DECRYPT_STATUS_LABELS } from './lib/constants'
 import type { IntelPayload } from './lib/intel-schemas'
 import { aggregateByRegion } from './lib/region-data'
-import { DEMO_SYSTEMS } from './lib/systems'
 import { useGalaxyData } from './providers/GalaxyDataProvider'
 import type { IntelListingFields } from './lib/types'
 
@@ -49,9 +48,10 @@ export function App() {
   const galaxy = useGalaxyData()
 
   // Aggregate system heat data into region-level data for the 3D scene
+  // Uses real galaxy coordinates once loaded; no regions rendered while data is fetching
   const regionData = useMemo(
-    () => aggregateByRegion(heatMap.allSystems, DEMO_SYSTEMS),
-    [heatMap.allSystems],
+    () => aggregateByRegion(heatMap.allSystems, galaxy?.systems ?? []),
+    [heatMap.allSystems, galaxy],
   )
 
   const closePanel = useCallback(() => {
@@ -212,7 +212,7 @@ export function App() {
             <HeatMapControls
               filters={heatMap.filters}
               onFilterChange={heatMap.setFilters}
-              totalSystems={galaxy?.systems.length ?? DEMO_SYSTEMS.length}
+              totalSystems={galaxy?.systems.length ?? 0}
               activeSystems={heatMap.allSystems.length}
             />
           </div>

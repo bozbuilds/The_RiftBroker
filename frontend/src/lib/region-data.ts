@@ -1,6 +1,6 @@
 import type { IntelType } from './types'
 import type { SystemHeatData } from './heat-map-data'
-import type { StarSystem } from './systems'
+import type { GalaxySystem } from './galaxy-data'
 
 /** Neon colors keyed by intel type for region wireframes and system dots. */
 export const TYPE_COLORS: Record<IntelType, string> = {
@@ -73,14 +73,14 @@ export function convexHull2D(points: [number, number][]): [number, number][] {
  */
 export function aggregateByRegion(
   systemHeats: SystemHeatData[],
-  allSystems: readonly StarSystem[],
+  allSystems: readonly GalaxySystem[],
 ): RegionHeatData[] {
   if (systemHeats.length === 0) return []
 
   const systemMap = new Map(allSystems.map((s) => [s.id, s]))
 
   // Group heats by region
-  const regionGroups = new Map<string, { heats: SystemHeatData[], systems: StarSystem[] }>()
+  const regionGroups = new Map<string, { heats: SystemHeatData[], systems: GalaxySystem[] }>()
 
   for (const heat of systemHeats) {
     const system = systemMap.get(heat.systemId)
@@ -122,8 +122,8 @@ export function aggregateByRegion(
     const totalPrice = heats.reduce((sum, h) => sum + h.avgPrice * BigInt(h.listingCount), 0n)
     const avgPrice = totalListings > 0 ? totalPrice / BigInt(totalListings) : 0n
 
-    // Convex hull from mapped 3D positions
-    const points: [number, number][] = systems.map((s) => svgTo3D(s.x, s.y))
+    // Convex hull in XZ plane using real scene-space coordinates
+    const points: [number, number][] = systems.map((s) => [s.x, s.z])
     const hull = convexHull2D(points)
 
     result.push({
