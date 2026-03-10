@@ -1004,6 +1004,71 @@ button {
 .form-row .form-input { flex: 1; }
 .form-section { border-top: 1px solid var(--hud-cyan-dim); padding-top: 12px; margin-top: 4px; }
 
+/* --- SystemPicker --- */
+
+.system-picker {
+  position: relative;
+}
+
+.system-picker-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  max-height: 280px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), var(--hud-glow);
+}
+
+.system-picker-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: background 0.1s;
+}
+
+.system-picker-option:hover,
+.system-picker-option.active {
+  background: rgba(14, 165, 233, 0.1);
+  color: var(--text-primary);
+}
+
+.system-picker-option strong {
+  color: var(--hud-cyan);
+  font-weight: 700;
+}
+
+.system-picker-name {
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+}
+
+.system-picker-region {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.system-picker-empty {
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* --- Animations --- */
 
 @keyframes fadeIn {

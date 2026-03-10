@@ -9,38 +9,13 @@ import { intelPayloadSchema } from '../lib/intel-schemas'
 import { encryptIntel } from '../lib/seal'
 import { buildCreateListingTx, buildSetBlobIdTx } from '../lib/transactions'
 import { uploadBlob } from '../lib/walrus'
+import { useGalaxyData } from '../providers/GalaxyDataProvider'
+import { SystemPicker } from './SystemPicker'
 
 function MistHint({ mist }: { mist: string }) {
   const sui = mistToSui(mist)
   if (!sui) return null
   return <div className="form-hint"><span className="form-hint-value">{sui} SUI</span></div>
-}
-
-function SystemIdInput({
-  value,
-  onChange,
-  label,
-  required,
-}: {
-  value: string
-  onChange: (v: string) => void
-  label: string
-  required?: boolean
-}) {
-  return (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      <input
-        className="form-input"
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="e.g. 30004759"
-        required={required}
-      />
-      <div className="form-hint">Enter the numeric system ID. Searchable picker coming soon.</div>
-    </div>
-  )
 }
 
 export function CreateListing() {
@@ -54,8 +29,10 @@ export function CreateListing() {
     [suiClient],
   )
 
+  const galaxy = useGalaxyData()
+
   const [intelType, setIntelType] = useState(0)
-  const [systemId, setSystemId] = useState('')
+  const [systemId, setSystemId] = useState<bigint | null>(null)
   const [price, setPrice] = useState('')
   const [decayHours, setDecayHours] = useState('24')
   const [stakeAmount, setStakeAmount] = useState('')
@@ -79,8 +56,8 @@ export function CreateListing() {
   const [ownerTribe, setOwnerTribe] = useState('')
 
   // Route fields
-  const [originSystem, setOriginSystem] = useState('')
-  const [destSystem, setDestSystem] = useState('')
+  const [originSystem, setOriginSystem] = useState<bigint | null>(null)
+  const [destSystem, setDestSystem] = useState<bigint | null>(null)
   const [threatLevel, setThreatLevel] = useState('5')
   const [gateCamps, setGateCamps] = useState<{ systemId: string; description: string }[]>([])
 
@@ -90,7 +67,7 @@ export function CreateListing() {
   if (!account) return null
 
   function buildPayload() {
-    const sid = intelType === 3 ? originSystem : systemId
+    const sid = (intelType === 3 ? originSystem : systemId)?.toString() ?? ''
     const n = notes.trim() || undefined
     switch (intelType) {
       case 0:
@@ -124,8 +101,8 @@ export function CreateListing() {
       case 3:
         return {
           type: 3 as const,
-          originSystemId: originSystem,
-          destSystemId: destSystem,
+          originSystemId: originSystem?.toString() ?? '',
+          destSystemId: destSystem?.toString() ?? '',
           threatLevel: Number(threatLevel),
           gateCamps,
           notes: n,
@@ -147,12 +124,16 @@ export function CreateListing() {
       }
 
       const onChainSystemId = intelType === 3 ? originSystem : systemId
+      if (!onChainSystemId) {
+        setError('Please select a system')
+        return
+      }
 
       setStatus('Creating listing...')
       const payload = new TextEncoder().encode(JSON.stringify(result.data))
       const createTx = buildCreateListingTx({
         intelType,
-        systemId: BigInt(onChainSystemId),
+        systemId: onChainSystemId,
         price: BigInt(price),
         decayHours: BigInt(decayHours),
         walrusBlobId: new Uint8Array(0),
@@ -203,9 +184,9 @@ export function CreateListing() {
 
   function handleTypeChange(newType: number) {
     setIntelType(newType)
-    setSystemId('')
-    setOriginSystem('')
-    setDestSystem('')
+    setSystemId(null)
+    setOriginSystem(null)
+    setDestSystem(null)
   }
 
   return (
@@ -227,7 +208,8 @@ export function CreateListing() {
         </div>
 
         {intelType !== 3 && (
-          <SystemIdInput
+          <SystemPicker
+            systems={galaxy?.systems ?? []}
             value={systemId}
             onChange={setSystemId}
             label="System"
@@ -406,13 +388,15 @@ export function CreateListing() {
 
           {intelType === 3 && (
             <>
-              <SystemIdInput
+              <SystemPicker
+                systems={galaxy?.systems ?? []}
                 value={originSystem}
                 onChange={setOriginSystem}
                 label="Origin System"
                 required
               />
-              <SystemIdInput
+              <SystemPicker
+                systems={galaxy?.systems ?? []}
                 value={destSystem}
                 onChange={setDestSystem}
                 label="Destination System"
