@@ -3,24 +3,35 @@ import { useCallback, useMemo, useState } from 'react'
 import { INTEL_TYPE_LABEL_MAP } from '../../lib/constants'
 import { timeRemaining, truncateAddress } from '../../lib/format'
 import type { SystemHeatData } from '../../lib/heat-map-data'
-import { DEMO_SYSTEMS, SYSTEM_MAP } from '../../lib/systems'
 import type { IntelListingFields } from '../../lib/types'
+import { useGalaxyData } from '../../providers/GalaxyDataProvider'
 import { SystemNode } from './SystemNode'
 
 const VIEWBOX_SIZE = 1000
+const SCENE_RANGE = 50
+const PADDING = 60
 
-const REGION_LABELS = (() => {
-  const regions = ['Core', 'North Frontier', 'Eastern Rim', 'Southern Expanse', 'Western Passage', 'Outer Reaches']
-  return regions.map((region) => {
-    const systems = DEMO_SYSTEMS.filter((s) => s.region === region)
-    if (systems.length === 0) return null
-    return {
-      region,
-      x: systems.reduce((sum, s) => sum + s.x, 0) / systems.length,
-      y: systems.reduce((sum, s) => sum + s.y, 0) / systems.length,
-    }
-  }).filter(Boolean) as { region: string; x: number; y: number }[]
-})()
+// ─── Pure utilities (exported for testing) ───────────────────────────────────
+
+/**
+ * Project galaxy scene-space [x, z] coordinates onto an SVG viewport.
+ * Scene range is [-sceneRange, +sceneRange] on the widest axis.
+ * Adds padding so nodes are not clipped at the edges.
+ */
+export function sceneToSvg(
+  sceneX: number,
+  sceneZ: number,
+  viewboxSize: number,
+  sceneRange: number = SCENE_RANGE,
+  padding: number = PADDING,
+): { svgX: number; svgY: number } {
+  const usable = viewboxSize - 2 * padding
+  const svgX = padding + ((sceneX + sceneRange) / (2 * sceneRange)) * usable
+  const svgY = padding + ((sceneZ + sceneRange) / (2 * sceneRange)) * usable
+  return { svgX, svgY }
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function HeatMap({
   systems,
@@ -29,15 +40,43 @@ export function HeatMap({
   systems: SystemHeatData[]
   onSelectListing?: (listing: IntelListingFields) => void
 }) {
+  const galaxy = useGalaxyData()
   const [selectedSystem, setSelectedSystem] = useState<bigint | null>(null)
 
-  const systemMap = useMemo(
+  const heatMap = useMemo(
     () => new Map(systems.map((s) => [s.systemId, s])),
     [systems],
   )
 
-  const selectedData = selectedSystem ? systemMap.get(selectedSystem) : undefined
-  const selectedStar = selectedSystem ? SYSTEM_MAP.get(selectedSystem) : undefined
+  // Join heat data with galaxy system metadata — only intel-active systems
+  const activeSystems = useMemo(() => {
+    if (!galaxy) return []
+    return systems.flatMap((heat) => {
+      const sys = galaxy.systemMap.get(heat.systemId)
+      if (!sys) return []
+      const { svgX, svgY } = sceneToSvg(sys.x, sys.z, VIEWBOX_SIZE)
+      return [{ system: sys, heat, svgX, svgY }]
+    })
+  }, [systems, galaxy])
+
+  // Region label positions: centroid of active systems per region
+  const regionLabels = useMemo(() => {
+    const byRegion = new Map<string, { xs: number[]; ys: number[] }>()
+    for (const { system, svgX, svgY } of activeSystems) {
+      let r = byRegion.get(system.region)
+      if (!r) { r = { xs: [], ys: [] }; byRegion.set(system.region, r) }
+      r.xs.push(svgX)
+      r.ys.push(svgY)
+    }
+    return Array.from(byRegion.entries()).map(([region, { xs, ys }]) => ({
+      region,
+      x: xs.reduce((a, b) => a + b, 0) / xs.length,
+      y: ys.reduce((a, b) => a + b, 0) / ys.length,
+    }))
+  }, [activeSystems])
+
+  const selectedData = selectedSystem ? heatMap.get(selectedSystem) : undefined
+  const selectedStar = selectedSystem ? galaxy?.systemMap.get(selectedSystem) : undefined
 
   const handleSystemClick = useCallback((systemId: bigint) => {
     setSelectedSystem((prev) => (prev === systemId ? null : systemId))
@@ -58,19 +97,21 @@ export function HeatMap({
         </defs>
         <rect width={VIEWBOX_SIZE} height={VIEWBOX_SIZE} fill="url(#grid)" />
 
-        {/* Region labels (precomputed at module level) */}
-        {REGION_LABELS.map(({ region, x, y }) => (
+        {/* Region labels (computed from active systems) */}
+        {regionLabels.map(({ region, x, y }) => (
           <text key={region} x={x} y={y - 40} textAnchor="middle" className="region-label">
             {region}
           </text>
         ))}
 
-        {/* System nodes */}
-        {DEMO_SYSTEMS.map((system) => (
+        {/* Intel-active system nodes only */}
+        {activeSystems.map(({ system, heat, svgX, svgY }) => (
           <SystemNode
             key={system.id.toString()}
             system={system}
-            heatData={systemMap.get(system.id)}
+            svgX={svgX}
+            svgY={svgY}
+            heatData={heat}
             isSelected={selectedSystem === system.id}
             onClick={handleSystemClick}
           />

@@ -1,5 +1,5 @@
+import type { GalaxySystem } from '../../lib/galaxy-data'
 import type { SystemHeatData } from '../../lib/heat-map-data'
-import type { StarSystem } from '../../lib/systems'
 
 const TYPE_COLORS: Record<number, string> = {
   0: '#10b981', // resource — green
@@ -10,11 +10,15 @@ const TYPE_COLORS: Record<number, string> = {
 
 export function SystemNode({
   system,
+  svgX,
+  svgY,
   heatData,
   isSelected,
   onClick,
 }: {
-  system: StarSystem
+  system: GalaxySystem
+  svgX: number
+  svgY: number
   heatData: SystemHeatData | undefined
   isSelected: boolean
   onClick: (systemId: bigint) => void
@@ -35,8 +39,8 @@ export function SystemNode({
       {/* Glow ring */}
       {count > 0 && (
         <circle
-          cx={system.x}
-          cy={system.y}
+          cx={svgX}
+          cy={svgY}
           r={radius + 6}
           fill={color}
           opacity={opacity * 0.2}
@@ -46,8 +50,8 @@ export function SystemNode({
 
       {/* Main dot */}
       <circle
-        cx={system.x}
-        cy={system.y}
+        cx={svgX}
+        cy={svgY}
         r={radius}
         fill={color}
         opacity={opacity}
@@ -57,8 +61,8 @@ export function SystemNode({
 
       {/* Label */}
       <text
-        x={system.x}
-        y={system.y - radius - 6}
+        x={svgX}
+        y={svgY - radius - 6}
         textAnchor="middle"
         className="system-label"
         fill={count > 0 ? '#e5e7eb' : '#6b7280'}
@@ -70,8 +74,8 @@ export function SystemNode({
       {/* Listing count badge */}
       {count > 0 && (
         <text
-          x={system.x}
-          y={system.y + 4}
+          x={svgX}
+          y={svgY + 4}
           textAnchor="middle"
           fill="#fff"
           fontSize={10}
