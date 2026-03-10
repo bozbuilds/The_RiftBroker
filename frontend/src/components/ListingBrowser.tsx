@@ -2,10 +2,11 @@ import { useState } from 'react'
 
 import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { mistToSui, timeRemaining, truncateAddress } from '../lib/format'
-import { obfuscatedLocation } from '../lib/systems'
+import { obfuscatedLocation } from '../lib/galaxy-data'
 import type { IntelListingFields } from '../lib/types'
 import { useListings } from '../hooks/useListings'
 import { useReceipts } from '../hooks/useReceipts'
+import { useGalaxyData } from '../providers/GalaxyDataProvider'
 
 function isExpired(listing: IntelListingFields): boolean {
   const expiryMs = Number(listing.createdAt) + Number(listing.decayHours) * 3_600_000
@@ -19,6 +20,7 @@ export function ListingBrowser({
 }) {
   const { data: listings, isLoading, error } = useListings()
   const { data: receiptData } = useReceipts()
+  const galaxy = useGalaxyData()
   const [typeFilter, setTypeFilter] = useState<number | null>(null)
 
   if (isLoading) return <p className="loading-text"><span className="loading-spinner" />Loading listings...</p>
@@ -69,7 +71,7 @@ export function ListingBrowser({
                 </span>
                 {owned && <span className="listing-owned-badge">Owned</span>}
                 <span className="listing-item-meta">
-                  {' '}— {obfuscatedLocation(listing.systemId)} | {truncateAddress(listing.scout)}
+                  {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? new Map(), galaxy?.regionSystemCounts ?? new Map())} | {truncateAddress(listing.scout)}
                 </span>
               </div>
               <div>

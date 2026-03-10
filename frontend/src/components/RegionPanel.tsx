@@ -1,10 +1,11 @@
 import { INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { mistToSui, timeRemaining, truncateAddress } from '../lib/format'
-import { obfuscatedLocation } from '../lib/systems'
+import { obfuscatedLocation } from '../lib/galaxy-data'
 import { TYPE_COLORS } from '../lib/region-data'
 import type { RegionHeatData } from '../lib/region-data'
 import type { IntelListingFields } from '../lib/types'
 import type { SystemHeatData } from '../lib/heat-map-data'
+import { useGalaxyData } from '../providers/GalaxyDataProvider'
 
 interface RegionPanelProps {
   readonly region: RegionHeatData
@@ -17,6 +18,7 @@ interface RegionPanelProps {
  * Reuses listing item UI from ListingBrowser.
  */
 export function RegionPanel({ region, onSelectListing, onClose }: RegionPanelProps) {
+  const galaxy = useGalaxyData()
   const color = TYPE_COLORS[region.dominantType]
 
   // Flatten all listings from system heat data
@@ -49,7 +51,7 @@ export function RegionPanel({ region, onSelectListing, onClose }: RegionPanelPro
                 {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
               </span>
               <span className="listing-item-meta">
-                {' '}— {obfuscatedLocation(listing.systemId)} | {truncateAddress(listing.scout)}
+                {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? new Map(), galaxy?.regionSystemCounts ?? new Map())} | {truncateAddress(listing.scout)}
               </span>
             </div>
             <div>

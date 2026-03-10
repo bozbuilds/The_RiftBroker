@@ -1,3 +1,6 @@
+// Galaxy data JSON (served from /public — relative URL works in dev and production)
+export const GALAXY_JSON_URL = '/galaxy.json'
+
 // Deployed on SUI testnet (2026-02-27)
 export const PACKAGE_ID = '0xa5e33645e5d1b3f886aa6624157b131c389c9c61aedb744e20a761b5003608b8'
 

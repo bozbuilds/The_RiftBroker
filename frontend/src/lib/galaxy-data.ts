@@ -78,15 +78,19 @@ export function normalizeCoordinates(
 export function parseGalaxyData(raw: readonly RawGalaxySystem[]): GalaxyData {
   const normalized = normalizeCoordinates(raw)
 
-  const systems: GalaxySystem[] = raw.map((r, i) => ({
-    id: BigInt(r.id),
-    name: r.name,
-    x: normalized[i].x,
-    y: normalized[i].y,
-    z: normalized[i].z,
-    region: r.region,
-    regionId: r.regionId,
-  }))
+  const systems: GalaxySystem[] = raw.map((r, i) => {
+    // normalized and raw are co-indexed — normalized[i] always exists
+    const norm = normalized[i]!
+    return {
+      id: BigInt(r.id),
+      name: r.name,
+      x: norm.x,
+      y: norm.y,
+      z: norm.z,
+      region: r.region,
+      regionId: r.regionId,
+    }
+  })
 
   const systemMap = new Map<bigint, GalaxySystem>()
   const regionMap = new Map<string, GalaxySystem[]>()

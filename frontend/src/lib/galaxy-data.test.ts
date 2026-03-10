@@ -25,20 +25,17 @@ describe('normalizeCoordinates', () => {
   it('preserves aspect ratio across axes (single scale factor)', () => {
     const normalized = normalizeCoordinates(RAW_FIXTURE)
     // The scale factor is uniform — ratios between distances should be preserved
-    const raw_dx = RAW_FIXTURE[0].x - RAW_FIXTURE[1].x
-    const raw_dz = RAW_FIXTURE[0].z - RAW_FIXTURE[1].z
-    const norm_dx = normalized[0].x - normalized[1].x
-    const norm_dz = normalized[0].z - normalized[1].z
+    const raw_dx = RAW_FIXTURE[0]!.x - RAW_FIXTURE[1]!.x
+    const raw_dz = RAW_FIXTURE[0]!.z - RAW_FIXTURE[1]!.z
+    const norm_dx = normalized[0]!.x - normalized[1]!.x
+    const norm_dz = normalized[0]!.z - normalized[1]!.z
     // ratio of dx/dz should be the same in raw and normalized
     expect(norm_dx / norm_dz).toBeCloseTo(raw_dx / raw_dz, 5)
   })
 
   it('centers the galaxy at origin', () => {
     const normalized = normalizeCoordinates(RAW_FIXTURE)
-    const cx = normalized.reduce((s, p) => s + p.x, 0) / normalized.length
-    const cy = normalized.reduce((s, p) => s + p.y, 0) / normalized.length
-    const cz = normalized.reduce((s, p) => s + p.z, 0) / normalized.length
-    // Center should be near zero (not exact because fixture is asymmetric, but bounding-box center is zero)
+    // Bounding-box center should be at origin
     const xs = normalized.map(s => s.x)
     const ys = normalized.map(s => s.y)
     const zs = normalized.map(s => s.z)
@@ -48,11 +45,11 @@ describe('normalizeCoordinates', () => {
   })
 
   it('handles a single-system input without crashing', () => {
-    const result = normalizeCoordinates([RAW_FIXTURE[0]])
+    const result = normalizeCoordinates([RAW_FIXTURE[0]!])
     expect(result).toHaveLength(1)
-    expect(result[0].x).toBe(0)
-    expect(result[0].y).toBe(0)
-    expect(result[0].z).toBe(0)
+    expect(result[0]!.x).toBe(0)
+    expect(result[0]!.y).toBe(0)
+    expect(result[0]!.z).toBe(0)
   })
 })
 

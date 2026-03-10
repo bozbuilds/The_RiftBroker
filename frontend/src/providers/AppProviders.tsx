@@ -3,6 +3,8 @@ import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
+import { GalaxyDataProvider } from './GalaxyDataProvider'
+
 const queryClient = new QueryClient()
 
 const { networkConfig } = createNetworkConfig({
@@ -15,7 +17,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
         <WalletProvider>
-          {children}
+          <GalaxyDataProvider>
+            {children}
+          </GalaxyDataProvider>
         </WalletProvider>
       </SuiClientProvider>
     </QueryClientProvider>

@@ -7,14 +7,8 @@ import { INTEL_TYPE_LABELS, SEAL_KEY_SERVERS } from '../lib/constants'
 import { mistToSui } from '../lib/format'
 import { intelPayloadSchema } from '../lib/intel-schemas'
 import { encryptIntel } from '../lib/seal'
-import { DEMO_SYSTEMS } from '../lib/systems'
 import { buildCreateListingTx, buildSetBlobIdTx } from '../lib/transactions'
 import { uploadBlob } from '../lib/walrus'
-
-const SYSTEMS_BY_REGION = DEMO_SYSTEMS.reduce<Record<string, typeof DEMO_SYSTEMS[number][]>>(
-  (acc, s) => { (acc[s.region] ??= []).push(s); return acc },
-  {},
-)
 
 function MistHint({ mist }: { mist: string }) {
   const sui = mistToSui(mist)
@@ -22,7 +16,7 @@ function MistHint({ mist }: { mist: string }) {
   return <div className="form-hint"><span className="form-hint-value">{sui} SUI</span></div>
 }
 
-function SystemDropdown({
+function SystemIdInput({
   value,
   onChange,
   label,
@@ -36,23 +30,15 @@ function SystemDropdown({
   return (
     <div className="form-group">
       <label className="form-label">{label}</label>
-      <select
-        className="form-select"
+      <input
+        className="form-input"
+        type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        placeholder="e.g. 30004759"
         required={required}
-      >
-        <option value="">Select a system...</option>
-        {Object.entries(SYSTEMS_BY_REGION).map(([region, systems]) => (
-          <optgroup key={region} label={region}>
-            {systems.map((s) => (
-              <option key={s.id.toString()} value={s.id.toString()}>
-                {s.name}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+      />
+      <div className="form-hint">Enter the numeric system ID. Searchable picker coming soon.</div>
     </div>
   )
 }
@@ -241,7 +227,7 @@ export function CreateListing() {
         </div>
 
         {intelType !== 3 && (
-          <SystemDropdown
+          <SystemIdInput
             value={systemId}
             onChange={setSystemId}
             label="System"
@@ -420,13 +406,13 @@ export function CreateListing() {
 
           {intelType === 3 && (
             <>
-              <SystemDropdown
+              <SystemIdInput
                 value={originSystem}
                 onChange={setOriginSystem}
                 label="Origin System"
                 required
               />
-              <SystemDropdown
+              <SystemIdInput
                 value={destSystem}
                 onChange={setDestSystem}
                 label="Destination System"

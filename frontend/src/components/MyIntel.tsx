@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react'
 
 import { DECRYPT_STATUS_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { isExpired, mistToSui, truncateAddress } from '../lib/format'
-import { obfuscatedLocation } from '../lib/systems'
+import { obfuscatedLocation } from '../lib/galaxy-data'
 import { buildBurnReceiptTx } from '../lib/transactions'
 import { useDecrypt } from '../hooks/useDecrypt'
 import { useReceipts } from '../hooks/useReceipts'
+import { useGalaxyData } from '../providers/GalaxyDataProvider'
 import { IntelViewer } from './IntelViewer'
 import type { EnrichedReceipt } from '../lib/types'
 import type { IntelPayload } from '../lib/intel-schemas'
@@ -15,6 +16,7 @@ import type { IntelPayload } from '../lib/intel-schemas'
 export function MyIntel() {
   const { data: receiptData, isLoading, error } = useReceipts()
   const { status: decryptStatus, error: decryptError, decrypt } = useDecrypt()
+  const galaxy = useGalaxyData()
   const suiClient = useSuiClient()
   const queryClient = useQueryClient()
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction()
@@ -78,7 +80,7 @@ export function MyIntel() {
           </span>
           {isItemExpired && <span className="listing-expired-badge">Expired</span>}
           <span className="listing-item-meta">
-            {' '}— {obfuscatedLocation(listing.systemId)} | {truncateAddress(listing.scout)}
+            {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? new Map(), galaxy?.regionSystemCounts ?? new Map())} | {truncateAddress(listing.scout)}
           </span>
         </div>
         <div>
