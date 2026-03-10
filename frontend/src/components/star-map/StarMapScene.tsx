@@ -1,7 +1,7 @@
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import type { GalaxySystem } from '../../lib/galaxy-data'
 import type { RegionHeatData } from '../../lib/region-data'
@@ -39,6 +39,43 @@ function useActiveSystems(systems: readonly GalaxySystem[], heatMap: Map<bigint,
   }, [systems, heatMap])
 }
 
+// ─── Pure utilities (exported for testing) ───────────────────────────────────
+
+/**
+ * Compute the XZ centroid of a set of scene-space positions.
+ * Returns null for an empty array (no intel activity to orient toward).
+ */
+export function computeCentroid(
+  systems: readonly { x: number; z: number }[],
+): { cx: number; cz: number } | null {
+  if (systems.length === 0) return null
+  const cx = systems.reduce((s, sys) => s + sys.x, 0) / systems.length
+  const cz = systems.reduce((s, sys) => s + sys.z, 0) / systems.length
+  return { cx, cz }
+}
+
+// ─── Camera auto-orient (inside Canvas) ──────────────────────────────────────
+
+/**
+ * Orients the camera toward the centroid of intel-active systems on first load.
+ * Runs once after OrbitControls registers as default; does nothing thereafter.
+ */
+function CameraAutoOrient({ centroid }: { centroid: { cx: number; cz: number } | null }) {
+  const { camera, controls } = useThree()
+  const oriented = useRef(false)
+
+  useEffect(() => {
+    if (oriented.current || !centroid || !controls) return
+    camera.position.set(centroid.cx, 60, centroid.cz + 60)
+    // OrbitControls registers as default controls — exposes target + update()
+    ;(controls as any).target?.set(centroid.cx, 0, centroid.cz)
+    ;(controls as any).update?.()
+    oriented.current = true
+  }, [centroid, camera, controls])
+
+  return null
+}
+
 const IS_MOBILE = typeof window !== 'undefined' && window.innerWidth < 768
 
 /**
@@ -56,6 +93,11 @@ export function StarMapScene({
   const heatMap = useHeatMap(systemHeats)
   const activeSystems = useActiveSystems(systems, heatMap)
 
+  const centroid = useMemo(
+    () => computeCentroid(activeSystems.map(({ system }) => system)),
+    [activeSystems],
+  )
+
   return (
     <Canvas
       camera={{ position: [0, 60, 60], fov: 50 }}
@@ -65,6 +107,8 @@ export function StarMapScene({
     >
       <ambientLight intensity={0.15} />
       <pointLight position={[0, 80, 0]} intensity={0.3} />
+
+      <CameraAutoOrient centroid={centroid} />
 
       <StarField />
       <HoloGrid />
@@ -94,10 +138,11 @@ export function StarMapScene({
       ))}
 
       <OrbitControls
+        makeDefault
         enabled={!panelOpen}
         enablePan={false}
-        maxDistance={120}
-        minDistance={20}
+        maxDistance={150}
+        minDistance={15}
         enableDamping
         dampingFactor={0.05}
         maxPolarAngle={Math.PI / 2.2}

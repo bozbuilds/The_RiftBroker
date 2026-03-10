@@ -3,6 +3,10 @@ import { useFrame } from '@react-three/fiber'
 import { useState, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
+const PREFERS_REDUCED_MOTION =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
 import type { RegionHeatData } from '../../lib/region-data'
 import { TYPE_COLORS } from '../../lib/region-data'
 
@@ -23,11 +27,13 @@ export function RegionZone({ data, onClick }: RegionZoneProps) {
   const color = TYPE_COLORS[data.dominantType]
   const isFresh = data.freshness > 0.5
 
-  // Animate fill opacity for fresh regions
+  // Animate fill opacity for fresh regions — respects prefers-reduced-motion
   useFrame(({ clock }) => {
     if (!fillRef.current || !isFresh) return
     const mat = fillRef.current.material as THREE.MeshBasicMaterial
-    const pulse = 0.02 + Math.sin(clock.elapsedTime * 2) * 0.02
+    const pulse = PREFERS_REDUCED_MOTION
+      ? 0.03
+      : 0.02 + Math.sin(clock.elapsedTime * 2) * 0.02
     mat.opacity = hovered ? 0.08 : pulse
   })
 
