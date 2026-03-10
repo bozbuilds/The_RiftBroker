@@ -3,33 +3,48 @@ import { OrbitControls } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { useMemo } from 'react'
 
-import type { StarSystem } from '../../lib/systems'
+import type { GalaxySystem } from '../../lib/galaxy-data'
 import type { RegionHeatData } from '../../lib/region-data'
 import type { SystemHeatData } from '../../lib/heat-map-data'
+import { GalaxyParticles } from './GalaxyParticles'
 import { StarField } from './StarField'
 import { HoloGrid } from './HoloGrid'
 import { SystemDot } from './SystemDot'
 import { RegionZone } from './RegionZone'
 
 interface StarMapSceneProps {
-  readonly systems: readonly StarSystem[]
+  /** All galaxy systems — rendered as background particles. */
+  readonly systems: readonly GalaxySystem[]
   readonly regions: RegionHeatData[]
   readonly systemHeats: SystemHeatData[]
   readonly panelOpen: boolean
   readonly onRegionClick: (regionName: string) => void
 }
 
-/** Look up per-system heat data for the SystemDot props. */
-function useSystemHeatMap(systemHeats: SystemHeatData[]) {
+/** O(1) heat lookup by system ID. */
+function useHeatMap(systemHeats: SystemHeatData[]) {
   return useMemo(
     () => new Map(systemHeats.map((h) => [h.systemId, h])),
     [systemHeats],
   )
 }
 
+/** Build O(1) system lookup and filter to intel-active systems only. */
+function useActiveSystems(systems: readonly GalaxySystem[], heatMap: Map<bigint, SystemHeatData>) {
+  return useMemo(() => {
+    const sysMap = new Map(systems.map((s) => [s.id, s]))
+    return Array.from(heatMap.values())
+      .map((heat) => ({ heat, system: sysMap.get(heat.systemId) }))
+      .filter((x): x is { heat: SystemHeatData; system: GalaxySystem } => x.system != null)
+  }, [systems, heatMap])
+}
+
+const IS_MOBILE = typeof window !== 'undefined' && window.innerWidth < 768
+
 /**
- * Full 3D star map scene with holographic grid, star field,
- * system dots, and region wireframe zones.
+ * Full 3D star map scene.
+ * Background: instanced GalaxyParticles (all ~24K systems, blue-navy).
+ * Foreground: SystemDots only for intel-active systems with targeting rings.
  */
 export function StarMapScene({
   systems,
@@ -38,7 +53,8 @@ export function StarMapScene({
   panelOpen,
   onRegionClick,
 }: StarMapSceneProps) {
-  const heatMap = useSystemHeatMap(systemHeats)
+  const heatMap = useHeatMap(systemHeats)
+  const activeSystems = useActiveSystems(systems, heatMap)
 
   return (
     <Canvas
@@ -53,6 +69,11 @@ export function StarMapScene({
       <StarField />
       <HoloGrid />
 
+      {/* Background star field — all real systems, no interactivity */}
+      {!IS_MOBILE && systems.length > 0 && (
+        <GalaxyParticles systems={systems} />
+      )}
+
       {regions.map((r) => (
         <RegionZone
           key={r.regionName}
@@ -61,18 +82,16 @@ export function StarMapScene({
         />
       ))}
 
-      {systems.map((s) => {
-        const heat = heatMap.get(s.id)
-        return (
-          <SystemDot
-            key={s.id.toString()}
-            system={s}
-            listingCount={heat?.listingCount}
-            dominantType={heat?.dominantType}
-            freshness={heat?.freshness}
-          />
-        )
-      })}
+      {/* Interactive dots — only systems with active intel */}
+      {activeSystems.map(({ heat, system }) => (
+        <SystemDot
+          key={system.id.toString()}
+          system={system}
+          listingCount={heat.listingCount}
+          dominantType={heat.dominantType}
+          freshness={heat.freshness}
+        />
+      ))}
 
       <OrbitControls
         enabled={!panelOpen}

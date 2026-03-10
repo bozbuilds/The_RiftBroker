@@ -19,6 +19,7 @@ import { DECRYPT_STATUS_LABELS } from './lib/constants'
 import type { IntelPayload } from './lib/intel-schemas'
 import { aggregateByRegion } from './lib/region-data'
 import { DEMO_SYSTEMS } from './lib/systems'
+import { useGalaxyData } from './providers/GalaxyDataProvider'
 import type { IntelListingFields } from './lib/types'
 
 // Panel state machine — only one panel at a time
@@ -45,6 +46,7 @@ export function App() {
   const heatMap = useHeatMapData()
   const { data: receiptData } = useReceipts()
   const { status: decryptStatus, error: decryptError, decrypt } = useDecrypt()
+  const galaxy = useGalaxyData()
 
   // Aggregate system heat data into region-level data for the 3D scene
   const regionData = useMemo(
@@ -172,7 +174,7 @@ export function App() {
         </div>
       }>
         <StarMapScene
-          systems={DEMO_SYSTEMS}
+          systems={galaxy?.systems ?? []}
           regions={regionData}
           systemHeats={heatMap.systems}
           panelOpen={panel.kind !== 'none'}
@@ -210,7 +212,7 @@ export function App() {
             <HeatMapControls
               filters={heatMap.filters}
               onFilterChange={heatMap.setFilters}
-              totalSystems={DEMO_SYSTEMS.length}
+              totalSystems={galaxy?.systems.length ?? DEMO_SYSTEMS.length}
               activeSystems={heatMap.allSystems.length}
             />
           </div>
