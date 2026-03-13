@@ -2,6 +2,7 @@ import { useCurrentAccount } from '@mysten/dapp-kit'
 import { useState } from 'react'
 
 import type { IntelListingFields } from '../lib/types'
+import { truncateAddress } from '../lib/format'
 import { usePurchase } from '../hooks/usePurchase'
 
 export function PurchaseFlow({
@@ -37,7 +38,7 @@ export function PurchaseFlow({
       <div className="purchase-details">
         <p>System: {listing.systemId.toString()}</p>
         <p>Price: <strong>{listing.individualPrice.toString()} MIST</strong></p>
-        <p>Scout: {listing.scout}</p>
+        <p>Scout: {truncateAddress(listing.scout)}</p>
       </div>
 
       <div className="purchase-actions">

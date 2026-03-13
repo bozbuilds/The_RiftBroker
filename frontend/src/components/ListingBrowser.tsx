@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
@@ -14,6 +14,20 @@ function isExpired(listing: IntelListingFields): boolean {
   return Date.now() >= expiryMs
 }
 
+type PriceSort = 'asc' | 'desc' | null
+
+function nextPriceSort(current: PriceSort): PriceSort {
+  if (current === null) return 'asc'
+  if (current === 'asc') return 'desc'
+  return null
+}
+
+function priceSortLabel(sort: PriceSort): string {
+  if (sort === 'asc') return 'Price \u25B2'
+  if (sort === 'desc') return 'Price \u25BC'
+  return 'Price'
+}
+
 export function ListingBrowser({
   onSelect,
 }: {
@@ -23,17 +37,60 @@ export function ListingBrowser({
   const { data: receiptData } = useReceipts()
   const galaxy = useGalaxyData()
   const [typeFilter, setTypeFilter] = useState<number | null>(null)
+  const [regionFilter, setRegionFilter] = useState<string | null>(null)
+  const [priceSort, setPriceSort] = useState<PriceSort>(null)
+
+  const systemMap = galaxy?.systemMap ?? EMPTY_SYSTEM_MAP
+  const regionCounts = galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS
+
+  // Active (non-expired, non-delisted) listings filtered by type
+  const typeFiltered = useMemo(() => {
+    if (!listings) return []
+    return listings.filter((l) => {
+      if (l.delisted) return false
+      if (isExpired(l)) return false
+      if (typeFilter !== null && l.intelType !== typeFilter) return false
+      return true
+    })
+  }, [listings, typeFilter])
+
+  // Unique regions present in the type-filtered listings
+  const availableRegions = useMemo(() => {
+    const regions = new Set<string>()
+    for (const l of typeFiltered) {
+      const system = systemMap.get(l.systemId)
+      if (system) regions.add(system.region)
+    }
+    return [...regions].sort()
+  }, [typeFiltered, systemMap])
+
+  // Apply region filter + price sort
+  const filtered = useMemo(() => {
+    let result = typeFiltered
+    if (regionFilter) {
+      result = result.filter((l) => {
+        const system = systemMap.get(l.systemId)
+        return system?.region === regionFilter
+      })
+    }
+    if (priceSort) {
+      result = [...result].sort((a, b) =>
+        priceSort === 'asc'
+          ? Number(a.individualPrice - b.individualPrice)
+          : Number(b.individualPrice - a.individualPrice),
+      )
+    }
+    return result
+  }, [typeFiltered, regionFilter, priceSort, systemMap])
+
+  // Reset region filter when it no longer applies
+  if (regionFilter && !availableRegions.includes(regionFilter)) {
+    setRegionFilter(null)
+  }
 
   if (isLoading) return <p className="loading-text"><span className="loading-spinner" />Loading listings...</p>
   if (error) return <div className="status-message status-error">Error: {error.message}</div>
   if (!listings?.length) return <p className="empty-state">No listings found.</p>
-
-  const filtered = listings.filter((l) => {
-    if (l.delisted) return false
-    if (isExpired(l)) return false
-    if (typeFilter !== null && l.intelType !== typeFilter) return false
-    return true
-  })
 
   return (
     <section>
@@ -57,6 +114,26 @@ export function ListingBrowser({
         ))}
       </div>
 
+      <div className="listing-filters">
+        <select
+          className="filter-select"
+          value={regionFilter ?? ''}
+          onChange={(e) => setRegionFilter(e.target.value || null)}
+        >
+          <option value="">All Regions</option>
+          {availableRegions.map((r) => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
+
+        <button
+          className={`filter-btn${priceSort ? ' active' : ''}`}
+          onClick={() => setPriceSort(nextPriceSort(priceSort))}
+        >
+          {priceSortLabel(priceSort)}
+        </button>
+      </div>
+
       <ul className="listing-list">
         {filtered.map((listing) => {
           const owned = receiptData?.byListingId.has(listing.id)
@@ -72,7 +149,7 @@ export function ListingBrowser({
                 </span>
                 {owned && <span className="listing-owned-badge">Owned</span>}
                 <span className="listing-item-meta">
-                  {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
+                  {' '}&mdash; {obfuscatedLocation(listing.systemId, systemMap, regionCounts)} | {truncateAddress(listing.scout)}
                 </span>
               </div>
               <div>
@@ -90,6 +167,9 @@ export function ListingBrowser({
             </li>
           )
         })}
+        {filtered.length === 0 && (
+          <li className="empty-state">No listings match the current filters.</li>
+        )}
       </ul>
     </section>
   )

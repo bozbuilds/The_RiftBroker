@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import { INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
 import { mistToSui, timeRemaining, truncateAddress } from '../lib/format'
@@ -10,6 +12,7 @@ import { useGalaxyData } from '../providers/GalaxyDataProvider'
 
 interface RegionPanelProps {
   readonly region: RegionHeatData
+  readonly footer?: ReactNode
   readonly onSelectListing: (listing: IntelListingFields) => void
   readonly onClose: () => void
 }
@@ -18,7 +21,7 @@ interface RegionPanelProps {
  * Slide-in drawer showing all listings in a clicked region.
  * Reuses listing item UI from ListingBrowser.
  */
-export function RegionPanel({ region, onSelectListing, onClose }: RegionPanelProps) {
+export function RegionPanel({ region, footer, onSelectListing, onClose }: RegionPanelProps) {
   const galaxy = useGalaxyData()
   const color = TYPE_COLORS[region.dominantType]
 
@@ -70,6 +73,12 @@ export function RegionPanel({ region, onSelectListing, onClose }: RegionPanelPro
           <li className="empty-state">No active listings in this region.</li>
         )}
       </ul>
+
+      {footer && (
+        <div className="floating-panel-footer">
+          {footer}
+        </div>
+      )}
     </div>
   )
 }

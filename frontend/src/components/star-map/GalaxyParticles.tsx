@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import * as THREE from 'three'
 
 import type { GalaxySystem } from '../../lib/galaxy-data'
 
@@ -10,16 +11,45 @@ const CORE_R = 0.165, CORE_G = 0.322, CORE_B = 0.596   // #2a5298
 // Frontier: dim deep-blue
 const FRONT_R = 0.051, FRONT_G = 0.106, FRONT_B = 0.204  // #0d1b33
 
+const DOT_TEX_SIZE = 32
+
+/** Soft circular dot texture — smooth falloff from center to edge. */
+function createDotTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas')
+  canvas.width = DOT_TEX_SIZE
+  canvas.height = DOT_TEX_SIZE
+  const ctx = canvas.getContext('2d')!
+  const half = DOT_TEX_SIZE / 2
+  const gradient = ctx.createRadialGradient(half, half, 0, half, half, half)
+  gradient.addColorStop(0, 'rgba(255,255,255,1)')
+  gradient.addColorStop(0.4, 'rgba(255,255,255,0.6)')
+  gradient.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, DOT_TEX_SIZE, DOT_TEX_SIZE)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.needsUpdate = true
+  return texture
+}
+
+let _dotTexture: THREE.CanvasTexture | null = null
+function getDotTexture() {
+  if (!_dotTexture) _dotTexture = createDotTexture()
+  return _dotTexture
+}
+
 interface GalaxyParticlesProps {
   readonly systems: readonly GalaxySystem[]
 }
 
 /**
  * Instanced background star field from real EVE Frontier coordinates.
- * All ~24K systems rendered as tiny colored points — no interactivity.
+ * All ~24K systems rendered as soft circular points — no interactivity.
  * Two-tier brightness: core cluster vs outer frontier.
+ * Additive blending so dense regions glow instead of forming solid blocks.
  */
 export function GalaxyParticles({ systems }: GalaxyParticlesProps) {
+  const dotTexture = useMemo(getDotTexture, [])
+
   const [positions, colors] = useMemo(() => {
     const pos = new Float32Array(systems.length * 3)
     const col = new Float32Array(systems.length * 3)
@@ -48,10 +78,13 @@ export function GalaxyParticles({ systems }: GalaxyParticlesProps) {
         <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        size={0.06}
+        map={dotTexture}
+        size={0.03}
         vertexColors
         transparent
-        opacity={0.85}
+        opacity={0.5}
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
         sizeAttenuation
       />
     </points>

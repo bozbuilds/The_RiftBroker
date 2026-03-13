@@ -829,6 +829,24 @@ button {
   box-shadow: 0 0 6px rgba(14, 165, 233, 0.2);
 }
 
+.filter-select {
+  padding: 5px 8px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--hud-cyan-dim);
+  border-radius: var(--radius);
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  outline: none;
+}
+
+.filter-select:hover,
+.filter-select:focus {
+  border-color: var(--hud-cyan);
+  color: var(--text-secondary);
+}
+
 /* --- Loading & Status --- */
 
 .status-message {

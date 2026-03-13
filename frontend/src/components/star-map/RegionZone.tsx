@@ -1,24 +1,21 @@
-import { Html } from '@react-three/drei'
-import { memo, useState, useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import * as THREE from 'three'
 
 import type { RegionHeatData } from '../../lib/region-data'
 
 interface RegionZoneProps {
   readonly data: RegionHeatData
-  readonly filteredData?: RegionHeatData
   readonly onClick: (regionName: string) => void
 }
 
 /**
- * Invisible interaction zone for a region.
- * No visual — the IntelNebula component handles all glow rendering.
- * Provides hover tooltip + click-to-open-region-panel.
+ * Invisible click target for a region.
+ * No visual, no hover — IntelNebula sprites handle glow + tooltip.
+ * This provides a catch-all click area so the user can click
+ * anywhere inside the region hull to open the region panel.
  */
-function _RegionZone({ data, filteredData, onClick }: RegionZoneProps) {
-  const [hovered, setHovered] = useState(false)
-
-  // Filled shape for polygon hull click hit-testing
+function _RegionZone({ data, onClick }: RegionZoneProps) {
+  // Extruded hull prism for polygon click target (3+ systems)
   const fillGeometry = useMemo(() => {
     if (data.hull.length < 3) return null
     const shape = new THREE.Shape()
@@ -26,10 +23,10 @@ function _RegionZone({ data, filteredData, onClick }: RegionZoneProps) {
     for (let i = 1; i < data.hull.length; i++)
       shape.lineTo(data.hull[i]![0], data.hull[i]![1])
     shape.closePath()
-    return new THREE.ShapeGeometry(shape)
+    return new THREE.ExtrudeGeometry(shape, { depth: 6, bevelEnabled: false })
   }, [data.hull])
 
-  // Wide invisible hit plane for 2-point (line) hulls — gives a generous click target
+  // Box for 2-point hulls
   const lineHit = useMemo(() => {
     if (data.hull.length !== 2) return null
     const [p1, p2] = data.hull as [[number, number], [number, number]]
@@ -44,67 +41,32 @@ function _RegionZone({ data, filteredData, onClick }: RegionZoneProps) {
     }
   }, [data.hull])
 
-  // Tooltip anchor at hull centroid
-  const center = useMemo(() => {
-    if (data.hull.length === 0) return new THREE.Vector3()
-    const cx = data.hull.reduce((s, [x]) => s + x, 0) / data.hull.length
-    const cz = data.hull.reduce((s, [, z]) => s + z, 0) / data.hull.length
-    return new THREE.Vector3(cx, 2, cz)
-  }, [data.hull])
-
   if (data.hull.length < 2) return null
 
   return (
     <group>
-      {/* Invisible polygon hit area (3+ systems) */}
+      {/* Invisible extruded polygon click target (3+ systems) */}
       {fillGeometry && (
         <mesh
           geometry={fillGeometry}
           rotation={[Math.PI / 2, 0, 0]}
-          position={[0, 0.05, 0]}
+          position={[0, 3, 0]}
           onClick={() => onClick(data.regionName)}
-          onPointerEnter={() => setHovered(true)}
-          onPointerLeave={() => setHovered(false)}
         >
-          <meshBasicMaterial
-            transparent
-            opacity={0}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
         </mesh>
       )}
 
-      {/* Invisible line hit plane (2 systems) */}
+      {/* Invisible box click target (2 systems) */}
       {lineHit && (
         <mesh
-          position={[lineHit.mx, 0.3, lineHit.mz]}
+          position={[lineHit.mx, 1, lineHit.mz]}
           rotation={[-Math.PI / 2, 0, -lineHit.angle]}
           onClick={() => onClick(data.regionName)}
-          onPointerEnter={() => setHovered(true)}
-          onPointerLeave={() => setHovered(false)}
         >
-          <planeGeometry args={[lineHit.len + 2, 4]} />
-          <meshBasicMaterial
-            transparent
-            opacity={0}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
+          <boxGeometry args={[lineHit.len + 4, 6, 6]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
         </mesh>
-      )}
-
-      {/* Hover tooltip */}
-      {hovered && (
-        <Html position={center} center distanceFactor={40}>
-          <div className="region-tooltip">
-            <strong>{data.regionName}</strong>
-            <span>
-              {filteredData?.listingCount ?? data.listingCount} listing
-              {(filteredData?.listingCount ?? data.listingCount) !== 1 ? 's' : ''}
-            </span>
-          </div>
-        </Html>
       )}
     </group>
   )

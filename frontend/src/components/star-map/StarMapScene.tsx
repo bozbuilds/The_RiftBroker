@@ -1,7 +1,8 @@
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import * as THREE from 'three'
 
 import type { GalaxySystem } from '../../lib/galaxy-data'
 import type { RegionHeatData } from '../../lib/region-data'
@@ -15,7 +16,6 @@ import { RegionZone } from './RegionZone'
 interface StarMapSceneProps {
   /** All galaxy systems — rendered as background particles. */
   readonly systems: readonly GalaxySystem[]
-  readonly regions: RegionHeatData[]
   readonly filteredRegions: RegionHeatData[]
   readonly systemHeats: SystemHeatData[]
   readonly panelOpen: boolean
@@ -55,7 +55,7 @@ export function computeCentroid(
   return { cx, cz }
 }
 
-// ─── Camera auto-orient (inside Canvas) ──────────────────────────────────────
+// ─── Camera controllers (inside Canvas) ─────────────────────────────────────
 
 /**
  * Orients the camera toward the centroid of intel-active systems on first load.
@@ -68,11 +68,58 @@ function CameraAutoOrient({ centroid }: { centroid: { cx: number; cz: number } |
   useEffect(() => {
     if (oriented.current || !centroid || !controls) return
     camera.position.set(centroid.cx, 60, centroid.cz + 60)
-    // OrbitControls registers as default controls — exposes target + update()
     ;(controls as any).target?.set(centroid.cx, 0, centroid.cz)
     ;(controls as any).update?.()
     oriented.current = true
   }, [centroid, camera, controls])
+
+  return null
+}
+
+const LERP_SPEED = 0.07
+const ARRIVE_THRESHOLD_SQ = 0.01
+
+/**
+ * Smoothly pans the camera + orbit target to a focus point when a region is clicked.
+ * Preserves the current viewing angle and distance — only translates the focus.
+ */
+function CameraFocus({ target }: { target: { cx: number; cz: number } | null }) {
+  const { camera, controls } = useThree()
+  const focusRef = useRef<{ cx: number; cz: number } | null>(null)
+
+  useEffect(() => {
+    focusRef.current = target
+  }, [target])
+
+  useFrame(() => {
+    const focus = focusRef.current
+    const ctrl = controls as any
+    if (!focus || !ctrl?.target) return
+
+    // Current offset from orbit target to camera (preserves viewing angle)
+    const offX = camera.position.x - ctrl.target.x
+    const offY = camera.position.y - ctrl.target.y
+    const offZ = camera.position.z - ctrl.target.z
+
+    // Lerp orbit target toward focus centroid
+    ctrl.target.x += (focus.cx - ctrl.target.x) * LERP_SPEED
+    ctrl.target.z += (focus.cz - ctrl.target.z) * LERP_SPEED
+
+    // Move camera to maintain same offset
+    camera.position.set(ctrl.target.x + offX, ctrl.target.y + offY, ctrl.target.z + offZ)
+    ctrl.update()
+
+    // Stop when close enough
+    const dx = focus.cx - ctrl.target.x
+    const dz = focus.cz - ctrl.target.z
+    if (dx * dx + dz * dz < ARRIVE_THRESHOLD_SQ) {
+      ctrl.target.x = focus.cx
+      ctrl.target.z = focus.cz
+      camera.position.set(focus.cx + offX, ctrl.target.y + offY, focus.cz + offZ)
+      ctrl.update()
+      focusRef.current = null
+    }
+  })
 
   return null
 }
@@ -86,7 +133,6 @@ const IS_MOBILE = typeof window !== 'undefined' && window.innerWidth < 768
  */
 export function StarMapScene({
   systems,
-  regions,
   filteredRegions,
   systemHeats,
   panelOpen,
@@ -94,11 +140,37 @@ export function StarMapScene({
 }: StarMapSceneProps) {
   const heatMap = useHeatMap(systemHeats)
   const activeSystems = useActiveSystems(systems, heatMap)
+  const [focusTarget, setFocusTarget] = useState<{ cx: number; cz: number } | null>(null)
 
   const centroid = useMemo(
     () => computeCentroid(activeSystems.map(({ system }) => system)),
     [activeSystems],
   )
+
+  // Region centroids for camera focus on click
+  const regionCentroids = useMemo(() => {
+    const sums = new Map<string, { sx: number; sz: number; n: number }>()
+    for (const { system } of activeSystems) {
+      const s = sums.get(system.region)
+      if (s) {
+        s.sx += system.x
+        s.sz += system.z
+        s.n++
+      } else {
+        sums.set(system.region, { sx: system.x, sz: system.z, n: 1 })
+      }
+    }
+    const result = new Map<string, { cx: number; cz: number }>()
+    for (const [region, s] of sums)
+      result.set(region, { cx: s.sx / s.n, cz: s.sz / s.n })
+    return result
+  }, [activeSystems])
+
+  const handleRegionClick = useCallback((regionName: string) => {
+    const c = regionCentroids.get(regionName)
+    if (c) setFocusTarget(c)
+    onRegionClick(regionName)
+  }, [regionCentroids, onRegionClick])
 
   return (
     <Canvas
@@ -111,6 +183,7 @@ export function StarMapScene({
       <pointLight position={[0, 80, 0]} intensity={0.3} />
 
       <CameraAutoOrient centroid={centroid} />
+      <CameraFocus target={focusTarget} />
 
       <StarField />
       <HoloGrid />
@@ -120,26 +193,26 @@ export function StarMapScene({
         <GalaxyParticles systems={systems} />
       )}
 
-      {regions.map((r) => (
+      {filteredRegions.map((r) => (
         <RegionZone
           key={r.regionName}
           data={r}
-          filteredData={filteredRegions.find((fr) => fr.regionName === r.regionName)}
-          onClick={onRegionClick}
+          onClick={handleRegionClick}
         />
       ))}
 
-      <IntelNebula systems={activeSystems} />
+      <IntelNebula systems={activeSystems} onRegionClick={handleRegionClick} />
 
       <OrbitControls
         makeDefault
         enabled={!panelOpen}
-        enablePan={false}
+        enablePan
         maxDistance={150}
         minDistance={5}
         enableDamping
         dampingFactor={0.05}
         maxPolarAngle={Math.PI / 2.2}
+        mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
       />
 
       <EffectComposer>

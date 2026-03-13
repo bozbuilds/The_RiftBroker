@@ -181,7 +181,6 @@ export function App() {
       }>
         <StarMapScene
           systems={galaxy?.systems ?? []}
-          regions={regionData}
           filteredRegions={filteredRegionData}
           systemHeats={heatMap.systems}
           panelOpen={panel.kind !== 'none'}
@@ -240,6 +239,7 @@ export function App() {
           {panel.kind === 'region' && activeRegion && (
             <RegionPanel
               region={activeRegion}
+              footer={purchaseOrDecryptPanel}
               onSelectListing={selectListing}
               onClose={closePanel}
             />
@@ -262,9 +262,6 @@ export function App() {
               <MyIntel />
             </FloatingPanel>
           )}
-
-          {/* Purchase/decrypt overlay for region panel */}
-          {panel.kind === 'region' && purchaseOrDecryptPanel}
         </>
       )}
     </div>
