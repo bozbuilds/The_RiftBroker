@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { GalaxyData, RawGalaxySystem, loadGalaxyData, normalizeCoordinates, obfuscatedLocation, parseGalaxyData } from './galaxy-data'
+import { GalaxyData, RawGalaxySystem, loadGalaxyData, normalizeCoordinates, obfuscatedLocation, parseGalaxyData, validateRawSystem } from './galaxy-data'
 
 // Minimal fixture — 3 systems across 2 regions
 const RAW_FIXTURE: RawGalaxySystem[] = [
@@ -131,6 +131,29 @@ describe('obfuscatedLocation', () => {
   })
 })
 
+// --- validateRawSystem ---
+
+describe('validateRawSystem', () => {
+  it('returns true for a valid record', () => {
+    expect(validateRawSystem(RAW_FIXTURE[0]!)).toBe(true)
+  })
+  it('returns false for null', () => {
+    expect(validateRawSystem(null)).toBe(false)
+  })
+  it('returns false for a non-object primitive', () => {
+    expect(validateRawSystem(42)).toBe(false)
+  })
+  it('returns false when id is missing', () => {
+    expect(validateRawSystem({ name: 'A', x: 0, y: 0, z: 0, region: 'R' })).toBe(false)
+  })
+  it('returns false when x is not a number', () => {
+    expect(validateRawSystem({ id: 1, name: 'A', x: 'bad', y: 0, z: 0, region: 'R' })).toBe(false)
+  })
+  it('returns true when regionId is null (nullable field)', () => {
+    expect(validateRawSystem({ id: 1, name: 'A', x: 0, y: 0, z: 0, region: 'R', regionId: null })).toBe(true)
+  })
+})
+
 // --- loadGalaxyData ---
 
 describe('loadGalaxyData', () => {
@@ -178,5 +201,23 @@ describe('loadGalaxyData', () => {
 
     await expect(loadGalaxyData('https://example.com/galaxy.json'))
       .rejects.toThrow('Network error')
+  })
+
+  it('throws when first record is missing required fields', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => [{ id: 1, name: 'Test' }], // missing x, y, z, region
+    } as Response)
+    await expect(loadGalaxyData('https://example.com/galaxy.json'))
+      .rejects.toThrow()
+  })
+
+  it('throws when array contains non-object elements', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => [42, 'string', null],
+    } as Response)
+    await expect(loadGalaxyData('https://example.com/galaxy.json'))
+      .rejects.toThrow()
   })
 })

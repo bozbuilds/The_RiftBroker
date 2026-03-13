@@ -127,17 +127,37 @@ export function obfuscatedLocation(
 }
 
 /**
+ * Runtime type guard for a raw galaxy system record.
+ * Validates the shape of untrusted JSON before bulk parsing.
+ */
+export function validateRawSystem(record: unknown): record is RawGalaxySystem {
+  if (typeof record !== 'object' || record === null) return false
+  const r = record as Record<string, unknown>
+  return (
+    typeof r.id === 'number' &&
+    typeof r.name === 'string' &&
+    typeof r.x === 'number' &&
+    typeof r.y === 'number' &&
+    typeof r.z === 'number' &&
+    typeof r.region === 'string'
+  )
+}
+
+/**
  * Fetch and parse the galaxy JSON from a CDN URL.
  * Throws on network error, non-ok HTTP status, or invalid JSON shape.
  */
-export async function loadGalaxyData(url: string): Promise<GalaxyData> {
-  const res = await fetch(url)
+export async function loadGalaxyData(url: string, signal?: AbortSignal): Promise<GalaxyData> {
+  const res = await fetch(url, signal ? { signal } : undefined)
   if (!res.ok)
     throw new Error(`Failed to fetch galaxy data: HTTP ${res.status}`)
 
   const raw: unknown = await res.json()
   if (!Array.isArray(raw))
     throw new Error('Galaxy data JSON must be an array of system objects')
+
+  if (raw.length > 0 && !validateRawSystem(raw[0]))
+    throw new Error('Galaxy data JSON records have unexpected shape — check extraction script output')
 
   return parseGalaxyData(raw as RawGalaxySystem[])
 }
