@@ -134,6 +134,7 @@ export function StarMapScene({
           listingCount={heat.listingCount}
           dominantType={heat.dominantType}
           freshness={heat.freshness}
+          onRegionClick={onRegionClick}
         />
       ))}
 
@@ -142,7 +143,7 @@ export function StarMapScene({
         enabled={!panelOpen}
         enablePan={false}
         maxDistance={150}
-        minDistance={15}
+        minDistance={5}
         enableDamping
         dampingFactor={0.05}
         maxPolarAngle={Math.PI / 2.2}

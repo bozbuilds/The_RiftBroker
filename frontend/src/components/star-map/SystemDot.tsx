@@ -2,6 +2,7 @@ import { Billboard, Text } from '@react-three/drei'
 import { memo, useState } from 'react'
 
 import type { GalaxySystem } from '../../lib/galaxy-data'
+import { INTEL_TYPE_LABEL_MAP } from '../../lib/constants'
 import { TYPE_COLORS } from '../../lib/region-data'
 import type { IntelType } from '../../lib/types'
 
@@ -10,21 +11,31 @@ interface SystemDotProps {
   readonly listingCount?: number
   readonly dominantType?: IntelType
   readonly freshness?: number
+  readonly onRegionClick?: (regionName: string) => void
 }
 
 /**
- * An intel-active star system: small core dot + targeting ring(s), hover-only label.
- * Coordinates are already in scene space [-50,+50] — no mapping needed.
+ * An intel-active system marker: small core dot + targeting ring(s), hover-only label.
+ * Flattened to Y=0.3 (galactic plane) so dots sit inside their RegionZone wireframes.
+ * Hover shows obfuscated intel summary — type + count, not the system name.
  */
-function _SystemDot({ system, listingCount = 0, dominantType = 0, freshness = 0 }: SystemDotProps) {
+function _SystemDot({
+  system,
+  listingCount = 0,
+  dominantType = 0,
+  freshness = 0,
+  onRegionClick,
+}: SystemDotProps) {
   const [hovered, setHovered] = useState(false)
   const color = listingCount > 0 ? TYPE_COLORS[dominantType] : '#4a5568'
-  // Reduced emissive so Bloom doesn't overwhelm the scene
   const emissiveIntensity = 0.3 + freshness * 0.5
+  const typeName = INTEL_TYPE_LABEL_MAP[dominantType] ?? 'Intel'
+  const hoverLabel = `${typeName} · ${listingCount} listing${listingCount !== 1 ? 's' : ''}`
 
   return (
     <group
-      position={[system.x, system.y, system.z]}
+      // Flatten to galactic plane so dots sit inside their region wireframes
+      position={[system.x, 0.3, system.z]}
       onPointerEnter={(e) => {
         e.stopPropagation()
         setHovered(true)
@@ -34,8 +45,12 @@ function _SystemDot({ system, listingCount = 0, dominantType = 0, freshness = 0 
         setHovered(false)
         document.body.style.cursor = 'auto'
       }}
+      onClick={(e) => {
+        e.stopPropagation()
+        onRegionClick?.(system.region)
+      }}
     >
-      {/* Small core anchor dot — just enough to locate the system */}
+      {/* Small core anchor dot */}
       <mesh>
         <sphereGeometry args={[0.12, 8, 6]} />
         <meshStandardMaterial
@@ -46,7 +61,7 @@ function _SystemDot({ system, listingCount = 0, dominantType = 0, freshness = 0 
         />
       </mesh>
 
-      {/* Primary targeting ring — horizontal, main visual indicator */}
+      {/* Primary targeting ring — horizontal disc, main heat indicator */}
       {listingCount > 0 && (
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.28, 0.42, 32]} />
@@ -74,7 +89,7 @@ function _SystemDot({ system, listingCount = 0, dominantType = 0, freshness = 0 
         </mesh>
       )}
 
-      {/* Label — only visible on hover */}
+      {/* Obfuscated hover label — type + count only, never the system name */}
       {hovered && (
         <Billboard follow lockX={false} lockY={false} lockZ={false}>
           <Text
@@ -84,7 +99,7 @@ function _SystemDot({ system, listingCount = 0, dominantType = 0, freshness = 0 
             anchorX="center"
             anchorY="bottom"
           >
-            {system.name}
+            {hoverLabel}
           </Text>
         </Billboard>
       )}

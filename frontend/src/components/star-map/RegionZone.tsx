@@ -17,7 +17,8 @@ interface RegionZoneProps {
 
 /**
  * Neon wireframe boundary zone for a region.
- * Renders the convex hull as a glowing line loop with a transparent fill for hit-testing.
+ * Polygon hulls (3+ systems): filled shape + dual-pass wireframe.
+ * Line hulls (2 systems): wide invisible hit plane + line segment.
  * Hover shows region name + listing count. Click opens region panel.
  * Fresh regions (freshness > 0.5) pulse with a sine-wave glow.
  */
@@ -27,25 +28,24 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
   const color = TYPE_COLORS[data.dominantType]
   const isFresh = data.freshness > 0.5
 
-  // Animate fill opacity for fresh regions — respects prefers-reduced-motion
+  // Animate fill opacity for fresh polygon regions — respects prefers-reduced-motion
   useFrame(({ clock }) => {
     if (!fillRef.current || !isFresh) return
     const mat = fillRef.current.material as THREE.MeshBasicMaterial
     const pulse = PREFERS_REDUCED_MOTION
-      ? 0.03
-      : 0.02 + Math.sin(clock.elapsedTime * 2) * 0.02
-    mat.opacity = hovered ? 0.08 : pulse
+      ? 0.06
+      : 0.06 + Math.sin(clock.elapsedTime * 2) * 0.03
+    mat.opacity = hovered ? 0.12 : pulse
   })
 
-  // Convert 2D hull points to 3D positions — raised to Y=0.5 to clear the HoloGrid lines
+  // Convert 2D hull points to 3D — raised to Y=0.5 to clear HoloGrid lines
   const hullPoints3D = useMemo(() => {
     if (data.hull.length < 2) return []
-    // Close the loop
     const pts = [...data.hull, data.hull[0]!]
     return pts.map(([x, z]) => new THREE.Vector3(x, 0.5, z))
   }, [data.hull])
 
-  // Create a filled shape for click hit-testing
+  // Filled shape for polygon hull click hit-testing
   const fillGeometry = useMemo(() => {
     if (data.hull.length < 3) return null
     const shape = new THREE.Shape()
@@ -56,7 +56,22 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
     return new THREE.ShapeGeometry(shape)
   }, [data.hull])
 
-  // Compute center for tooltip placement
+  // Wide invisible hit plane for 2-point (line) hulls — gives a generous click target
+  const lineHit = useMemo(() => {
+    if (data.hull.length !== 2) return null
+    const [p1, p2] = data.hull as [[number, number], [number, number]]
+    const dx = p2[0] - p1[0]
+    const dz = p2[1] - p1[1]
+    const len = Math.sqrt(dx * dx + dz * dz)
+    return {
+      len,
+      angle: Math.atan2(dz, dx),
+      mx: (p1[0] + p2[0]) / 2,
+      mz: (p1[1] + p2[1]) / 2,
+    }
+  }, [data.hull])
+
+  // Tooltip anchor at hull centroid
   const center = useMemo(() => {
     if (data.hull.length === 0) return new THREE.Vector3()
     const cx = data.hull.reduce((s, [x]) => s + x, 0) / data.hull.length
@@ -84,7 +99,7 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
         toneMapped={false}
       />
 
-      {/* Transparent fill for mouse interaction + pulse animation */}
+      {/* Polygon fill: hit-testing + pulse animation (3+ systems) */}
       {fillGeometry && (
         <mesh
           ref={fillRef}
@@ -99,6 +114,25 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
             color={color}
             transparent
             opacity={hovered ? 0.12 : 0.06}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+
+      {/* Line hit plane: wide invisible target along the 2-point line segment */}
+      {lineHit && (
+        <mesh
+          position={[lineHit.mx, 0.3, lineHit.mz]}
+          rotation={[-Math.PI / 2, 0, -lineHit.angle]}
+          onClick={() => onClick(data.regionName)}
+          onPointerEnter={() => setHovered(true)}
+          onPointerLeave={() => setHovered(false)}
+        >
+          <planeGeometry args={[lineHit.len + 2, 4]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0}
             depthWrite={false}
             side={THREE.DoubleSide}
           />
