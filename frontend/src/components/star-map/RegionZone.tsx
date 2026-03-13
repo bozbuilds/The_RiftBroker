@@ -37,12 +37,12 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
     mat.opacity = hovered ? 0.08 : pulse
   })
 
-  // Convert 2D hull points to 3D positions on the grid plane (Y=0.1 to sit above grid)
+  // Convert 2D hull points to 3D positions — raised to Y=0.5 to clear the HoloGrid lines
   const hullPoints3D = useMemo(() => {
     if (data.hull.length < 2) return []
     // Close the loop
     const pts = [...data.hull, data.hull[0]!]
-    return pts.map(([x, z]) => new THREE.Vector3(x, 0.1, z))
+    return pts.map(([x, z]) => new THREE.Vector3(x, 0.5, z))
   }, [data.hull])
 
   // Create a filled shape for click hit-testing
@@ -68,11 +68,19 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
 
   return (
     <group>
-      {/* Wireframe boundary */}
+      {/* Wireframe boundary — outer glow pass + crisp inner line */}
       <Line
         points={hullPoints3D}
         color={color}
-        lineWidth={hovered ? 3 : 1.5}
+        lineWidth={hovered ? 6 : 4}
+        transparent
+        opacity={hovered ? 0.35 : 0.18}
+        toneMapped={false}
+      />
+      <Line
+        points={hullPoints3D}
+        color={color}
+        lineWidth={hovered ? 2 : 1.5}
         toneMapped={false}
       />
 
@@ -90,7 +98,7 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
           <meshBasicMaterial
             color={color}
             transparent
-            opacity={hovered ? 0.08 : 0.02}
+            opacity={hovered ? 0.12 : 0.06}
             depthWrite={false}
             side={THREE.DoubleSide}
           />

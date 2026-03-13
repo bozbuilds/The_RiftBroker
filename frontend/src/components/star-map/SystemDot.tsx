@@ -1,5 +1,5 @@
 import { Billboard, Text } from '@react-three/drei'
-import { memo, useMemo } from 'react'
+import { memo, useState } from 'react'
 
 import type { GalaxySystem } from '../../lib/galaxy-data'
 import { TYPE_COLORS } from '../../lib/region-data'
@@ -13,19 +13,31 @@ interface SystemDotProps {
 }
 
 /**
- * An intel-active star system: emissive sphere, billboard label, targeting ring.
+ * An intel-active star system: small core dot + targeting ring(s), hover-only label.
  * Coordinates are already in scene space [-50,+50] — no mapping needed.
  */
 function _SystemDot({ system, listingCount = 0, dominantType = 0, freshness = 0 }: SystemDotProps) {
-  const radius = useMemo(() => Math.max(0.3, Math.min(0.8, 0.3 + listingCount * 0.1)), [listingCount])
+  const [hovered, setHovered] = useState(false)
   const color = listingCount > 0 ? TYPE_COLORS[dominantType] : '#4a5568'
-  // Emissive floor raised to 0.8 so inactive-but-real systems still glow
-  const emissiveIntensity = 0.8 + freshness * 1.2
+  // Reduced emissive so Bloom doesn't overwhelm the scene
+  const emissiveIntensity = 0.3 + freshness * 0.5
 
   return (
-    <group position={[system.x, system.y, system.z]}>
+    <group
+      position={[system.x, system.y, system.z]}
+      onPointerEnter={(e) => {
+        e.stopPropagation()
+        setHovered(true)
+        document.body.style.cursor = 'crosshair'
+      }}
+      onPointerLeave={() => {
+        setHovered(false)
+        document.body.style.cursor = 'auto'
+      }}
+    >
+      {/* Small core anchor dot — just enough to locate the system */}
       <mesh>
-        <sphereGeometry args={[radius, 16, 12]} />
+        <sphereGeometry args={[0.12, 8, 6]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
@@ -34,32 +46,48 @@ function _SystemDot({ system, listingCount = 0, dominantType = 0, freshness = 0 
         />
       </mesh>
 
-      {/* Targeting ring for systems with active intel listings */}
+      {/* Primary targeting ring — horizontal, main visual indicator */}
       {listingCount > 0 && (
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[radius + 0.3, radius + 0.5, 32]} />
-          <meshStandardMaterial
+          <ringGeometry args={[0.28, 0.42, 32]} />
+          <meshBasicMaterial
             color={color}
-            emissive={color}
-            emissiveIntensity={0.5}
             transparent
-            opacity={0.6}
+            opacity={hovered ? 0.9 : 0.6}
+            depthWrite={false}
             toneMapped={false}
           />
         </mesh>
       )}
 
-      <Billboard follow lockX={false} lockY={false} lockZ={false}>
-        <Text
-          position={[0, radius + 0.6, 0]}
-          fontSize={0.6}
-          color="#8ecae6"
-          anchorX="center"
-          anchorY="bottom"
-        >
-          {system.name}
-        </Text>
-      </Billboard>
+      {/* Outer ring for high-density systems (3+ listings) */}
+      {listingCount > 2 && (
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.55, 0.65, 32]} />
+          <meshBasicMaterial
+            color={color}
+            transparent
+            opacity={hovered ? 0.5 : 0.22}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      )}
+
+      {/* Label — only visible on hover */}
+      {hovered && (
+        <Billboard follow lockX={false} lockY={false} lockZ={false}>
+          <Text
+            position={[0, 0.8, 0]}
+            fontSize={0.45}
+            color="#e2f4ff"
+            anchorX="center"
+            anchorY="bottom"
+          >
+            {system.name}
+          </Text>
+        </Billboard>
+      )}
     </group>
   )
 }

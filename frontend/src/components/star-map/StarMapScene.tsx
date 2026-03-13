@@ -151,7 +151,7 @@ export function StarMapScene({
       <EffectComposer>
         <Bloom
           luminanceThreshold={0.6}
-          intensity={0.8}
+          intensity={0.4}
           mipmapBlur
         />
       </EffectComposer>
