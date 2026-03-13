@@ -3,14 +3,16 @@ import { describe, expect, test } from 'vitest'
 import { intelPayloadSchema } from '../lib/intel-schemas'
 import { SEED_LISTINGS } from './seed-data'
 
-// Known real system IDs referenced by seed listings
+// Known real system IDs referenced by seed listings (verified in galaxy.json)
 const KNOWN_SYSTEM_IDS = new Set([
-  30004759n, 30004760n, 30004761n, 30004762n,
-  30001000n, 30001001n, 30001002n, 30001003n,
-  30002000n, 30002001n, 30002002n,
-  30003000n, 30003001n, 30003002n, 30003003n,
-  30005000n, 30005001n, 30005002n,
-  30006000n, 30006001n,
+  // Dense cluster — 869-Y-51
+  30006118n, 30006094n, 30006070n, 30006045n, 30006021n, 30005997n,
+  // Scattered singles
+  30021737n, 30018133n, 30017833n, 30009437n, 30001167n, 30014670n,
+  // Route origins (same region as a scattered single, different system)
+  30021734n, 30017830n, 30014667n,
+  // Route destinations
+  30018130n, 30001164n, 30009434n,
 ])
 
 describe('SEED_LISTINGS', () => {
