@@ -75,15 +75,20 @@ export function SystemPicker({
   const containerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
 
+  const systemById = useMemo(
+    () => new Map(systems.map((s) => [s.id, s])),
+    [systems],
+  )
+
   // Sync input text when value is set externally (e.g. form reset)
   useEffect(() => {
     if (value === null) {
       setInputText('')
     } else {
-      const sys = systems.find((s) => s.id === value)
+      const sys = systemById.get(value)
       if (sys) setInputText(sys.name)
     }
-  }, [value, systems])
+  }, [value, systemById])
 
   // Debounce filtering
   useEffect(() => {

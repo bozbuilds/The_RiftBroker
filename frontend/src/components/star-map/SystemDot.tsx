@@ -1,5 +1,5 @@
 import { Billboard, Text } from '@react-three/drei'
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 
 import type { GalaxySystem } from '../../lib/galaxy-data'
 import { TYPE_COLORS } from '../../lib/region-data'
@@ -16,7 +16,7 @@ interface SystemDotProps {
  * An intel-active star system: emissive sphere, billboard label, targeting ring.
  * Coordinates are already in scene space [-50,+50] — no mapping needed.
  */
-export function SystemDot({ system, listingCount = 0, dominantType = 0, freshness = 0 }: SystemDotProps) {
+function _SystemDot({ system, listingCount = 0, dominantType = 0, freshness = 0 }: SystemDotProps) {
   const radius = useMemo(() => Math.max(0.3, Math.min(0.8, 0.3 + listingCount * 0.1)), [listingCount])
   const color = listingCount > 0 ? TYPE_COLORS[dominantType] : '#4a5568'
   // Emissive floor raised to 0.8 so inactive-but-real systems still glow
@@ -63,3 +63,5 @@ export function SystemDot({ system, listingCount = 0, dominantType = 0, freshnes
     </group>
   )
 }
+
+export const SystemDot = memo(_SystemDot)

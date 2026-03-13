@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
 import { DECRYPT_STATUS_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
+import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
 import { isExpired, mistToSui, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import { buildBurnReceiptTx } from '../lib/transactions'
@@ -80,7 +81,7 @@ export function MyIntel() {
           </span>
           {isItemExpired && <span className="listing-expired-badge">Expired</span>}
           <span className="listing-item-meta">
-            {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? new Map(), galaxy?.regionSystemCounts ?? new Map())} | {truncateAddress(listing.scout)}
+            {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
           </span>
         </div>
         <div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
+import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
 import { mistToSui, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import type { IntelListingFields } from '../lib/types'
@@ -71,7 +72,7 @@ export function ListingBrowser({
                 </span>
                 {owned && <span className="listing-owned-badge">Owned</span>}
                 <span className="listing-item-meta">
-                  {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? new Map(), galaxy?.regionSystemCounts ?? new Map())} | {truncateAddress(listing.scout)}
+                  {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
                 </span>
               </div>
               <div>

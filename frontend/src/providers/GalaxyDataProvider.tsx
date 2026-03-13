@@ -17,9 +17,14 @@ export function GalaxyDataProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    loadGalaxyData(GALAXY_JSON_URL)
+    const controller = new AbortController()
+    loadGalaxyData(GALAXY_JSON_URL, controller.signal)
       .then(setData)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load galaxy data'))
+      .catch((e: unknown) => {
+        if (controller.signal.aborted) return
+        setError(e instanceof Error ? e.message : 'Failed to load galaxy data')
+      })
+    return () => controller.abort()
   }, [])
 
   return (

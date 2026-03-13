@@ -1,14 +1,14 @@
 import { Line, Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { useState, useMemo, useRef } from 'react'
+import { memo, useState, useMemo, useRef } from 'react'
 import * as THREE from 'three'
+
+import type { RegionHeatData } from '../../lib/region-data'
+import { TYPE_COLORS } from '../../lib/region-data'
 
 const PREFERS_REDUCED_MOTION =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-import type { RegionHeatData } from '../../lib/region-data'
-import { TYPE_COLORS } from '../../lib/region-data'
 
 interface RegionZoneProps {
   readonly data: RegionHeatData
@@ -21,7 +21,7 @@ interface RegionZoneProps {
  * Hover shows region name + listing count. Click opens region panel.
  * Fresh regions (freshness > 0.5) pulse with a sine-wave glow.
  */
-export function RegionZone({ data, onClick }: RegionZoneProps) {
+function _RegionZone({ data, onClick }: RegionZoneProps) {
   const [hovered, setHovered] = useState(false)
   const fillRef = useRef<THREE.Mesh>(null)
   const color = TYPE_COLORS[data.dominantType]
@@ -109,3 +109,5 @@ export function RegionZone({ data, onClick }: RegionZoneProps) {
     </group>
   )
 }
+
+export const RegionZone = memo(_RegionZone)

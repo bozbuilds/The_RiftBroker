@@ -1,4 +1,5 @@
 import { INTEL_TYPE_LABEL_MAP } from '../lib/constants'
+import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
 import { mistToSui, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import { TYPE_COLORS } from '../lib/region-data'
@@ -51,7 +52,7 @@ export function RegionPanel({ region, onSelectListing, onClose }: RegionPanelPro
                 {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
               </span>
               <span className="listing-item-meta">
-                {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? new Map(), galaxy?.regionSystemCounts ?? new Map())} | {truncateAddress(listing.scout)}
+                {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
               </span>
             </div>
             <div>
