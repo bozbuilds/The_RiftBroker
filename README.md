@@ -1,4 +1,4 @@
-# Frontier Intel — Encrypted Intel Marketplace
+# The RiftBroker — Encrypted Intel Marketplace
 
 An encrypted intelligence marketplace for [EVE Frontier](https://www.evefrontier.com/), built on **SUI/Move** with **Seal** encryption and **Walrus** decentralized storage. Built for the **EVE Frontier × SUI Hackathon** (March 11–31, 2026).
 
@@ -66,7 +66,7 @@ Creates 15 demo listings across 12 systems with encrypted payloads on Walrus.
 ## Project Structure
 
 ```
-EF_intel/
+TheRiftBroker/
 ├── contracts/
 │   ├── Move.toml
 │   ├── sources/marketplace.move        # Core contract + Seal policies (~239 lines)

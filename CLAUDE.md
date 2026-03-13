@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-EF_intel is a project for the **EVE Frontier × SUI Hackathon** (March 11–31, 2026, $80K prize pool). EVE Frontier is CCP Games' blockchain-integrated space MMO where players operate in 100,000+ solar systems. The game migrated from Ethereum L2/Solidity to **SUI/Move** in October 2025, resetting the entire builder ecosystem.
+TheRiftBroker is a project for the **EVE Frontier × SUI Hackathon** (March 11–31, 2026, $80K prize pool). EVE Frontier is CCP Games' blockchain-integrated space MMO where players operate in 100,000+ solar systems. The game migrated from Ethereum L2/Solidity to **SUI/Move** in October 2025, resetting the entire builder ecosystem.
 
 The strategic planning document lives at `docs/eve_frontier_hackathon26.md`.
 
-## Active Concept: Frontier Intel
+## Active Concept: The RiftBroker
 
 Encrypted intel marketplace using SUI Seal + Walrus for scout-sold intelligence. Scouts encrypt intel payloads, store on Walrus, list on-chain. Buyers browse metadata, pay to unlock Seal decryption. Hero feature: live intel heat map.
 
@@ -72,7 +72,7 @@ cd frontend && pnpm install && pnpm dev
 ## Project Structure
 
 ```
-EF_intel/
+TheRiftBroker/
 ├── CLAUDE.md
 ├── README.md
 ├── .gitignore

@@ -194,7 +194,7 @@ export function App() {
       {/* Layer 1: HUD overlay (always visible) */}
       <div className="hud-overlay">
         <header className="hud-header">
-          <h1 className="hud-title">Frontier Intel</h1>
+          <h1 className="hud-title">The RiftBroker</h1>
           <ConnectButton />
         </header>
 
