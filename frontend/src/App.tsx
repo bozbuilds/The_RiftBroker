@@ -54,6 +54,12 @@ export function App() {
     [heatMap.allSystems, galaxy],
   )
 
+  // Filtered region data — respects active filters for tooltip listing counts
+  const filteredRegionData = useMemo(
+    () => aggregateByRegion(heatMap.systems, galaxy?.systems ?? []),
+    [heatMap.systems, galaxy],
+  )
+
   const closePanel = useCallback(() => {
     setPanel({ kind: 'none' })
     setSelectedListing(null)
@@ -176,6 +182,7 @@ export function App() {
         <StarMapScene
           systems={galaxy?.systems ?? []}
           regions={regionData}
+          filteredRegions={filteredRegionData}
           systemHeats={heatMap.systems}
           panelOpen={panel.kind !== 'none'}
           onRegionClick={(name) => {

@@ -9,13 +9,14 @@ import type { SystemHeatData } from '../../lib/heat-map-data'
 import { GalaxyParticles } from './GalaxyParticles'
 import { StarField } from './StarField'
 import { HoloGrid } from './HoloGrid'
-import { SystemDot } from './SystemDot'
+import { IntelNebula } from './IntelNebula'
 import { RegionZone } from './RegionZone'
 
 interface StarMapSceneProps {
   /** All galaxy systems — rendered as background particles. */
   readonly systems: readonly GalaxySystem[]
   readonly regions: RegionHeatData[]
+  readonly filteredRegions: RegionHeatData[]
   readonly systemHeats: SystemHeatData[]
   readonly panelOpen: boolean
   readonly onRegionClick: (regionName: string) => void
@@ -81,11 +82,12 @@ const IS_MOBILE = typeof window !== 'undefined' && window.innerWidth < 768
 /**
  * Full 3D star map scene.
  * Background: instanced GalaxyParticles (all ~24K systems, blue-navy).
- * Foreground: SystemDots only for intel-active systems with targeting rings.
+ * Foreground: IntelNebula glow clouds for intel-active systems.
  */
 export function StarMapScene({
   systems,
   regions,
+  filteredRegions,
   systemHeats,
   panelOpen,
   onRegionClick,
@@ -122,21 +124,12 @@ export function StarMapScene({
         <RegionZone
           key={r.regionName}
           data={r}
+          filteredData={filteredRegions.find((fr) => fr.regionName === r.regionName)}
           onClick={onRegionClick}
         />
       ))}
 
-      {/* Interactive dots — only systems with active intel */}
-      {activeSystems.map(({ heat, system }) => (
-        <SystemDot
-          key={system.id.toString()}
-          system={system}
-          listingCount={heat.listingCount}
-          dominantType={heat.dominantType}
-          freshness={heat.freshness}
-          onRegionClick={onRegionClick}
-        />
-      ))}
+      <IntelNebula systems={activeSystems} />
 
       <OrbitControls
         makeDefault

@@ -1,49 +1,22 @@
-import { Line, Html } from '@react-three/drei'
-import { useFrame } from '@react-three/fiber'
-import { memo, useState, useMemo, useRef } from 'react'
+import { Html } from '@react-three/drei'
+import { memo, useState, useMemo } from 'react'
 import * as THREE from 'three'
 
 import type { RegionHeatData } from '../../lib/region-data'
-import { TYPE_COLORS } from '../../lib/region-data'
-
-const PREFERS_REDUCED_MOTION =
-  typeof window !== 'undefined' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 interface RegionZoneProps {
   readonly data: RegionHeatData
+  readonly filteredData?: RegionHeatData
   readonly onClick: (regionName: string) => void
 }
 
 /**
- * Neon wireframe boundary zone for a region.
- * Polygon hulls (3+ systems): filled shape + dual-pass wireframe.
- * Line hulls (2 systems): wide invisible hit plane + line segment.
- * Hover shows region name + listing count. Click opens region panel.
- * Fresh regions (freshness > 0.5) pulse with a sine-wave glow.
+ * Invisible interaction zone for a region.
+ * No visual — the IntelNebula component handles all glow rendering.
+ * Provides hover tooltip + click-to-open-region-panel.
  */
-function _RegionZone({ data, onClick }: RegionZoneProps) {
+function _RegionZone({ data, filteredData, onClick }: RegionZoneProps) {
   const [hovered, setHovered] = useState(false)
-  const fillRef = useRef<THREE.Mesh>(null)
-  const color = TYPE_COLORS[data.dominantType]
-  const isFresh = data.freshness > 0.5
-
-  // Animate fill opacity for fresh polygon regions — respects prefers-reduced-motion
-  useFrame(({ clock }) => {
-    if (!fillRef.current || !isFresh) return
-    const mat = fillRef.current.material as THREE.MeshBasicMaterial
-    const pulse = PREFERS_REDUCED_MOTION
-      ? 0.06
-      : 0.06 + Math.sin(clock.elapsedTime * 2) * 0.03
-    mat.opacity = hovered ? 0.12 : pulse
-  })
-
-  // Convert 2D hull points to 3D — raised to Y=0.5 to clear HoloGrid lines
-  const hullPoints3D = useMemo(() => {
-    if (data.hull.length < 2) return []
-    const pts = [...data.hull, data.hull[0]!]
-    return pts.map(([x, z]) => new THREE.Vector3(x, 0.5, z))
-  }, [data.hull])
 
   // Filled shape for polygon hull click hit-testing
   const fillGeometry = useMemo(() => {
@@ -83,26 +56,9 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
 
   return (
     <group>
-      {/* Wireframe boundary — outer glow pass + crisp inner line */}
-      <Line
-        points={hullPoints3D}
-        color={color}
-        lineWidth={hovered ? 6 : 4}
-        transparent
-        opacity={hovered ? 0.35 : 0.18}
-        toneMapped={false}
-      />
-      <Line
-        points={hullPoints3D}
-        color={color}
-        lineWidth={hovered ? 2 : 1.5}
-        toneMapped={false}
-      />
-
-      {/* Polygon fill: hit-testing + pulse animation (3+ systems) */}
+      {/* Invisible polygon hit area (3+ systems) */}
       {fillGeometry && (
         <mesh
-          ref={fillRef}
           geometry={fillGeometry}
           rotation={[Math.PI / 2, 0, 0]}
           position={[0, 0.05, 0]}
@@ -111,16 +67,15 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
           onPointerLeave={() => setHovered(false)}
         >
           <meshBasicMaterial
-            color={color}
             transparent
-            opacity={hovered ? 0.12 : 0.06}
+            opacity={0}
             depthWrite={false}
             side={THREE.DoubleSide}
           />
         </mesh>
       )}
 
-      {/* Line hit plane: wide invisible target along the 2-point line segment */}
+      {/* Invisible line hit plane (2 systems) */}
       {lineHit && (
         <mesh
           position={[lineHit.mx, 0.3, lineHit.mz]}
@@ -144,7 +99,10 @@ function _RegionZone({ data, onClick }: RegionZoneProps) {
         <Html position={center} center distanceFactor={40}>
           <div className="region-tooltip">
             <strong>{data.regionName}</strong>
-            <span>{data.listingCount} listing{data.listingCount !== 1 ? 's' : ''}</span>
+            <span>
+              {filteredData?.listingCount ?? data.listingCount} listing
+              {(filteredData?.listingCount ?? data.listingCount) !== 1 ? 's' : ''}
+            </span>
           </div>
         </Html>
       )}
