@@ -1,14 +1,10 @@
+import { INTEL_TYPE_COLORS_NEON } from './constants'
 import type { IntelType } from './types'
 import type { SystemHeatData } from './heat-map-data'
 import type { GalaxySystem } from './galaxy-data'
 
 /** Neon colors keyed by intel type for region wireframes and system dots. */
-export const TYPE_COLORS: Record<IntelType, string> = {
-  0: '#00e5ff', // Resource — cyan
-  1: '#ff1744', // Fleet — red
-  2: '#76ff03', // Base — green
-  3: '#ffea00', // Route — yellow
-}
+export const TYPE_COLORS = INTEL_TYPE_COLORS_NEON
 
 export interface RegionHeatData {
   readonly regionName: string

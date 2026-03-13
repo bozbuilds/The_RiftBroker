@@ -31,6 +31,19 @@ export const INTEL_TYPE_LABEL_MAP: Record<number, string> = Object.fromEntries(
   INTEL_TYPE_LABELS.map(({ value, label }) => [value, label]),
 )
 
+/** Standard intel-type colors (SVG heat map, UI badges). Derived from INTEL_TYPE_LABELS. */
+export const INTEL_TYPE_COLORS: Record<number, string> = Object.fromEntries(
+  INTEL_TYPE_LABELS.map(({ value, color }) => [value, color]),
+)
+
+/** Neon holographic palette for the 3D star map scene. */
+export const INTEL_TYPE_COLORS_NEON: Record<number, string> = {
+  0: '#00e5ff', // Resource — cyan
+  1: '#ff1744', // Fleet — red
+  2: '#76ff03', // Base — green
+  3: '#ffea00', // Route — yellow
+}
+
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',
   downloading: 'Downloading encrypted intel...',

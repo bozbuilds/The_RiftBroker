@@ -1,12 +1,6 @@
+import { INTEL_TYPE_COLORS } from '../../lib/constants'
 import type { GalaxySystem } from '../../lib/galaxy-data'
 import type { SystemHeatData } from '../../lib/heat-map-data'
-
-const TYPE_COLORS: Record<number, string> = {
-  0: '#10b981', // resource — green
-  1: '#ef4444', // fleet — red
-  2: '#f59e0b', // base — amber
-  3: '#3b82f6', // route — blue
-}
 
 export function SystemNode({
   system,
@@ -25,7 +19,7 @@ export function SystemNode({
 }) {
   const count = heatData?.listingCount ?? 0
   const freshness = heatData?.freshness ?? 0
-  const color = heatData ? (TYPE_COLORS[heatData.dominantType] ?? '#6b7280') : '#374151'
+  const color = heatData ? (INTEL_TYPE_COLORS[heatData.dominantType] ?? '#6b7280') : '#374151'
   const radius = count > 0 ? Math.min(8 + count * 3, 24) : 5
   const opacity = count > 0 ? 0.3 + freshness * 0.7 : 0.25
   const isPulsing = count > 0 && freshness > 0.95
