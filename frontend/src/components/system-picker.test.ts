@@ -4,7 +4,7 @@ import { filterSystems, highlightMatch } from './SystemPicker'
 import type { GalaxySystem } from '../lib/galaxy-data'
 
 function makeSystem(id: number, name: string, region: string): GalaxySystem {
-  return { id: BigInt(id), name, x: 0, y: 0, z: 0, region, regionId: null }
+  return { id: BigInt(id), name, x: 0, y: 0, z: 0, rawX: 0, rawY: 0, rawZ: 0, region, regionId: null }
 }
 
 const SYSTEMS: GalaxySystem[] = [

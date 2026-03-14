@@ -13,6 +13,7 @@ describe('parseListingFields', () => {
     individual_price: '5000000',
     stake: { value: '50000000' },
     delisted: false,
+    location_proof_hash: [],
   }
   const objectId = '0xdead01'
 
@@ -50,6 +51,25 @@ describe('parseListingFields', () => {
   it('extracts stakeValue from bare string shape', () => {
     const result = parseListingFields(objectId, { ...fields, stake: '30000000' })
     expect(result.stakeValue).toBe(30000000n)
+  })
+
+  it('isVerified is false when location_proof_hash is empty', () => {
+    const result = parseListingFields(objectId, { ...fields, location_proof_hash: [] })
+    expect(result.isVerified).toBe(false)
+    expect(result.locationProofHash.length).toBe(0)
+  })
+
+  it('isVerified is true when location_proof_hash is non-empty', () => {
+    const result = parseListingFields(objectId, { ...fields, location_proof_hash: [1, 2, 3] })
+    expect(result.isVerified).toBe(true)
+    expect(result.locationProofHash.length).toBe(3)
+  })
+
+  it('isVerified is false when location_proof_hash is absent', () => {
+    const { location_proof_hash: _, ...fieldsWithout } = fields
+    const result = parseListingFields(objectId, fieldsWithout)
+    expect(result.isVerified).toBe(false)
+    expect(result.locationProofHash.length).toBe(0)
   })
 })
 

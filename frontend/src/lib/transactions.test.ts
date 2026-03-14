@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { Transaction } from '@mysten/sui/transactions'
 import {
   buildCreateListingTx,
+  buildCreateVerifiedListingTx,
   buildSetBlobIdTx,
   buildPurchaseTx,
   buildBurnReceiptTx,
@@ -17,6 +18,23 @@ describe('buildCreateListingTx', () => {
       decayHours: 24n,
       walrusBlobId: new Uint8Array([1, 2, 3]),
       stakeAmount: 1_000_000n,
+    })
+    expect(tx).toBeInstanceOf(Transaction)
+  })
+})
+
+describe('buildCreateVerifiedListingTx', () => {
+  it('returns a Transaction', () => {
+    const tx = buildCreateVerifiedListingTx({
+      intelType: 0,
+      systemId: 42n,
+      individualPrice: 500_000n,
+      decayHours: 24n,
+      walrusBlobId: new Uint8Array([1, 2, 3]),
+      stakeAmount: 1_000_000n,
+      vkeyId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      proofPointsBytes: new Uint8Array([4, 5, 6]),
+      publicInputsBytes: new Uint8Array([7, 8, 9]),
     })
     expect(tx).toBeInstanceOf(Transaction)
   })

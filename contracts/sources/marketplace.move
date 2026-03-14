@@ -6,6 +6,7 @@ use sui::clock::Clock;
 use sui::event;
 use sui::sui::SUI;
 use sui::bcs;
+use sui::groth16;
 
 // === Error constants (EPascalCase) ===
 
@@ -18,10 +19,17 @@ const EWrongListing: u64 = 5;
 const EBlobIdAlreadySet: u64 = 6;
 const EInvalidIntelType: u64 = 7;
 const EDecayTooLarge: u64 = 8;
+const EInvalidLocationProof: u64 = 9;
+const EDecayTooSmall: u64 = 10;
+const EStakeTooLow: u64 = 11;
+const EPriceTooLow: u64 = 12;
 
 // === Regular constants (ALL_CAPS) ===
 
 const MAX_DECAY_HOURS: u64 = 8760; // 1 year
+const MIN_DECAY_HOURS: u64 = 1;
+const MIN_PRICE: u64 = 1;
+const MIN_STAKE: u64 = 1;
 
 #[allow(unused_const)]
 const INTEL_TYPE_RESOURCE: u8 = 0;
@@ -31,6 +39,10 @@ const INTEL_TYPE_FLEET: u8 = 1;
 const INTEL_TYPE_BASE: u8 = 2;
 #[allow(unused_const)]
 const INTEL_TYPE_ROUTE: u8 = 3;
+
+// === One-Time Witness ===
+
+public struct MARKETPLACE has drop {}
 
 // === Objects ===
 
@@ -48,6 +60,14 @@ public struct IntelListing has key {
     individual_price: u64,
     stake: Balance<SUI>,
     delisted: bool,
+    location_proof_hash: vector<u8>,  // empty = unverified; non-empty = valid proof was verified at creation
+}
+
+/// Shared object holding the Groth16 verification key for the location attestation circuit.
+/// Created once at package publish via init(). Object ID stored in frontend constants.
+public struct LocationVKey has key {
+    id: UID,
+    vkey_bytes: vector<u8>,
 }
 
 /// Proof of purchase. `key` only (NOT `store`) — non-transferable.
@@ -79,6 +99,23 @@ public struct IntelDelisted has copy, drop {
     scout: address,
 }
 
+public struct VerifiedIntelListed has copy, drop {
+    listing_id: ID,
+    scout: address,
+}
+
+// === Init ===
+
+fun init(_otw: MARKETPLACE, ctx: &mut TxContext) {
+    let vkey = LocationVKey {
+        id: object::new(ctx),
+        // Placeholder: real vkey installed after circuit compilation in Phase 1E.
+        // For now: empty bytes so contract compiles and tests run.
+        vkey_bytes: vector::empty(),
+    };
+    transfer::share_object(vkey);
+}
+
 // === Public functions ===
 
 public fun create_listing(
@@ -105,6 +142,7 @@ public fun create_listing(
         individual_price,
         stake: stake.into_balance(),
         delisted: false,
+        location_proof_hash: vector::empty(),
     };
 
     event::emit(IntelListed {
@@ -205,6 +243,69 @@ public fun set_walrus_blob_id(
     listing.walrus_blob_id = walrus_blob_id;
 }
 
+public fun create_verified_listing(
+    intel_type: u8,
+    system_id: u64,
+    individual_price: u64,
+    decay_hours: u64,
+    walrus_blob_id: vector<u8>,
+    stake: Coin<SUI>,
+    vkey: &LocationVKey,
+    proof_points_bytes: vector<u8>,
+    public_inputs_bytes: vector<u8>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    assert!(intel_type <= INTEL_TYPE_ROUTE, EInvalidIntelType);
+    assert!(decay_hours >= MIN_DECAY_HOURS, EDecayTooSmall);
+    assert!(decay_hours <= MAX_DECAY_HOURS, EDecayTooLarge);
+    assert!(individual_price >= MIN_PRICE, EPriceTooLow);
+    assert!(coin::value(&stake) >= MIN_STAKE, EStakeTooLow);
+
+    // Verify Groth16 proof on-chain
+    let pvk = groth16::prepare_verifying_key(&groth16::bn254(), &vkey.vkey_bytes);
+    let public_inputs = groth16::public_proof_inputs_from_bytes(public_inputs_bytes);
+    let proof_points = groth16::proof_points_from_bytes(proof_points_bytes);
+    assert!(
+        groth16::verify_groth16_proof(&groth16::bn254(), &pvk, &public_inputs, &proof_points),
+        EInvalidLocationProof,
+    );
+
+    let listing = IntelListing {
+        id: object::new(ctx),
+        scout: ctx.sender(),
+        intel_type,
+        system_id,
+        created_at: clock.timestamp_ms(),
+        decay_hours,
+        walrus_blob_id,
+        individual_price,
+        stake: stake.into_balance(),
+        delisted: false,
+        location_proof_hash: public_inputs_bytes,
+    };
+    let listing_id_val = object::id(&listing);
+    event::emit(IntelListed {
+        listing_id: listing_id_val,
+        scout: ctx.sender(),
+        intel_type,
+        system_id,
+    });
+    event::emit(VerifiedIntelListed {
+        listing_id: listing_id_val,
+        scout: ctx.sender(),
+    });
+    transfer::share_object(listing);
+}
+
+public fun location_proof_hash(listing: &IntelListing): vector<u8> {
+    listing.location_proof_hash
+}
+
+public fun is_verified(listing: &IntelListing): bool {
+    !listing.location_proof_hash.is_empty()
+}
+
 // === Receipt management ===
 
 /// Buyer can permanently delete their own receipt (cleanup expired/unwanted intel).
@@ -244,4 +345,9 @@ entry fun seal_approve_scout(
 #[test_only]
 public fun transfer_receipt_for_testing(receipt: PurchaseReceipt, to: address) {
     transfer::transfer(receipt, to);
+}
+
+#[test_only]
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(MARKETPLACE {}, ctx);
 }

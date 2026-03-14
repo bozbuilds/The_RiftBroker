@@ -5,7 +5,7 @@ use sui::test_scenario;
 use sui::coin;
 use sui::sui::SUI;
 use sui::clock;
-use dark_net::marketplace::{Self, IntelListing, PurchaseReceipt};
+use dark_net::marketplace::{Self, IntelListing, LocationVKey, PurchaseReceipt};
 
 const SCOUT: address = @0xA;
 const BUYER: address = @0xB;
@@ -579,6 +579,82 @@ fun create_listing_excessive_decay_aborts() {
 
     clock::destroy_for_testing(clk);
     scenario.end();
+}
+
+// === ZK-verified listing ===
+
+#[test]
+fun test_create_listing_not_verified() {
+    let mut scenario = test_scenario::begin(@0xA);
+    {
+        let ctx = test_scenario::ctx(&mut scenario);
+        let clock = clock::create_for_testing(ctx);
+        let coin = coin::mint_for_testing<SUI>(1_000_000_000, ctx);
+        marketplace::create_listing(
+            1, 1001, 100, 24, b"blob", coin, &clock, ctx
+        );
+        clock::destroy_for_testing(clock);
+    };
+    test_scenario::next_tx(&mut scenario, @0xA);
+    {
+        let listing = test_scenario::take_shared<IntelListing>(&scenario);
+        assert!(!marketplace::is_verified(&listing));
+        assert!(marketplace::location_proof_hash(&listing).length() == 0);
+        test_scenario::return_shared(listing);
+    };
+    test_scenario::end(scenario);
+}
+
+#[test]
+#[expected_failure]
+fun test_create_verified_listing_invalid_proof() {
+    let mut scenario = test_scenario::begin(@0xA);
+    // Create the LocationVKey shared object via init
+    {
+        let ctx = test_scenario::ctx(&mut scenario);
+        marketplace::init_for_testing(ctx);
+    };
+    test_scenario::next_tx(&mut scenario, @0xA);
+    {
+        let vkey = test_scenario::take_shared<LocationVKey>(&scenario);
+        let ctx = test_scenario::ctx(&mut scenario);
+        let clock = clock::create_for_testing(ctx);
+        let coin = coin::mint_for_testing<SUI>(1_000_000_000, ctx);
+        // Garbage proof bytes — should abort with EInvalidLocationProof
+        marketplace::create_verified_listing(
+            1, 1001, 100, 24, b"blob", coin,
+            &vkey,
+            b"bad_proof_bytes",
+            b"bad_public_inputs",
+            &clock, ctx
+        );
+        clock::destroy_for_testing(clock);
+        test_scenario::return_shared(vkey);
+    };
+    test_scenario::end(scenario);
+}
+
+#[test]
+fun test_is_verified_getter() {
+    // Test that is_verified reflects location_proof_hash content
+    // Create unverified listing, confirm false.
+    // (For verified, we'd need a real proof — the invalid proof test covers the abort path)
+    let mut scenario = test_scenario::begin(@0xA);
+    {
+        let ctx = test_scenario::ctx(&mut scenario);
+        let clock = clock::create_for_testing(ctx);
+        let coin = coin::mint_for_testing<SUI>(1_000_000_000, ctx);
+        marketplace::create_listing(1, 1001, 100, 24, b"blob", coin, &clock, ctx);
+        clock::destroy_for_testing(clock);
+    };
+    test_scenario::next_tx(&mut scenario, @0xA);
+    {
+        let listing = test_scenario::take_shared<IntelListing>(&scenario);
+        assert!(!marketplace::is_verified(&listing));
+        assert!(marketplace::location_proof_hash(&listing) == vector::empty());
+        test_scenario::return_shared(listing);
+    };
+    test_scenario::end(scenario);
 }
 
 #[test]

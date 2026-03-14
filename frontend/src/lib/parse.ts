@@ -4,6 +4,7 @@ export function parseListingFields(
   objectId: string,
   fields: Record<string, unknown>,
 ): IntelListingFields {
+  const locationProofHash = new Uint8Array((fields.location_proof_hash as number[] | undefined) ?? [])
   return {
     id: objectId,
     scout: fields.scout as string,
@@ -19,6 +20,8 @@ export function parseListingFields(
         : (fields.stake as { value: string }).value,
     ),
     delisted: fields.delisted as boolean,
+    locationProofHash,
+    isVerified: locationProofHash.length > 0,
   }
 }
 

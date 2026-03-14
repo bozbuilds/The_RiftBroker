@@ -19,6 +19,12 @@ export interface GalaxySystem {
   readonly y: number
   /** Scene-space Z coordinate (normalized from EVE meters). */
   readonly z: number
+  /** Original EVE meter-scale X (for ZK proof circuit). */
+  readonly rawX: number
+  /** Original EVE meter-scale Y (for ZK proof circuit). */
+  readonly rawY: number
+  /** Original EVE meter-scale Z (for ZK proof circuit). */
+  readonly rawZ: number
   readonly region: string
   readonly regionId: number | null
 }
@@ -87,6 +93,9 @@ export function parseGalaxyData(raw: readonly RawGalaxySystem[]): GalaxyData {
       x: norm.x,
       y: norm.y,
       z: norm.z,
+      rawX: r.x,
+      rawY: r.y,
+      rawZ: r.z,
       region: r.region,
       regionId: r.regionId,
     }

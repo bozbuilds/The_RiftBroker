@@ -15,6 +15,8 @@ function makeListing(overrides: Partial<IntelListingFields> = {}): IntelListingF
     individualPrice: 500_000n,
     stakeValue: 100_000n,
     delisted: false,
+    locationProofHash: new Uint8Array([]),
+    isVerified: false,
     ...overrides,
   }
 }

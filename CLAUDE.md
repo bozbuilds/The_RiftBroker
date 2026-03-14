@@ -10,11 +10,13 @@ The strategic planning document lives at `docs/eve_frontier_hackathon26.md`.
 
 ## Active Concept: The RiftBroker
 
-Encrypted intel marketplace using SUI Seal + Walrus for scout-sold intelligence. Scouts encrypt intel payloads, store on Walrus, list on-chain. Buyers browse metadata, pay to unlock Seal decryption. Hero feature: live intel heat map.
+Encrypted intel marketplace using SUI Seal + Walrus for scout-sold intelligence with ZK location verification. Scouts encrypt intel payloads, store on Walrus, list on-chain with optional Groth16 proofs. Buyers browse metadata, pay to unlock Seal decryption. Hero features: 3D nebula heat map + ZK-verified intel badges.
 
-**Status**: Phase 4 in progress. Contract deployed to SUI testnet (`0xa5e33645...`). Contract: 20/20 tests, frontend: 40/40 tests (33 + 7 seed-data). Seal key servers wired. Seed script + data ready. Frontend build passes.
+**Status**: Phase 4 complete + ZK Phase 1 complete. Contract: 25/25 tests (~350 lines). Frontend: 182/182 tests (15 test files). All core features implemented: marketplace CRUD, Seal encrypt/decrypt, Walrus storage, ZK-verified listings (Groth16 on-chain verification, client-side proof generation, verified badges, verified-only filters), 3D nebula visualization, region navigation, purchase history. Circuit artifacts pending compilation (see `circuits/README.md`). Fresh deploy needed to pick up `LocationVKey` object ID.
 
-See `docs/plans/2026-02-12-feat-dark-net-encrypted-intel-marketplace-plan.md` for the full implementation plan.
+**Upcoming**: ZK Phase 2 (proximity proofs), ZK Phase 3 (timestamp freshness), ZK Phase 4 (scout reputation), dispute system, zkLogin, sponsored transactions.
+
+See `docs/plans/2026-02-12-feat-dark-net-encrypted-intel-marketplace-plan.md` for the core implementation plan and `docs/plans/2026-03-13-feat-zk-verified-intel-plan.md` for the ZK roadmap.
 
 ### Other Concepts (backlog)
 
@@ -32,11 +34,14 @@ See `docs/plans/2026-02-12-feat-dark-net-encrypted-intel-marketplace-plan.md` fo
 
 ## Tech Stack
 
-- **Smart contracts**: Move (SUI blockchain, edition 2024)
+- **Smart contracts**: Move (SUI blockchain, edition 2024) with `sui::groth16` for ZK verification
 - **Frontend**: TypeScript/React with `@mysten/sui@2.4.0`, `@mysten/dapp-kit@1.0.3`, `@mysten/seal@1.0.1`, `@mysten/walrus@1.0.3`
-- **Build**: Vite 5, pnpm
+- **ZK proofs**: snarkjs 0.7.6 (Groth16, lazy-loaded) → Arkworks byte conversion for on-chain verification
+- **3D visualization**: Three.js + React Three Fiber (nebula heat map)
+- **Build**: Vite 5, pnpm, Vitest 4
+- **Validation**: Zod 4 (discriminated unions for intel payload schemas)
 - **Backend/tooling**: Python 3.11 (venv at `venv/`)
-- **On-chain data**: SUI GraphQL RPC (planned)
+- **On-chain data**: SUI JSON-RPC (event queries + object fetch)
 - **Gasless UX**: Sponsored transactions (post-MVP)
 
 ## Code Style Rules
@@ -78,23 +83,30 @@ TheRiftBroker/
 ├── .gitignore
 ├── contracts/
 │   ├── Move.toml
-│   ├── sources/marketplace.move      # Core contract + Seal policies (~235 lines)
-│   └── tests/marketplace_tests.move  # 20 tests, all passing
+│   ├── sources/marketplace.move      # Core contract + Seal policies + ZK verification (~350 lines)
+│   └── tests/marketplace_tests.move  # 25 tests, all passing
+├── circuits/
+│   ├── README.md                     # One-time circuit compilation workflow
+│   └── location-attestation/         # Groth16 circuit source (pending compilation)
 ├── frontend/
 │   ├── package.json
 │   ├── src/
-│   │   ├── App.tsx                   # Map/Browse/Create nav with purchase flow
+│   │   ├── App.tsx                   # 3D map + panel navigation + purchase flow
 │   │   ├── main.tsx
 │   │   ├── index.css                 # Dark theme, responsive layout
 │   │   ├── providers/AppProviders.tsx
 │   │   ├── lib/
-│   │   │   ├── constants.ts          # Package ID, Clock ID, Seal key servers, intel type labels
-│   │   │   ├── types.ts             # On-chain type mirrors (bigint for u64)
+│   │   │   ├── constants.ts          # Package ID, Seal key servers, LOCATION_VKEY_ID
+│   │   │   ├── types.ts             # On-chain type mirrors (bigint for u64, isVerified)
 │   │   │   ├── intel-schemas.ts     # Zod discriminated union (4 intel types)
-│   │   │   ├── transactions.ts      # Pure PTB builders
+│   │   │   ├── transactions.ts      # Pure PTB builders (incl. buildCreateVerifiedListingTx)
 │   │   │   ├── seal.ts              # Encrypt/decrypt wrappers
 │   │   │   ├── walrus.ts            # Upload/download (HTTP API)
-│   │   │   ├── heat-map-data.ts     # Aggregation + filtering (12 tests)
+│   │   │   ├── zk-proof.ts          # snarkjs → Arkworks byte conversion + generateLocationProof
+│   │   │   ├── galaxy-data.ts       # Real EVE Frontier galaxy coordinates
+│   │   │   ├── region-data.ts       # Region aggregation for map navigation
+│   │   │   ├── heat-map-data.ts     # Aggregation + filtering with verifiedOnly
+│   │   │   ├── parse.ts             # On-chain field parsing
 │   │   │   ├── format.ts            # Shared timeRemaining, truncateAddress
 │   │   │   └── systems.ts           # 20 demo star systems
 │   │   ├── scripts/
@@ -106,22 +118,23 @@ TheRiftBroker/
 │   │   │   ├── usePurchase.ts       # Sign + execute purchase tx
 │   │   │   └── useDecrypt.ts        # Download → seal_approve → decrypt → validate
 │   │   └── components/
-│   │       ├── CreateListing.tsx     # Two-step creation form
-│   │       ├── ListingBrowser.tsx    # Filterable listing list
+│   │       ├── CreateListing.tsx     # Two-step creation form + optional ZK verification
+│   │       ├── ListingBrowser.tsx    # Filterable list + verified-only toggle
+│   │       ├── MyIntel.tsx          # Purchase history + decrypt + receipt management
 │   │       ├── PurchaseFlow.tsx      # Purchase confirmation
 │   │       ├── IntelViewer.tsx       # Type-switched intel renderer
 │   │       ├── ErrorBoundary.tsx     # Error boundary with reset
 │   │       └── heat-map/
-│   │           ├── HeatMap.tsx       # SVG star map with system nodes
-│   │           ├── SystemNode.tsx    # Glow + pulse per system
-│   │           └── HeatMapControls.tsx # Filter by type, price
+│   │           ├── HeatMap.tsx       # SVG fallback star map
+│   │           ├── HeatMapControls.tsx # Filter by type, price, verified
+│   │           └── star-map/        # 3D Three.js nebula visualization
 │   └── vite.config.ts
 ├── docs/
 │   ├── eve_frontier_hackathon26.md   # Strategic playbook
-│   ├── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md               # Technical architecture
 │   ├── seal-spike.md                 # Seal research findings
 │   ├── walrus-spike.md               # Walrus research findings
-│   ├── brainstorms/                  # Design exploration
-│   └── plans/                        # Implementation plans
+│   ├── brainstorms/                  # Design exploration (10 files)
+│   └── plans/                        # Implementation plans (8 files)
 └── venv/                             # Python environment
 ```

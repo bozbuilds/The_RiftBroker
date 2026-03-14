@@ -68,6 +68,37 @@ export function buildBurnReceiptTx(receiptId: string): Transaction {
   return tx
 }
 
+export function buildCreateVerifiedListingTx(params: {
+  intelType: number
+  systemId: bigint
+  individualPrice: bigint
+  decayHours: bigint
+  walrusBlobId: Uint8Array
+  stakeAmount: bigint
+  vkeyId: string
+  proofPointsBytes: Uint8Array
+  publicInputsBytes: Uint8Array
+}): Transaction {
+  const tx = new Transaction()
+  const [stake] = tx.splitCoins(tx.gas, [tx.pure.u64(params.stakeAmount)])
+  tx.moveCall({
+    target: `${PACKAGE_ID}::marketplace::create_verified_listing`,
+    arguments: [
+      tx.pure.u8(params.intelType),
+      tx.pure.u64(params.systemId),
+      tx.pure.u64(params.individualPrice),
+      tx.pure.u64(params.decayHours),
+      tx.pure.vector('u8', Array.from(params.walrusBlobId)),
+      stake,
+      tx.object(params.vkeyId),
+      tx.pure.vector('u8', Array.from(params.proofPointsBytes)),
+      tx.pure.vector('u8', Array.from(params.publicInputsBytes)),
+      tx.object(CLOCK_ID),
+    ],
+  })
+  return tx
+}
+
 export function buildBatchPurchaseTx(
   purchases: ReadonlyArray<{ listingId: string; price: bigint }>,
 ): Transaction {

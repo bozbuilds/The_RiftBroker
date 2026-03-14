@@ -38,6 +38,14 @@ export function HeatMapControls({
           {activeSystems}/{totalSystems} systems active
         </span>
       </div>
+      <div className="heatmap-controls-row">
+        <button
+          className={`filter-btn${filters.verifiedOnly ? ' active' : ''}`}
+          onClick={() => onFilterChange({ ...filters, verifiedOnly: !filters.verifiedOnly })}
+        >
+          Verified Only
+        </button>
+      </div>
     </div>
   )
 }

@@ -3,12 +3,13 @@ import { SealClient } from '@mysten/seal'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 
-import { INTEL_TYPE_LABELS, SEAL_KEY_SERVERS } from '../lib/constants'
+import { INTEL_TYPE_LABELS, LOCATION_VKEY_ID, SEAL_KEY_SERVERS } from '../lib/constants'
 import { mistToSui } from '../lib/format'
 import { intelPayloadSchema } from '../lib/intel-schemas'
 import { encryptIntel } from '../lib/seal'
-import { buildCreateListingTx, buildSetBlobIdTx } from '../lib/transactions'
+import { buildCreateListingTx, buildCreateVerifiedListingTx, buildSetBlobIdTx } from '../lib/transactions'
 import { uploadBlob } from '../lib/walrus'
+import { generateLocationProof } from '../lib/zk-proof'
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
 import { SystemPicker } from './SystemPicker'
 
@@ -38,6 +39,8 @@ export function CreateListing() {
   const [stakeAmount, setStakeAmount] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [verifyLocation, setVerifyLocation] = useState(false)
+  const [proofStatus, setProofStatus] = useState<string | null>(null)
 
   // Resource fields
   const [resourceType, setResourceType] = useState('')
@@ -114,6 +117,7 @@ export function CreateListing() {
     e.preventDefault()
     setError(null)
     setStatus(null)
+    setProofStatus(null)
 
     try {
       const assembled = buildPayload()
@@ -129,16 +133,58 @@ export function CreateListing() {
         return
       }
 
+      // Attempt ZK proof generation when requested (non-Route intel only)
+      let proofBytes: Uint8Array | null = null
+      let publicInputsBytes: Uint8Array | null = null
+      const shouldVerify = verifyLocation && intelType !== 3
+
+      if (shouldVerify) {
+        const system = galaxy?.systemMap.get(onChainSystemId)
+        if (system?.rawX !== undefined && system?.rawY !== undefined && system?.rawZ !== undefined) {
+          setProofStatus('Generating ZK location proof...')
+          try {
+            const proof = await generateLocationProof({ x: system.rawX, y: system.rawY, z: system.rawZ })
+            proofBytes = proof.proofBytes
+            publicInputsBytes = proof.publicInputsBytes
+            setProofStatus(null)
+          } catch (proofErr) {
+            setProofStatus(null)
+            setError(
+              'ZK proof failed: ' +
+              (proofErr instanceof Error ? proofErr.message : 'Unknown error') +
+              ' — creating unverified listing instead.',
+            )
+          }
+        } else {
+          setError('System coordinates unavailable — creating unverified listing instead.')
+        }
+      }
+
       setStatus('Creating listing...')
       const payload = new TextEncoder().encode(JSON.stringify(result.data))
-      const createTx = buildCreateListingTx({
-        intelType,
-        systemId: onChainSystemId,
-        price: BigInt(price),
-        decayHours: BigInt(decayHours),
-        walrusBlobId: new Uint8Array(0),
-        stakeAmount: BigInt(stakeAmount),
-      })
+
+      const useVerified = proofBytes !== null && publicInputsBytes !== null
+      const createTx = useVerified
+        ? buildCreateVerifiedListingTx({
+            intelType,
+            systemId: onChainSystemId,
+            individualPrice: BigInt(price),
+            decayHours: BigInt(decayHours),
+            walrusBlobId: new Uint8Array(0),
+            stakeAmount: BigInt(stakeAmount),
+            vkeyId: LOCATION_VKEY_ID,
+            proofPointsBytes: proofBytes!,
+            publicInputsBytes: publicInputsBytes!,
+          })
+        : buildCreateListingTx({
+            intelType,
+            systemId: onChainSystemId,
+            price: BigInt(price),
+            decayHours: BigInt(decayHours),
+            walrusBlobId: new Uint8Array(0),
+            stakeAmount: BigInt(stakeAmount),
+          })
+
       const createResult = await signAndExecute({ transaction: createTx })
       await suiClient.waitForTransaction({ digest: createResult.digest })
 
@@ -215,6 +261,36 @@ export function CreateListing() {
             label="System"
             required
           />
+        )}
+
+        {intelType !== 3 && (
+          <div className="form-group">
+            <label className={`verify-toggle${intelType === 3 ? ' verify-toggle-disabled' : ''}`}>
+              <input
+                type="checkbox"
+                checked={verifyLocation}
+                onChange={e => setVerifyLocation(e.target.checked)}
+                disabled={intelType === 3}
+              />
+              {' ZK-Verify Location'}
+            </label>
+          </div>
+        )}
+
+        {intelType === 3 && (
+          <div className="form-group">
+            <label className="verify-toggle verify-toggle-disabled">
+              <input type="checkbox" disabled />
+              {' ZK-Verify Location'}
+              <span className="verify-toggle-hint"> (not available for Route intel)</span>
+            </label>
+          </div>
+        )}
+
+        {proofStatus && (
+          <div className="status-message">
+            <span className="loading-spinner" />{proofStatus}
+          </div>
         )}
 
         <div className="form-group">

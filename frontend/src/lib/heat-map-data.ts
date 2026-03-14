@@ -12,6 +12,11 @@ export interface SystemHeatData {
 export interface HeatMapFilters {
   readonly intelType?: IntelType
   readonly maxPrice?: bigint
+  readonly verifiedOnly?: boolean
+}
+
+export const DEFAULT_FILTERS: HeatMapFilters = {
+  verifiedOnly: false,
 }
 
 function isActive(listing: IntelListingFields, now: number): boolean {
@@ -93,6 +98,10 @@ export function filterHeatMapData(
     }
     if (filters.maxPrice !== undefined && system.avgPrice > filters.maxPrice)
       return false
+    if (filters.verifiedOnly) {
+      const hasVerified = system.listings.some((l) => l.isVerified)
+      if (!hasVerified) return false
+    }
     return true
   })
 }

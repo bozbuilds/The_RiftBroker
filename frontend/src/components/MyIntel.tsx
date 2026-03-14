@@ -80,6 +80,7 @@ export function MyIntel() {
             {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
           </span>
           {isItemExpired && <span className="listing-expired-badge">Expired</span>}
+          {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
           <span className="listing-item-meta">
             {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
           </span>

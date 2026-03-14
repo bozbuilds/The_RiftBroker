@@ -18,6 +18,9 @@ export interface IntelListingFields {
   readonly individualPrice: bigint
   readonly stakeValue: bigint
   readonly delisted: boolean
+  readonly locationProofHash: Uint8Array
+  /** Derived: true when locationProofHash is non-empty. */
+  readonly isVerified: boolean
 }
 
 export interface PurchaseReceiptFields {

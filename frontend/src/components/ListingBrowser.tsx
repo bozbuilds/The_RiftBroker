@@ -39,6 +39,7 @@ export function ListingBrowser({
   const [typeFilter, setTypeFilter] = useState<number | null>(null)
   const [regionFilter, setRegionFilter] = useState<string | null>(null)
   const [priceSort, setPriceSort] = useState<PriceSort>(null)
+  const [verifiedOnly, setVerifiedOnly] = useState(false)
 
   const systemMap = galaxy?.systemMap ?? EMPTY_SYSTEM_MAP
   const regionCounts = galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS
@@ -64,7 +65,7 @@ export function ListingBrowser({
     return [...regions].sort()
   }, [typeFiltered, systemMap])
 
-  // Apply region filter + price sort
+  // Apply region filter + verified filter + price sort
   const filtered = useMemo(() => {
     let result = typeFiltered
     if (regionFilter) {
@@ -72,6 +73,9 @@ export function ListingBrowser({
         const system = systemMap.get(l.systemId)
         return system?.region === regionFilter
       })
+    }
+    if (verifiedOnly) {
+      result = result.filter((l) => l.isVerified)
     }
     if (priceSort) {
       result = [...result].sort((a, b) =>
@@ -81,7 +85,7 @@ export function ListingBrowser({
       )
     }
     return result
-  }, [typeFiltered, regionFilter, priceSort, systemMap])
+  }, [typeFiltered, regionFilter, verifiedOnly, priceSort, systemMap])
 
   // Reset region filter when it no longer applies
   if (regionFilter && !availableRegions.includes(regionFilter)) {
@@ -132,6 +136,13 @@ export function ListingBrowser({
         >
           {priceSortLabel(priceSort)}
         </button>
+
+        <button
+          className={`filter-btn${verifiedOnly ? ' active' : ''}`}
+          onClick={() => setVerifiedOnly(!verifiedOnly)}
+        >
+          Verified
+        </button>
       </div>
 
       <ul className="listing-list">
@@ -148,6 +159,7 @@ export function ListingBrowser({
                   {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
                 </span>
                 {owned && <span className="listing-owned-badge">Owned</span>}
+                {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
                 <span className="listing-item-meta">
                   {' '}&mdash; {obfuscatedLocation(listing.systemId, systemMap, regionCounts)} | {truncateAddress(listing.scout)}
                 </span>

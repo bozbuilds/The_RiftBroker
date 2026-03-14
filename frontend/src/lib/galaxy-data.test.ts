@@ -104,6 +104,26 @@ describe('parseGalaxyData', () => {
     expect(s?.region).toBe('VR-03')
     expect(s?.regionId).toBe(14000003)
   })
+
+  it('rawX/rawY/rawZ equal the original EVE meter-scale coordinates (not normalized)', () => {
+    const { systems } = parseGalaxyData(RAW_FIXTURE)
+    for (const raw of RAW_FIXTURE) {
+      const s = systems.find(s => s.id === BigInt(raw.id))!
+      expect(s.rawX).toBe(raw.x)
+      expect(s.rawY).toBe(raw.y)
+      expect(s.rawZ).toBe(raw.z)
+    }
+  })
+
+  it('rawX/rawY/rawZ are not the same as normalized x/y/z', () => {
+    const { systems } = parseGalaxyData(RAW_FIXTURE)
+    // The raw coordinates are in EVE meter scale (~1e18), normalized are in [-50, 50]
+    for (const s of systems) {
+      // At least one axis should differ between raw and normalized
+      const differs = s.rawX !== s.x || s.rawY !== s.y || s.rawZ !== s.z
+      expect(differs).toBe(true)
+    }
+  })
 })
 
 // --- obfuscatedLocation ---

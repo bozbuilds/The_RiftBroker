@@ -44,6 +44,9 @@ export const INTEL_TYPE_COLORS_NEON: Record<number, string> = {
   3: '#ffea00', // Route — yellow
 }
 
+/** LocationVKey shared object ID — created by marketplace init(). Update after fresh deploy. */
+export const LOCATION_VKEY_ID = '0x0000000000000000000000000000000000000000000000000000000000000000'
+
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',
   downloading: 'Downloading encrypted intel...',

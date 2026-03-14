@@ -959,6 +959,47 @@ button {
   margin-left: 8px;
 }
 
+/* --- ZK-Verified Badge --- */
+
+.listing-verified-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-cyan, #00e5ff);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border: 1px solid var(--accent-cyan, #00e5ff);
+  border-radius: var(--radius);
+  align-self: center;
+  margin-left: 8px;
+}
+
+/* --- Verify Location Toggle (CreateListing) --- */
+
+.verify-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.verify-toggle input[type="checkbox"] {
+  accent-color: var(--accent-cyan, #00e5ff);
+}
+
+.verify-toggle-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.verify-toggle-hint {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
 /* --- Expired Items --- */
 
 .listing-item-expired {

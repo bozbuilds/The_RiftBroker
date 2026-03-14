@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import type { IntelListingFields } from './types'
-import { aggregateBySystem, filterHeatMapData, type SystemHeatData } from './heat-map-data'
+import { DEFAULT_FILTERS, aggregateBySystem, filterHeatMapData, type SystemHeatData } from './heat-map-data'
 
 function makeListing(overrides: Partial<IntelListingFields> = {}): IntelListingFields {
   return {
@@ -15,6 +15,8 @@ function makeListing(overrides: Partial<IntelListingFields> = {}): IntelListingF
     individualPrice: 1_000_000n,
     stakeValue: 0n,
     delisted: false,
+    locationProofHash: new Uint8Array([]),
+    isVerified: false,
     ...overrides,
   }
 }
@@ -156,5 +158,46 @@ describe('filterHeatMapData', () => {
     const result = filterHeatMapData(baseData, { intelType: 2, maxPrice: 10_000n })
     expect(result).toHaveLength(1)
     expect(result[0]!.systemId).toBe(2n)
+  })
+
+  test('verifiedOnly: false shows all listings (unchanged behavior)', () => {
+    const result = filterHeatMapData(baseData, { verifiedOnly: false })
+    expect(result).toHaveLength(2)
+  })
+
+  test('verifiedOnly: true shows only systems with at least one verified listing', () => {
+    const verifiedListing = makeListing({
+      systemId: 3n,
+      locationProofHash: new Uint8Array([1, 2, 3]),
+      isVerified: true,
+    })
+    const unverifiedListing = makeListing({ systemId: 4n })
+    const mixedData: SystemHeatData[] = [
+      {
+        systemId: 3n,
+        listingCount: 1,
+        dominantType: 0,
+        freshness: 0.9,
+        avgPrice: 1_000n,
+        listings: [verifiedListing],
+      },
+      {
+        systemId: 4n,
+        listingCount: 1,
+        dominantType: 0,
+        freshness: 0.9,
+        avgPrice: 1_000n,
+        listings: [unverifiedListing],
+      },
+    ]
+    const result = filterHeatMapData(mixedData, { verifiedOnly: true })
+    expect(result).toHaveLength(1)
+    expect(result[0]!.systemId).toBe(3n)
+  })
+})
+
+describe('DEFAULT_FILTERS', () => {
+  test('has verifiedOnly set to false', () => {
+    expect(DEFAULT_FILTERS.verifiedOnly).toBe(false)
   })
 })
