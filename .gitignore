@@ -24,3 +24,6 @@ build/
 Thumbs.db
 .claude/settings.local.json
 contracts/Move.lock
+
+# Git worktrees
+.worktrees/
