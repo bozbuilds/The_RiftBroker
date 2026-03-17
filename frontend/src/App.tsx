@@ -10,6 +10,7 @@ import { ListingBrowser } from './components/ListingBrowser'
 import { MyIntel } from './components/MyIntel'
 import { PurchaseFlow } from './components/PurchaseFlow'
 import { RegionPanel } from './components/RegionPanel'
+import { InfoModal, STORAGE_KEY } from './components/InfoModal'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { StarMapScene } from './components/star-map'
 import { useHeatMapData } from './hooks/useHeatMapData'
@@ -46,6 +47,9 @@ export function App() {
   const { data: receiptData } = useReceipts()
   const { status: decryptStatus, error: decryptError, decrypt } = useDecrypt()
   const galaxy = useGalaxyData()
+  const [showInfo, setShowInfo] = useState(
+    () => !localStorage.getItem(STORAGE_KEY),
+  )
 
   // Aggregate system heat data into region-level data for the 3D scene
   // Uses real galaxy coordinates once loaded; no regions rendered while data is fetching
@@ -195,7 +199,17 @@ export function App() {
       <div className="hud-overlay">
         <header className="hud-header">
           <h1 className="hud-title">The RiftBroker</h1>
-          <ConnectButton />
+          <div className="hud-header-actions">
+            <button
+              className="info-btn"
+              onClick={() => setShowInfo(true)}
+              aria-label="About TheRiftBroker"
+              title="About TheRiftBroker"
+            >
+              <span className="info-btn-icon" aria-hidden="true">ℹ</span>
+            </button>
+            <ConnectButton />
+          </div>
         </header>
 
         {account && (
@@ -264,6 +278,7 @@ export function App() {
           )}
         </>
       )}
+      <InfoModal open={showInfo} onClose={() => setShowInfo(false)} />
     </div>
   )
 }
