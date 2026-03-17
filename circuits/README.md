@@ -32,17 +32,17 @@ circom location-attestation.circom \
   -l ../../node_modules \
   -o build/
 
-# Download Powers of Tau (BN254, 2^12 = 4096 constraints — sufficient for ~2359)
+# Download Powers of Tau (BN254, 2^13 = 8192 constraints — circuit has 4464 constraints)
 # DO NOT generate a custom ceremony. Use this pre-computed production-grade one.
-curl -O https://pse-trusted-setup-ppot.s3.eu-central-1.amazonaws.com/pot28_0080/ppot_0080_12.ptau
+curl -O https://pse-trusted-setup-ppot.s3.eu-central-1.amazonaws.com/pot28_0080/ppot_0080_13.ptau
 
 # Circuit-specific trusted setup (Phase 2)
-snarkjs groth16 setup build/location-attestation.r1cs ppot_0080_12.ptau circuit_0000.zkey
+snarkjs groth16 setup build/location-attestation.r1cs ppot_0080_13.ptau circuit_0000.zkey
 snarkjs zkey contribute circuit_0000.zkey circuit_final.zkey --name="riftbroker" \
   -e="$(head -c 64 /dev/urandom | xxd -p)"
 
 # Verify the setup
-snarkjs zkey verify build/location-attestation.r1cs ppot_0080_12.ptau circuit_final.zkey
+snarkjs zkey verify build/location-attestation.r1cs ppot_0080_13.ptau circuit_final.zkey
 
 # Export verification key JSON (convert this to Arkworks bytes for the contract)
 snarkjs zkey export verificationkey circuit_final.zkey verification_key.json

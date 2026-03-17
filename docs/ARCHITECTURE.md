@@ -1,6 +1,6 @@
 # Architecture
 
-**Last Updated**: 2026-03-14
+**Last Updated**: 2026-03-16
 
 ## System Layers
 
@@ -13,7 +13,7 @@
 │    On-chain events · Object queries · Indexing   │
 ├─────────────────────────────────────────────────┤
 │              Move Smart Contracts                │
-│    dark_net::marketplace + Groth16 verification  │
+│    rift_broker::marketplace + Groth16 verification  │
 ├─────────────────────────────────────────────────┤
 │     Seal Encryption · Walrus Storage · ZK Proofs │
 │  Conditional decryption · Blobs · Location proof │
@@ -27,7 +27,7 @@
 
 ### Move Contracts (on-chain)
 
-Single module: `dark_net::marketplace` (~350 lines, 25 tests). Manages:
+Single module: `rift_broker::marketplace` (~395 lines, 30 tests). Manages:
 
 - **IntelListing** (shared object) — Unencrypted metadata + Walrus blob reference + staked `Balance<SUI>` + expiry via `created_at + decay_hours` + optional `location_proof_hash` for ZK verification
 - **PurchaseReceipt** (owned, soulbound) — `key` only (no `store`), non-transferable proof of purchase for Seal decryption policy
@@ -82,12 +82,12 @@ Intel payloads are encrypted and stored on Walrus via HTTP API:
 
 ### React Frontend (off-chain)
 
-Dashboard with 182 tests across 15 test files:
+Dashboard with 184 tests across 15 test files:
 
 - **3D Nebula Map**: Three.js + React Three Fiber canvas visualization with additive sprite nebulae, region-based navigation, camera focus on selected systems, dynamic glow based on intel density
 - **Library layer**: PTB builders (`transactions.ts`), Seal wrappers (`seal.ts`), Walrus client (`walrus.ts`), ZK proof generation (`zk-proof.ts`), Zod schemas (`intel-schemas.ts`), galaxy coordinate data (`galaxy-data.ts`), region aggregation (`region-data.ts`), heat map data (`heat-map-data.ts`)
 - **Hooks**: `useListings` (paginated event query → object fetch), `usePurchase` (sign + execute), `useDecrypt` (download → decrypt → validate), `useHeatMapData` (aggregate + 60s refresh)
-- **Components**: `CreateListing` (two-step form with optional ZK verification toggle), `ListingBrowser` (filter by type/region/price/verified), `MyIntel` (purchase history + decrypt + receipt management), `PurchaseFlow`, `IntelViewer`, `HeatMapControls`
+- **Components**: `CreateListing` (two-step form with optional ZK verification toggle), `ListingBrowser` (filter by type/region/price/verified), `MyIntel` (purchase history + decrypt + receipt management), `MyListings` (scout listing management: delist, reclaim), `PurchaseFlow`, `IntelViewer`, `InfoModal` (landing modal with first-visit auto-show), `FloatingPanel`, `RegionPanel`, `SystemPicker`, `HeatMapControls`
 
 ### Data Flow
 

@@ -8,9 +8,9 @@ interface SnarkjsProof {
   pi_c: [string, string, string]
 }
 
-// Lazy-loaded artifact cache
-let cachedWasm: ArrayBuffer | null = null
-let cachedZkey: ArrayBuffer | null = null
+// Circuit artifact URLs — snarkjs fastFile reads these directly via fetch
+const CIRCUIT_WASM_URL = '/zk/location-attestation.wasm'
+const CIRCUIT_ZKEY_URL = '/zk/location-attestation_final.zkey'
 
 /**
  * Convert a decimal field element string to a 32-byte little-endian Uint8Array.
@@ -149,8 +149,67 @@ export function generateSalt(): bigint {
 }
 
 /**
+ * Build the full circuit witness for the location attestation circuit.
+ *
+ * The circuit verifies coordinates against a Poseidon Merkle tree. For Phase 1
+ * (coordinate knowledge proof), we build a self-consistent tree from the coordinates
+ * + a dummy timestamp and sibling. This proves "I know these coordinates" — full
+ * game attestation (signed server data) comes in later phases.
+ *
+ * Tree structure (depth 3, 8 leaves, our data at indices 4-7):
+ *   leaf4 = Poseidon(timestamp), leaf5 = Poseidon(x), leaf6 = Poseidon(y), leaf7 = Poseidon(z)
+ *   parent45 = Poseidon(leaf4, leaf5), parent67 = Poseidon(leaf6, leaf7)
+ *   parent4567 = Poseidon(parent45, parent67)
+ *   merkleRoot = Poseidon(siblingLevel1, parent4567)
+ */
+async function buildCircuitInput(
+  coords: { x: number; y: number; z: number },
+  salt: bigint,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  poseidon: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  F: any,
+) {
+  const x = BigInt(Math.round(coords.x))
+  const y = BigInt(Math.round(coords.y))
+  const z = BigInt(Math.round(coords.z))
+  const timestamp = BigInt(Date.now())
+  const siblingLevel1 = 1n // dummy — Phase 1 doesn't verify against game data
+
+  // Compute leaf hashes (Poseidon with arity 1)
+  const leafTimestamp = F.toObject(poseidon([timestamp]))
+  const leafX = F.toObject(poseidon([x]))
+  const leafY = F.toObject(poseidon([y]))
+  const leafZ = F.toObject(poseidon([z]))
+
+  // Build Merkle tree bottom-up
+  const parent45 = F.toObject(poseidon([leafTimestamp, leafX]))
+  const parent67 = F.toObject(poseidon([leafY, leafZ]))
+  const parent4567 = F.toObject(poseidon([parent45, parent67]))
+  const merkleRoot = F.toObject(poseidon([siblingLevel1, parent4567]))
+
+  // Coordinate hash (Poseidon arity 4)
+  const coordinatesHash = F.toObject(poseidon([x, y, z, salt]))
+
+  // signatureAndKeyHash is unconstrained in the circuit — use a dummy value
+  const signatureAndKeyHash = F.toObject(poseidon([1n]))
+
+  return {
+    // Public inputs
+    merkleRoot: merkleRoot.toString(),
+    coordinatesHash: coordinatesHash.toString(),
+    signatureAndKeyHash: signatureAndKeyHash.toString(),
+    // Private witness
+    coordinates: [x.toString(), y.toString(), z.toString()],
+    salt: salt.toString(),
+    timestampWitness: timestamp.toString(),
+    siblingLevel1: siblingLevel1.toString(),
+  }
+}
+
+/**
  * Generate a Groth16 location proof for the given coordinates.
- * Lazily imports snarkjs and caches WASM + zkey artifacts after first load.
+ * Lazily imports snarkjs + circomlibjs and fetches circuit artifacts.
  *
  * Not tested directly in unit tests (artifact fetch fails in test env).
  * Test conversion utilities independently via their exports.
@@ -160,31 +219,21 @@ export async function generateLocationProof(
 ): Promise<{ proofBytes: Uint8Array; publicInputsBytes: Uint8Array }> {
   const salt = generateSalt()
 
-  // Lazy-load snarkjs (large dependency) — not installed as a typed dep; cast at call site
+  // Lazy-load snarkjs and circomlibjs Poseidon
   // @ts-expect-error snarkjs has no bundled types and is a runtime-only dep
   const snarkjs = await import('snarkjs')
+  // @ts-expect-error circomlibjs has no bundled types
+  const { buildPoseidon } = await import('circomlibjs')
+  const poseidon = await buildPoseidon()
+  const F = poseidon.F
 
-  // Fetch and cache circuit artifacts
-  if (cachedWasm === null) {
-    const res = await fetch('/zk/location-attestation.wasm')
-    if (!res.ok) throw new Error(`Failed to fetch WASM: ${res.status}`)
-    cachedWasm = await res.arrayBuffer()
-  }
-  if (cachedZkey === null) {
-    const res = await fetch('/zk/location-attestation_final.zkey')
-    if (!res.ok) throw new Error(`Failed to fetch zkey: ${res.status}`)
-    cachedZkey = await res.arrayBuffer()
-  }
+  const circuitInput = await buildCircuitInput(coords, salt, poseidon, F)
 
+  // Pass URL strings directly — snarkjs's fastFile fetches them in the browser
   const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-    {
-      x: coords.x.toString(),
-      y: coords.y.toString(),
-      z: coords.z.toString(),
-      salt: salt.toString(),
-    },
-    cachedWasm,
-    cachedZkey,
+    circuitInput,
+    CIRCUIT_WASM_URL,
+    CIRCUIT_ZKEY_URL,
   )
 
   return {

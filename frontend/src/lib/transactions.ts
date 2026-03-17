@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions'
 
-import { CLOCK_ID, PACKAGE_ID, PACKAGE_V2_ID } from './constants'
+import { CLOCK_ID, PACKAGE_ID } from './constants'
 
 export function buildCreateListingTx(params: {
   intelType: number
@@ -62,7 +62,7 @@ export function buildPurchaseTx(
 export function buildBurnReceiptTx(receiptId: string): Transaction {
   const tx = new Transaction()
   tx.moveCall({
-    target: `${PACKAGE_V2_ID}::marketplace::burn_receipt`,
+    target: `${PACKAGE_ID}::marketplace::burn_receipt`,
     arguments: [tx.object(receiptId)],
   })
   return tx
@@ -95,6 +95,24 @@ export function buildCreateVerifiedListingTx(params: {
       tx.pure.vector('u8', Array.from(params.publicInputsBytes)),
       tx.object(CLOCK_ID),
     ],
+  })
+  return tx
+}
+
+export function buildDelistTx(listingId: string): Transaction {
+  const tx = new Transaction()
+  tx.moveCall({
+    target: `${PACKAGE_ID}::marketplace::delist`,
+    arguments: [tx.object(listingId)],
+  })
+  return tx
+}
+
+export function buildClaimExpiredStakeTx(listingId: string): Transaction {
+  const tx = new Transaction()
+  tx.moveCall({
+    target: `${PACKAGE_ID}::marketplace::claim_expired_stake`,
+    arguments: [tx.object(listingId), tx.object(CLOCK_ID)],
   })
   return tx
 }

@@ -1,11 +1,11 @@
 #[test_only]
-module dark_net::marketplace_tests;
+module rift_broker::marketplace_tests;
 
 use sui::test_scenario;
 use sui::coin;
 use sui::sui::SUI;
 use sui::clock;
-use dark_net::marketplace::{Self, IntelListing, LocationVKey, PurchaseReceipt};
+use rift_broker::marketplace::{Self, IntelListing, LocationVKey, PurchaseReceipt};
 
 const SCOUT: address = @0xA;
 const BUYER: address = @0xB;
@@ -581,6 +581,158 @@ fun create_listing_excessive_decay_aborts() {
     scenario.end();
 }
 
+// === Double-delist guard ===
+
+#[test, expected_failure(abort_code = marketplace::EAlreadyDelisted)]
+fun double_delist_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // First delist succeeds
+    scenario.next_tx(SCOUT);
+    let mut listing = scenario.take_shared<IntelListing>();
+    marketplace::delist(&mut listing, scenario.ctx());
+    test_scenario::return_shared(listing);
+
+    // Second delist should abort
+    scenario.next_tx(SCOUT);
+    let mut listing = scenario.take_shared<IntelListing>();
+    marketplace::delist(&mut listing, scenario.ctx()); // should abort
+
+    test_scenario::return_shared(listing);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+// === Claim expired stake ===
+
+#[test]
+fun claim_expired_stake_by_scout() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let mut clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 1, // 1 hour decay
+        b"blob", stake, &clk, ctx,
+    );
+
+    // Advance clock past expiry
+    clock::increment_for_testing(&mut clk, 7_200_000);
+
+    scenario.next_tx(SCOUT);
+    let mut listing = scenario.take_shared<IntelListing>();
+
+    marketplace::claim_expired_stake(&mut listing, &clk, scenario.ctx());
+
+    assert!(listing.delisted() == true);
+    assert!(listing.stake_value() == 0);
+
+    test_scenario::return_shared(listing);
+
+    // Verify scout received the refund
+    scenario.next_tx(SCOUT);
+    let refund = scenario.take_from_sender<coin::Coin<SUI>>();
+    assert!(refund.value() == 1_000_000);
+    refund.burn_for_testing();
+
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test]
+fun claim_expired_stake_by_stranger() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let mut clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 1, b"blob", stake, &clk, ctx,
+    );
+
+    // Advance clock past expiry
+    clock::increment_for_testing(&mut clk, 7_200_000);
+
+    // Stranger triggers the claim — refund still goes to scout
+    scenario.next_tx(STRANGER);
+    let mut listing = scenario.take_shared<IntelListing>();
+
+    marketplace::claim_expired_stake(&mut listing, &clk, scenario.ctx());
+
+    assert!(listing.delisted() == true);
+    assert!(listing.stake_value() == 0);
+
+    test_scenario::return_shared(listing);
+
+    // Verify SCOUT (not stranger) received the refund
+    scenario.next_tx(SCOUT);
+    let refund = scenario.take_from_sender<coin::Coin<SUI>>();
+    assert!(refund.value() == 1_000_000);
+    refund.burn_for_testing();
+
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EListingNotExpired)]
+fun claim_expired_stake_not_expired_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
+    );
+
+    // Try to claim before expiry
+    scenario.next_tx(SCOUT);
+    let mut listing = scenario.take_shared<IntelListing>();
+
+    marketplace::claim_expired_stake(&mut listing, &clk, scenario.ctx()); // should abort
+
+    test_scenario::return_shared(listing);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EAlreadyDelisted)]
+fun claim_expired_stake_already_delisted_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let mut clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000, 1, b"blob", stake, &clk, ctx,
+    );
+
+    // Scout delists before expiry
+    scenario.next_tx(SCOUT);
+    let mut listing = scenario.take_shared<IntelListing>();
+    marketplace::delist(&mut listing, scenario.ctx());
+    test_scenario::return_shared(listing);
+
+    // Advance past expiry and try claim_expired_stake
+    clock::increment_for_testing(&mut clk, 7_200_000);
+
+    scenario.next_tx(SCOUT);
+    let mut listing = scenario.take_shared<IntelListing>();
+    marketplace::claim_expired_stake(&mut listing, &clk, scenario.ctx()); // should abort
+
+    test_scenario::return_shared(listing);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
 // === ZK-verified listing ===
 
 #[test]
@@ -606,7 +758,7 @@ fun test_create_listing_not_verified() {
 }
 
 #[test]
-#[expected_failure]
+#[expected_failure(abort_code = marketplace::EInvalidLocationProof)]
 fun test_create_verified_listing_invalid_proof() {
     let mut scenario = test_scenario::begin(@0xA);
     // Create the LocationVKey shared object via init
@@ -620,12 +772,15 @@ fun test_create_verified_listing_invalid_proof() {
         let ctx = test_scenario::ctx(&mut scenario);
         let clock = clock::create_for_testing(ctx);
         let coin = coin::mint_for_testing<SUI>(1_000_000_000, ctx);
-        // Garbage proof bytes — should abort with EInvalidLocationProof
+        // Properly-sized garbage: 128 bytes for proof points, 96 bytes for 3 public inputs (3×32).
+        // Passes groth16 parsing but fails verification → EInvalidLocationProof.
+        let fake_proof = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        let fake_inputs = x"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         marketplace::create_verified_listing(
             1, 1001, 100, 24, b"blob", coin,
             &vkey,
-            b"bad_proof_bytes",
-            b"bad_public_inputs",
+            fake_proof,
+            fake_inputs,
             &clock, ctx
         );
         clock::destroy_for_testing(clock);

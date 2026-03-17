@@ -6,6 +6,8 @@ import {
   buildSetBlobIdTx,
   buildPurchaseTx,
   buildBurnReceiptTx,
+  buildDelistTx,
+  buildClaimExpiredStakeTx,
   buildBatchPurchaseTx,
 } from './transactions'
 
@@ -57,6 +59,20 @@ describe('buildPurchaseTx', () => {
 describe('buildBurnReceiptTx', () => {
   it('returns a Transaction', () => {
     const tx = buildBurnReceiptTx('0xreceipt123')
+    expect(tx).toBeInstanceOf(Transaction)
+  })
+})
+
+describe('buildDelistTx', () => {
+  it('returns a Transaction', () => {
+    const tx = buildDelistTx('0xlisting123')
+    expect(tx).toBeInstanceOf(Transaction)
+  })
+})
+
+describe('buildClaimExpiredStakeTx', () => {
+  it('returns a Transaction', () => {
+    const tx = buildClaimExpiredStakeTx('0xlisting123')
     expect(tx).toBeInstanceOf(Transaction)
   })
 })

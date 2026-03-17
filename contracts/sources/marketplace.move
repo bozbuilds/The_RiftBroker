@@ -1,4 +1,4 @@
-module dark_net::marketplace;
+module rift_broker::marketplace;
 
 use sui::balance::Balance;
 use sui::coin::{Self, Coin};
@@ -23,6 +23,8 @@ const EInvalidLocationProof: u64 = 9;
 const EDecayTooSmall: u64 = 10;
 const EStakeTooLow: u64 = 11;
 const EPriceTooLow: u64 = 12;
+const EAlreadyDelisted: u64 = 13;
+const EListingNotExpired: u64 = 14;
 
 // === Regular constants (ALL_CAPS) ===
 
@@ -99,6 +101,12 @@ public struct IntelDelisted has copy, drop {
     scout: address,
 }
 
+public struct StakeReclaimed has copy, drop {
+    listing_id: ID,
+    scout: address,
+    amount: u64,
+}
+
 public struct VerifiedIntelListed has copy, drop {
     listing_id: ID,
     scout: address,
@@ -109,9 +117,7 @@ public struct VerifiedIntelListed has copy, drop {
 fun init(_otw: MARKETPLACE, ctx: &mut TxContext) {
     let vkey = LocationVKey {
         id: object::new(ctx),
-        // Placeholder: real vkey installed after circuit compilation in Phase 1E.
-        // For now: empty bytes so contract compiles and tests run.
-        vkey_bytes: vector::empty(),
+        vkey_bytes: x"c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e196108497b1768853e7bb6bd90424b49d19af63b50d70c31295b66199e91324c27096caacdf821d4d8f50df1766a9198c7d781b5def0984f3357eb5f008ecf351d0400000000000000d020745c5d9aa5e987327c45664f758f99c8b45f183ef9a9d5d8c979d7f9bb870d07303455723d5fda3f261f6173908c341a1f79f49f6ff8e2909cbac64b8682c579be738dd77124d3e60ce22087acfc06f73db1ad2515628826569d687d168a069c3e79b5ddd8ed539a19cf107298105f8d13c9feb3e78fd2c48e5b38995989",
     };
     transfer::share_object(vkey);
 }
@@ -129,7 +135,10 @@ public fun create_listing(
     ctx: &mut TxContext,
 ) {
     assert!(intel_type <= INTEL_TYPE_ROUTE, EInvalidIntelType);
+    assert!(decay_hours >= MIN_DECAY_HOURS, EDecayTooSmall);
     assert!(decay_hours <= MAX_DECAY_HOURS, EDecayTooLarge);
+    assert!(individual_price >= MIN_PRICE, EPriceTooLow);
+    assert!(coin::value(&stake) >= MIN_STAKE, EStakeTooLow);
 
     let listing = IntelListing {
         id: object::new(ctx),
@@ -199,7 +208,9 @@ public fun delist(
     ctx: &mut TxContext,
 ) {
     assert!(listing.scout == ctx.sender(), ENotScout);
+    assert!(!listing.delisted, EAlreadyDelisted);
 
+    let amount = listing.stake.value();
     let refund = coin::from_balance(listing.stake.withdraw_all(), ctx);
     transfer::public_transfer(refund, listing.scout);
 
@@ -208,6 +219,37 @@ public fun delist(
     event::emit(IntelDelisted {
         listing_id: object::id(listing),
         scout: listing.scout,
+    });
+    event::emit(StakeReclaimed {
+        listing_id: object::id(listing),
+        scout: listing.scout,
+        amount,
+    });
+}
+
+/// Permissionless stake recovery for expired listings. Anyone can call this
+/// (enabling keeper bots), but the refund always goes to the original scout.
+public fun claim_expired_stake(
+    listing: &mut IntelListing,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    assert!(!listing.delisted, EAlreadyDelisted);
+    assert!(
+        clock.timestamp_ms() >= listing.created_at + listing.decay_hours * 3_600_000,
+        EListingNotExpired,
+    );
+
+    let amount = listing.stake.value();
+    let refund = coin::from_balance(listing.stake.withdraw_all(), ctx);
+    transfer::public_transfer(refund, listing.scout);
+
+    listing.delisted = true;
+
+    event::emit(StakeReclaimed {
+        listing_id: object::id(listing),
+        scout: listing.scout,
+        amount,
     });
 }
 

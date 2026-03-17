@@ -24,7 +24,8 @@ Buyer browses metadata → purchases listing → decrypts client-side
 
 ## Deployed
 
-- **Contract**: [`0xa5e33645e5d1b3f886aa6624157b131c389c9c61aedb744e20a761b5003608b8`](https://suiscan.xyz/testnet/object/0xa5e33645e5d1b3f886aa6624157b131c389c9c61aedb744e20a761b5003608b8) (SUI testnet)
+- **Contract**: [`0x57692283b111ab1cc491b23ccc12a602fae0f3e73486f254798e7a82b7db6962`](https://suiscan.xyz/testnet/object/0x57692283b111ab1cc491b23ccc12a602fae0f3e73486f254798e7a82b7db6962) (SUI testnet)
+- **LocationVKey**: [`0x4354026a66d2119899e6586f7c11744074603032c6950cf3b016be60d7058189`](https://suiscan.xyz/testnet/object/0x4354026a66d2119899e6586f7c11744074603032c6950cf3b016be60d7058189) (ZK verification key)
 
 ## Tech Stack
 
@@ -48,13 +49,13 @@ Buyer browses metadata → purchases listing → decrypts client-side
 ```bash
 # Move contracts
 sui move build --path contracts
-sui move test --path contracts    # 25 tests
+sui move test --path contracts    # 30 tests
 
 # Frontend
 cd frontend
 pnpm install
 pnpm dev                          # http://localhost:5173
-pnpm test                         # 182 tests
+pnpm test                         # 184 tests
 pnpm build                        # Production build
 ```
 
@@ -73,19 +74,23 @@ Creates 15 demo listings across 12 systems with encrypted payloads on Walrus.
 TheRiftBroker/
 ├── contracts/
 │   ├── Move.toml
-│   ├── sources/marketplace.move        # Core contract + Seal policies + ZK verification (~350 lines)
-│   └── tests/marketplace_tests.move    # 25 tests
+│   ├── sources/marketplace.move        # Core contract + Seal policies + ZK verification (~395 lines)
+│   └── tests/marketplace_tests.move    # 30 tests
 ├── circuits/
 │   ├── README.md                       # One-time circuit compilation workflow
-│   └── location-attestation/           # Groth16 circuit source (pending compilation)
+│   └── location-attestation/           # Groth16 circuit source + compiled artifacts
 ├── frontend/
+│   ├── public/
+│   │   ├── galaxy.json                 # Real EVE Frontier star data
+│   │   └── zk/                         # Browser proof WASM + proving key
 │   ├── src/
 │   │   ├── App.tsx                     # 3D map + panel navigation + purchase flow
+│   │   ├── providers/                  # SUI, wallet, query, galaxy data providers
 │   │   ├── lib/
 │   │   │   ├── constants.ts            # Package ID, Seal key servers, LocationVKey ID
 │   │   │   ├── types.ts               # On-chain type mirrors (bigint, isVerified)
 │   │   │   ├── transactions.ts         # Pure PTB builders incl. verified listings
-│   │   │   ├── zk-proof.ts            # snarkjs → Arkworks byte conversion (31 tests)
+│   │   │   ├── zk-proof.ts            # snarkjs → Arkworks byte conversion
 │   │   │   ├── seal.ts                # Encrypt/decrypt wrappers
 │   │   │   ├── walrus.ts              # Upload/download (HTTP API)
 │   │   │   ├── intel-schemas.ts       # Zod schemas (4 intel types)
@@ -93,36 +98,37 @@ TheRiftBroker/
 │   │   │   ├── galaxy-data.ts         # Real EVE Frontier galaxy coordinates
 │   │   │   ├── region-data.ts         # Region aggregation for navigation
 │   │   │   ├── format.ts              # Shared timeRemaining, truncateAddress
-│   │   │   └── systems.ts            # 20 demo star systems
+│   │   │   ├── parse.ts              # On-chain field parsing
+│   │   │   └── empty-maps.ts         # Empty state constants
 │   │   ├── scripts/
 │   │   │   ├── seed-data.ts           # 15 demo listings (7 tests)
 │   │   │   └── seed.ts               # CLI seed script
-│   │   ├── hooks/                     # useListings, usePurchase, useDecrypt, useHeatMapData
+│   │   ├── hooks/                     # useListings, usePurchase, useDecrypt, useHeatMapData, useReceipts
 │   │   └── components/
 │   │       ├── CreateListing.tsx       # Two-step form + optional ZK verification
 │   │       ├── ListingBrowser.tsx      # Filterable list + verified-only toggle
 │   │       ├── MyIntel.tsx            # Purchase history + decrypt + receipt mgmt
+│   │       ├── MyListings.tsx         # Scout listing management (delist, reclaim)
 │   │       ├── PurchaseFlow.tsx       # Purchase confirmation
 │   │       ├── IntelViewer.tsx        # Type-switched intel renderer
+│   │       ├── InfoModal.tsx          # Landing modal with first-visit auto-show
+│   │       ├── FloatingPanel.tsx      # Floating UI panel wrapper
+│   │       ├── RegionPanel.tsx        # Region details sidebar
+│   │       ├── SystemPicker.tsx       # System selector component
 │   │       ├── ErrorBoundary.tsx      # Error boundary with reset
 │   │       └── heat-map/             # 3D nebula + SVG fallback + controls
 │   └── vite.config.ts
 └── docs/
-    ├── eve_frontier_hackathon26.md    # Strategic playbook
-    ├── ARCHITECTURE.md               # Technical architecture
-    ├── seal-spike.md                  # Seal research
-    ├── walrus-spike.md               # Walrus research
-    ├── brainstorms/                   # Design exploration (10 files)
-    └── plans/                         # Implementation plans (8 files)
+    └── ARCHITECTURE.md               # Technical architecture
 ```
 
 ## Tests
 
 | Suite | Count |
 |-------|-------|
-| Move contract | 25 |
-| Frontend (Vitest) | 182 |
-| **Total** | **207** |
+| Move contract | 30 |
+| Frontend (Vitest) | 184 |
+| **Total** | **214** |
 
 ## Upcoming Features
 
@@ -135,4 +141,6 @@ TheRiftBroker/
 
 ## License
 
-MIT
+Source Available — No Redistribution. See [LICENSE](LICENSE) for details.
+
+Copyright (c) 2026 BozBuilds. All rights reserved.

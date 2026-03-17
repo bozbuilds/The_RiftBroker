@@ -8,6 +8,7 @@ import { FloatingPanel } from './components/FloatingPanel'
 import { IntelViewer } from './components/IntelViewer'
 import { ListingBrowser } from './components/ListingBrowser'
 import { MyIntel } from './components/MyIntel'
+import { MyListings } from './components/MyListings'
 import { PurchaseFlow } from './components/PurchaseFlow'
 import { RegionPanel } from './components/RegionPanel'
 import { InfoModal, STORAGE_KEY } from './components/InfoModal'
@@ -29,11 +30,13 @@ type PanelState =
   | { kind: 'browse' }
   | { kind: 'create' }
   | { kind: 'my-intel' }
+  | { kind: 'my-listings' }
 
 const NAV_ITEMS = [
   { kind: 'none' as const, label: 'Map' },
   { kind: 'browse' as const, label: 'Browse' },
   { kind: 'my-intel' as const, label: 'My Intel' },
+  { kind: 'my-listings' as const, label: 'My Listings' },
   { kind: 'create' as const, label: 'Create' },
 ]
 
@@ -274,6 +277,12 @@ export function App() {
           {panel.kind === 'my-intel' && (
             <FloatingPanel title="My Intel" onClose={closePanel}>
               <MyIntel />
+            </FloatingPanel>
+          )}
+
+          {panel.kind === 'my-listings' && (
+            <FloatingPanel title="My Listings" onClose={closePanel}>
+              <MyListings />
             </FloatingPanel>
           )}
         </>

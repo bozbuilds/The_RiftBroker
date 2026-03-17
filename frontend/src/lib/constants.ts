@@ -1,12 +1,8 @@
 // Galaxy data JSON (served from /public — relative URL works in dev and production)
 export const GALAXY_JSON_URL = '/galaxy.json'
 
-// Deployed on SUI testnet (2026-02-27)
-export const PACKAGE_ID = '0xa5e33645e5d1b3f886aa6624157b131c389c9c61aedb744e20a761b5003608b8'
-
-// Upgraded package (v2) — new functions like burn_receipt live here.
-// Object types still reference the original PACKAGE_ID.
-export const PACKAGE_V2_ID = '0xb5369b33fb321d9f8ffbac42232bf60f985c34e7d05b5178e9435a93eb710125'
+// Deployed on SUI testnet (2026-03-16) — fresh deploy with ZK verification + rift_broker package name
+export const PACKAGE_ID = '0x57692283b111ab1cc491b23ccc12a602fae0f3e73486f254798e7a82b7db6962'
 
 // SUI shared Clock object
 export const CLOCK_ID = '0x6'
@@ -44,8 +40,8 @@ export const INTEL_TYPE_COLORS_NEON: Record<number, string> = {
   3: '#ffea00', // Route — yellow
 }
 
-/** LocationVKey shared object ID — created by marketplace init(). Update after fresh deploy. */
-export const LOCATION_VKEY_ID = '0x0000000000000000000000000000000000000000000000000000000000000000'
+/** LocationVKey shared object ID — created by marketplace init() on 2026-03-16 deploy. */
+export const LOCATION_VKEY_ID = '0x4354026a66d2119899e6586f7c11744074603032c6950cf3b016be60d7058189'
 
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',

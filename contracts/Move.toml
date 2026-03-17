@@ -1,6 +1,6 @@
 [package]
-name = "dark_net"
+name = "rift_broker"
 edition = "2024"
 
 [addresses]
-dark_net = "0x0"
+rift_broker = "0x0"
