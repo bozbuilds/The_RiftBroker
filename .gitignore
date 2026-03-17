@@ -46,6 +46,3 @@ circom/
 circuits/location-attestation/build/
 circuits/location-attestation/*.ptau
 circuits/location-attestation/*.zkey
-
-# ZK browser artifacts (compiled from circuit source)
-frontend/public/zk/
