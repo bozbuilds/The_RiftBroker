@@ -27,3 +27,14 @@ contracts/Move.lock
 
 # Git worktrees
 .worktrees/
+
+# Internal docs (keep locally, exclude from remote)
+CLAUDE.md
+HANDOVER.md
+docs/brainstorms/
+docs/plans/
+docs/eve_frontier_hackathon26.md
+docs/seal-spike.md
+docs/walrus-spike.md
+contracts/Published.toml
+scripts/
