@@ -13,6 +13,7 @@ export interface IntelListingFields {
   readonly intelType: IntelType
   readonly systemId: bigint
   readonly createdAt: bigint
+  readonly observedAt: bigint
   readonly decayHours: bigint
   readonly walrusBlobId: Uint8Array
   readonly individualPrice: bigint

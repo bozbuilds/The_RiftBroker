@@ -113,6 +113,31 @@ describe('parseListingFields — distance proof', () => {
   })
 })
 
+describe('parseListingFields — observed_at', () => {
+  const baseFields = {
+    scout: '0xABC',
+    intel_type: 1,
+    system_id: '42',
+    created_at: '1000',
+    decay_hours: '24',
+    walrus_blob_id: [],
+    individual_price: '500000',
+    stake: { value: '1000000' },
+    delisted: false,
+    location_proof_hash: [],
+  }
+
+  it('parses observed_at when present', () => {
+    const result = parseListingFields('0x1', { ...baseFields, observed_at: '900' })
+    expect(result.observedAt).toBe(900n)
+  })
+
+  it('falls back to created_at when observed_at is missing', () => {
+    const result = parseListingFields('0x1', { ...baseFields })
+    expect(result.observedAt).toBe(1000n)
+  })
+})
+
 describe('parseReceiptFields', () => {
   const objectId = '0xreceipt01'
 

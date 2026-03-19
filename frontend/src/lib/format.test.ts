@@ -4,12 +4,14 @@ import { isExpired, mistToSui } from './format'
 import type { IntelListingFields } from './types'
 
 function makeListing(overrides: Partial<IntelListingFields> = {}): IntelListingFields {
+  const createdAt = overrides.createdAt ?? BigInt(Date.now() - 3_600_000)
   return {
     id: '0xabc',
     scout: '0x1',
     intelType: 0,
     systemId: 42n,
-    createdAt: BigInt(Date.now() - 3_600_000), // 1 hour ago
+    createdAt,
+    observedAt: overrides.observedAt ?? createdAt,
     decayHours: 24n,
     walrusBlobId: new Uint8Array([1, 2, 3]),
     individualPrice: 500_000n,

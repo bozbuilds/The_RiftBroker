@@ -42,6 +42,9 @@ export function parseListingFields(
     intelType: fields.intel_type as IntelListingFields['intelType'],
     systemId: BigInt(fields.system_id as string),
     createdAt: BigInt(fields.created_at as string),
+    observedAt: fields.observed_at !== undefined
+      ? BigInt(fields.observed_at as string)
+      : BigInt(fields.created_at as string),
     decayHours: BigInt(fields.decay_hours as string),
     walrusBlobId: new Uint8Array(fields.walrus_blob_id as number[]),
     individualPrice: BigInt(fields.individual_price as string),
