@@ -123,7 +123,7 @@ template LocationAttestationCircuit() {
     signal input signatureAndKeyHash;           // Poseidon hash(signature || public key) (1 field element)
     
     // ========== PUBLIC OUTPUTS ==========
-    // None - timestamp is verified in Merkle proof, distance circuit can read from locationData
+    signal output timestamp;
     
     // ========== PRIVATE INPUTS (Witness) ==========
     signal input coordinates[3];                // [x, y, z] coordinates (u64 values as field elements, unsigned)
@@ -176,9 +176,10 @@ template LocationAttestationCircuit() {
     coordHash.inputs[3] <== salt;            // salt
     coordHash.out === coordinatesHash; // Verify matches public input
     
-    // Note: Timestamp is verified as part of the Merkle proof (z_timestamp leaf)
-    // The distance circuit can read it from the location proof's public signals if needed
-    // No need for a public output here - the Merkle proof already cryptographically binds it
+    // 4. Output timestamp as public signal for on-chain extraction
+    // The timestamp is already verified via the Merkle proof (leaf4).
+    // Exposing it as a public output lets the contract read it for staleness validation.
+    timestamp <== timestampWitness;
 }
 
 component main { public [merkleRoot, coordinatesHash, signatureAndKeyHash] } = LocationAttestationCircuit();
