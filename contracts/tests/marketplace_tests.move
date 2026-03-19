@@ -898,6 +898,80 @@ fun test_has_distance_proof_false_on_new_listing() {
     scenario.end();
 }
 
+#[test, expected_failure(abort_code = marketplace::ENotScout)]
+fun test_attach_distance_proof_rejects_non_scout() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        marketplace::init_for_testing(ctx);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::set_location_proof_hash_for_testing(&mut listing, b"fake_location_hash");
+        test_scenario::return_shared(listing);
+    };
+    // BUYER attempts to attach — should fail
+    scenario.next_tx(BUYER);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        let dvkey = scenario.take_shared<DistanceVKey>();
+        let fake_proof = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        let fake_inputs = x"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        marketplace::attach_distance_proof(
+            &mut listing, &dvkey, fake_proof, fake_inputs, scenario.ctx()
+        );
+        test_scenario::return_shared(listing);
+        test_scenario::return_shared(dvkey);
+    };
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EDistanceProofAlreadySet)]
+fun test_attach_distance_proof_rejects_double_attach() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        marketplace::init_for_testing(ctx);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::set_location_proof_hash_for_testing(&mut listing, b"fake_location_hash");
+        marketplace::set_distance_proof_hash_for_testing(&mut listing, b"already_set");
+        test_scenario::return_shared(listing);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        let dvkey = scenario.take_shared<DistanceVKey>();
+        let fake_proof = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        let fake_inputs = x"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        marketplace::attach_distance_proof(
+            &mut listing, &dvkey, fake_proof, fake_inputs, scenario.ctx()
+        );
+        test_scenario::return_shared(listing);
+        test_scenario::return_shared(dvkey);
+    };
+    scenario.end();
+}
+
 #[test, expected_failure(abort_code = marketplace::EInvalidDistanceProof)]
 fun test_attach_distance_proof_invalid_proof_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);

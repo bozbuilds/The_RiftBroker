@@ -224,9 +224,9 @@ export function CreateListing() {
       await suiClient.waitForTransaction({ digest: setResult.digest })
 
       // Distance proof flow (non-Route, when target system selected)
-      if (useVerified && locationSalt && targetSystemId && intelType !== 3) {
+      if (useVerified && locationSalt && targetSystemId && onChainSystemId && intelType !== 3) {
         const targetSystem = galaxy?.systemMap.get(targetSystemId)
-        const scoutSystem = galaxy?.systemMap.get(onChainSystemId!)
+        const scoutSystem = galaxy?.systemMap.get(onChainSystemId)
         if (targetSystem?.rawX !== undefined && scoutSystem?.rawX !== undefined) {
           setDistanceProofStatus('Generating distance proof...')
           try {

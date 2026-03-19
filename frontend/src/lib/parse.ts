@@ -16,6 +16,17 @@ function parseDistanceMeters(proofHash: Uint8Array): number | null {
   let val = 0n
   for (let i = 31; i >= 0; i--)
     val = (val << 8n) | BigInt(proofHash[i] ?? 0)
+  // val is distanceSquared = manhattan^2, so sqrt gives manhattan distance.
+  // For large values, convert via BigInt isqrt to avoid Number precision loss.
+  if (val > BigInt(Number.MAX_SAFE_INTEGER)) {
+    let lo = 0n, hi = val
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1n
+      if (mid * mid <= val) lo = mid + 1n
+      else hi = mid - 1n
+    }
+    return Number(hi)
+  }
   return Math.sqrt(Number(val))
 }
 

@@ -27,7 +27,7 @@
 
 ### Move Contracts (on-chain)
 
-Single module: `rift_broker::marketplace` (~450 lines, 33 tests). Manages:
+Single module: `rift_broker::marketplace` (~480 lines, 35 tests). Manages:
 
 - **IntelListing** (shared object) — Unencrypted metadata + Walrus blob reference + staked `Balance<SUI>` + expiry via `created_at + decay_hours` + optional `location_proof_hash` for ZK location verification + optional `distance_proof_hash` and `distance_meters` for ZK proximity attestation
 - **PurchaseReceipt** (owned, soulbound) — `key` only (no `store`), non-transferable proof of purchase for Seal decryption policy
@@ -176,7 +176,6 @@ erDiagram
         bool delisted
         vector location_proof_hash
         vector distance_proof_hash
-        Option_u64 distance_meters
     }
 
     PurchaseReceipt {

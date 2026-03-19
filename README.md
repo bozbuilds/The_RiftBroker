@@ -51,7 +51,7 @@ Buyer browses metadata → purchases listing → decrypts client-side
 ```bash
 # Move contracts
 sui move build --path contracts
-sui move test --path contracts    # 33 tests
+sui move test --path contracts    # 35 tests
 
 # Frontend
 cd frontend
@@ -129,9 +129,9 @@ TheRiftBroker/
 
 | Suite | Count |
 |-------|-------|
-| Move contract | 33 |
+| Move contract | 35 |
 | Frontend (Vitest) | 188 |
-| **Total** | **221** |
+| **Total** | **223** |
 
 ## Upcoming Features
 

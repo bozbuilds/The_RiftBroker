@@ -464,6 +464,14 @@ public fun set_location_proof_hash_for_testing(
 }
 
 #[test_only]
+public fun set_distance_proof_hash_for_testing(
+    listing: &mut IntelListing,
+    hash: vector<u8>,
+) {
+    listing.distance_proof_hash = hash;
+}
+
+#[test_only]
 public fun set_distance_vkey_bytes_for_testing(
     vkey: &mut DistanceVKey,
     bytes: vector<u8>,
