@@ -28,6 +28,10 @@ const EListingNotExpired: u64 = 14;
 const ENoLocationProof: u64 = 15;
 const EDistanceProofAlreadySet: u64 = 16;
 const EInvalidDistanceProof: u64 = 17;
+#[allow(unused_const)]
+const EObservationTooStale: u64 = 18;
+#[allow(unused_const)]
+const ETimestampInFuture: u64 = 19;
 
 // === Regular constants (ALL_CAPS) ===
 
@@ -35,6 +39,8 @@ const MAX_DECAY_HOURS: u64 = 8760; // 1 year
 const MIN_DECAY_HOURS: u64 = 1;
 const MIN_PRICE: u64 = 1;
 const MIN_STAKE: u64 = 1;
+#[allow(unused_const)]
+const MAX_OBSERVATION_AGE_MS: u64 = 86_400_000; // 24 hours
 
 #[allow(unused_const)]
 const INTEL_TYPE_RESOURCE: u8 = 0;
@@ -60,6 +66,7 @@ public struct IntelListing has key {
     intel_type: u8,
     system_id: u64,
     created_at: u64,
+    observed_at: u64,           // ZK-verified observation time (= created_at for unverified)
     decay_hours: u64,
     walrus_blob_id: vector<u8>,
     individual_price: u64,
@@ -144,6 +151,22 @@ fun init(_otw: MARKETPLACE, ctx: &mut TxContext) {
     transfer::share_object(distance_vkey);
 }
 
+// === Private helpers ===
+
+/// Read 8 bytes starting at `offset` as a little-endian u64.
+/// Used to extract the timestamp field element from proof public signals.
+#[allow(unused_function)]
+fun bytes_to_u64_le(bytes: &vector<u8>, offset: u64): u64 {
+    (*bytes.borrow(offset) as u64)
+        | ((*bytes.borrow(offset + 1) as u64) << 8)
+        | ((*bytes.borrow(offset + 2) as u64) << 16)
+        | ((*bytes.borrow(offset + 3) as u64) << 24)
+        | ((*bytes.borrow(offset + 4) as u64) << 32)
+        | ((*bytes.borrow(offset + 5) as u64) << 40)
+        | ((*bytes.borrow(offset + 6) as u64) << 48)
+        | ((*bytes.borrow(offset + 7) as u64) << 56)
+}
+
 // === Public functions ===
 
 public fun create_listing(
@@ -162,12 +185,14 @@ public fun create_listing(
     assert!(individual_price >= MIN_PRICE, EPriceTooLow);
     assert!(coin::value(&stake) >= MIN_STAKE, EStakeTooLow);
 
+    let now = clock.timestamp_ms();
     let listing = IntelListing {
         id: object::new(ctx),
         scout: ctx.sender(),
         intel_type,
         system_id,
-        created_at: clock.timestamp_ms(),
+        created_at: now,
+        observed_at: now,
         decay_hours,
         walrus_blob_id,
         individual_price,
@@ -292,6 +317,8 @@ public fun is_expired(listing: &IntelListing, clock: &Clock): bool {
     clock.timestamp_ms() >= listing.created_at + listing.decay_hours * 3_600_000
 }
 
+public fun observed_at(listing: &IntelListing): u64 { listing.observed_at }
+
 // Receipt getters
 
 public fun buyer(receipt: &PurchaseReceipt): address { receipt.buyer }
@@ -336,12 +363,14 @@ public fun create_verified_listing(
         EInvalidLocationProof,
     );
 
+    let now = clock.timestamp_ms();
     let listing = IntelListing {
         id: object::new(ctx),
         scout: ctx.sender(),
         intel_type,
         system_id,
-        created_at: clock.timestamp_ms(),
+        created_at: now,
+        observed_at: now,
         decay_hours,
         walrus_blob_id,
         individual_price,
