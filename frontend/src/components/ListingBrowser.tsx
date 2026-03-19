@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 
 import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
-import { formatDistance, mistToSui, timeRemaining, truncateAddress } from '../lib/format'
+import { formatDistance, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import type { IntelListingFields } from '../lib/types'
 import { useListings } from '../hooks/useListings'
@@ -10,7 +10,7 @@ import { useReceipts } from '../hooks/useReceipts'
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
 
 function isExpired(listing: IntelListingFields): boolean {
-  const expiryMs = Number(listing.createdAt) + Number(listing.decayHours) * 3_600_000
+  const expiryMs = Number(listing.observedAt) + Number(listing.decayHours) * 3_600_000
   return Date.now() >= expiryMs
 }
 
@@ -164,6 +164,9 @@ export function ListingBrowser({
                   <span className="listing-proximity-badge">
                     Proximity: {formatDistance(listing.distanceMeters / 1000)}
                   </span>
+                )}
+                {observedAgo(listing) && (
+                  <span className="listing-observed-badge">{observedAgo(listing)}</span>
                 )}
                 <span className="listing-item-meta">
                   {' '}&mdash; {obfuscatedLocation(listing.systemId, systemMap, regionCounts)} | {truncateAddress(listing.scout)}

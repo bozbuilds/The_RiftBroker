@@ -1219,6 +1219,18 @@ button {
   align-self: center;
 }
 
+.listing-observed-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-cyan, #22d3ee);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border: 1px solid var(--accent-cyan, #22d3ee);
+  border-radius: var(--radius);
+  align-self: center;
+}
+
 /* --- Verify Location Toggle (CreateListing) --- */
 
 .verify-toggle {

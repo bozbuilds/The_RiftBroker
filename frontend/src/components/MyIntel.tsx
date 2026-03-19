@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 
 import { DECRYPT_STATUS_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
-import { formatDistance, isExpired, mistToSui, truncateAddress } from '../lib/format'
+import { formatDistance, isExpired, mistToSui, observedAgo, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import { buildBurnReceiptTx } from '../lib/transactions'
 import { useDecrypt } from '../hooks/useDecrypt'
@@ -85,6 +85,9 @@ export function MyIntel() {
             <span className="listing-proximity-badge">
               Proximity: {formatDistance(listing.distanceMeters / 1000)}
             </span>
+          )}
+          {observedAgo(listing) && (
+            <span className="listing-observed-badge">{observedAgo(listing)}</span>
           )}
           <span className="listing-item-meta">
             {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
