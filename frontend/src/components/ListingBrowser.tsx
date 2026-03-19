@@ -148,6 +148,7 @@ export function ListingBrowser({
       <ul className="listing-list">
         {filtered.map((listing) => {
           const owned = receiptData?.byListingId.has(listing.id)
+          const ago = observedAgo(listing)
           return (
             <li
               key={listing.id}
@@ -165,8 +166,8 @@ export function ListingBrowser({
                     Proximity: {formatDistance(listing.distanceMeters / 1000)}
                   </span>
                 )}
-                {observedAgo(listing) && (
-                  <span className="listing-observed-badge">{observedAgo(listing)}</span>
+                {ago && (
+                  <span className="listing-observed-badge">{ago}</span>
                 )}
                 <span className="listing-item-meta">
                   {' '}&mdash; {obfuscatedLocation(listing.systemId, systemMap, regionCounts)} | {truncateAddress(listing.scout)}

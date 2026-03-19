@@ -72,6 +72,7 @@ export function MyIntel() {
     const isActive = activeReceipt === receipt.id
     const isDeleting = deletingId === receipt.id
     const paidDate = new Date(Number(receipt.paidAt)).toLocaleDateString()
+    const ago = observedAgo(listing)
 
     return (
       <li key={receipt.id} className={`listing-item${isItemExpired ? ' listing-item-expired' : ' listing-item-owned'}`}>
@@ -86,8 +87,8 @@ export function MyIntel() {
               Proximity: {formatDistance(listing.distanceMeters / 1000)}
             </span>
           )}
-          {observedAgo(listing) && (
-            <span className="listing-observed-badge">{observedAgo(listing)}</span>
+          {ago && (
+            <span className="listing-observed-badge">{ago}</span>
           )}
           <span className="listing-item-meta">
             {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
