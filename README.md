@@ -4,7 +4,7 @@ An encrypted intelligence marketplace for [EVE Frontier](https://www.evefrontier
 
 ## How It Works
 
-Scouts encrypt intelligence payloads, store them on Walrus, and list them on-chain. Optionally, scouts attach a zero-knowledge location proof (Groth16) to verify they were physically present without revealing exact coordinates. Buyers browse unencrypted metadata, pay to unlock Seal decryption, and view intel client-side. A live 3D nebula heat map shows intel density across star systems.
+Scouts encrypt intelligence payloads, store them on Walrus, and list them on-chain. Optionally, scouts attach zero-knowledge proofs (Groth16) — a location proof verifying physical presence at a star system, and a proximity proof showing how close they were to a target. Buyers browse unencrypted metadata, pay to unlock Seal decryption, and view intel client-side. A live 3D nebula heat map shows intel density across star systems.
 
 ```
 Scout encrypts intel → uploads to Walrus → lists on-chain (optional ZK proof)
@@ -16,7 +16,8 @@ Buyer browses metadata → purchases listing → decrypts client-side
 
 - **Seal encryption** — SUI-native conditional decryption. Only buyers with a valid PurchaseReceipt can decrypt.
 - **Walrus storage** — Encrypted blobs stored on decentralized storage, retrieved by blob ID.
-- **ZK-verified intel** — Groth16 on-chain verification proves scout location without revealing coordinates. Verified listings earn a "ZK-Verified" badge.
+- **ZK location proofs** — Groth16 on-chain verification proves scout was physically present at a star system without revealing exact coordinates. Earns a "ZK-Verified" badge.
+- **ZK proximity proofs** — Scouts can also attach a distance proof showing how close their system was to a target. Displayed as a "Proximity Verified" badge with distance in km / light-seconds / light-years. *Note: currently limited to solar system granularity using public star map coordinates — full per-object precision requires CCP Games POD data, which is not yet available.*
 - **4 intel types** — Resource deposits, fleet movements, base structures, trade routes.
 - **3D nebula heat map** — Three.js canvas nebula visualization with region-based navigation, camera focus, and real-time intel density.
 - **PTB composability** — Batch purchase multiple listings in a single atomic transaction.
@@ -24,8 +25,9 @@ Buyer browses metadata → purchases listing → decrypts client-side
 
 ## Deployed
 
-- **Contract**: [`0x57692283b111ab1cc491b23ccc12a602fae0f3e73486f254798e7a82b7db6962`](https://suiscan.xyz/testnet/object/0x57692283b111ab1cc491b23ccc12a602fae0f3e73486f254798e7a82b7db6962) (SUI testnet)
-- **LocationVKey**: [`0x4354026a66d2119899e6586f7c11744074603032c6950cf3b016be60d7058189`](https://suiscan.xyz/testnet/object/0x4354026a66d2119899e6586f7c11744074603032c6950cf3b016be60d7058189) (ZK verification key)
+- **Contract**: [`0x8ff3a1a4e6f983749026ca40c73e3d6ea6ee75c70f947d80914f56d50278b7d2`](https://suiscan.xyz/testnet/object/0x8ff3a1a4e6f983749026ca40c73e3d6ea6ee75c70f947d80914f56d50278b7d2) (SUI testnet)
+- **LocationVKey**: [`0xfee9b6601212ce44715874a99ff3f5ccec304a03b7e3cc2e7a41b81a83b19bb1`](https://suiscan.xyz/testnet/object/0xfee9b6601212ce44715874a99ff3f5ccec304a03b7e3cc2e7a41b81a83b19bb1) (location ZK verification key)
+- **DistanceVKey**: [`0xf728694a51f4e88980d601c45be6e84cdd75e28ff996a3de10560131ca344026`](https://suiscan.xyz/testnet/object/0xf728694a51f4e88980d601c45be6e84cdd75e28ff996a3de10560131ca344026) (proximity ZK verification key)
 
 ## Tech Stack
 
@@ -49,13 +51,13 @@ Buyer browses metadata → purchases listing → decrypts client-side
 ```bash
 # Move contracts
 sui move build --path contracts
-sui move test --path contracts    # 30 tests
+sui move test --path contracts    # 33 tests
 
 # Frontend
 cd frontend
 pnpm install
 pnpm dev                          # http://localhost:5173
-pnpm test                         # 184 tests
+pnpm test                         # 188 tests
 pnpm build                        # Production build
 ```
 
@@ -77,8 +79,9 @@ TheRiftBroker/
 │   ├── sources/marketplace.move        # Core contract + Seal policies + ZK verification (~395 lines)
 │   └── tests/marketplace_tests.move    # 30 tests
 ├── circuits/
-│   ├── README.md                       # One-time circuit compilation workflow
-│   └── location-attestation/           # Groth16 circuit source + compiled artifacts
+│   ├── README.md                       # Circuit compilation workflow (PowerShell)
+│   ├── location-attestation/           # Location Groth16 circuit + compiled artifacts
+│   └── distance-attestation/           # Proximity Groth16 circuit + compiled artifacts
 ├── frontend/
 │   ├── public/
 │   │   ├── galaxy.json                 # Real EVE Frontier star data
@@ -87,7 +90,7 @@ TheRiftBroker/
 │   │   ├── App.tsx                     # 3D map + panel navigation + purchase flow
 │   │   ├── providers/                  # SUI, wallet, query, galaxy data providers
 │   │   ├── lib/
-│   │   │   ├── constants.ts            # Package ID, Seal key servers, LocationVKey ID
+│   │   │   ├── constants.ts            # Package ID, Seal key servers, VKey IDs
 │   │   │   ├── types.ts               # On-chain type mirrors (bigint, isVerified)
 │   │   │   ├── transactions.ts         # Pure PTB builders incl. verified listings
 │   │   │   ├── zk-proof.ts            # snarkjs → Arkworks byte conversion
@@ -126,13 +129,13 @@ TheRiftBroker/
 
 | Suite | Count |
 |-------|-------|
-| Move contract | 30 |
-| Frontend (Vitest) | 184 |
-| **Total** | **214** |
+| Move contract | 33 |
+| Frontend (Vitest) | 188 |
+| **Total** | **221** |
 
 ## Upcoming Features
 
-- **ZK Phase 2**: Proximity proofs — verify scout was within range of a specific structure
+- **Full-precision proximity** — Per-object distance proofs once CCP Games exposes in-game location as POD data. The circuit is live today at solar system granularity.
 - **ZK Phase 3**: Timestamp freshness — prove intel was gathered recently
 - **ZK Phase 4**: Scout reputation — on-chain reputation derived from verified intel history
 - **Dispute system**: Stake-backed challenges with community voting

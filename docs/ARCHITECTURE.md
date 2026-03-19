@@ -1,6 +1,6 @@
 # Architecture
 
-**Last Updated**: 2026-03-16
+**Last Updated**: 2026-03-19
 
 ## System Layers
 
@@ -27,15 +27,17 @@
 
 ### Move Contracts (on-chain)
 
-Single module: `rift_broker::marketplace` (~395 lines, 30 tests). Manages:
+Single module: `rift_broker::marketplace` (~450 lines, 33 tests). Manages:
 
-- **IntelListing** (shared object) — Unencrypted metadata + Walrus blob reference + staked `Balance<SUI>` + expiry via `created_at + decay_hours` + optional `location_proof_hash` for ZK verification
+- **IntelListing** (shared object) — Unencrypted metadata + Walrus blob reference + staked `Balance<SUI>` + expiry via `created_at + decay_hours` + optional `location_proof_hash` for ZK location verification + optional `distance_proof_hash` and `distance_meters` for ZK proximity attestation
 - **PurchaseReceipt** (owned, soulbound) — `key` only (no `store`), non-transferable proof of purchase for Seal decryption policy
-- **LocationVKey** (shared object) — Groth16 verification key bytes, created once at package init
+- **LocationVKey** (shared object) — Groth16 verification key for location attestation circuit, created once at package init
+- **DistanceVKey** (shared object) — Groth16 verification key for distance attestation circuit, created once at package init
 
 Key functions:
 - `create_listing` — Standard listing with optional empty blob (for two-step creation)
-- `create_verified_listing` — Listing with on-chain Groth16 proof verification (128-byte proof points + public inputs)
+- `create_verified_listing` — Listing with on-chain Groth16 location proof verification (128-byte proof points + public inputs)
+- `attach_distance_proof` — Post-creation function to attach a ZK proximity proof to an existing listing
 - `purchase` — Payment to scout, overpayment refund, receipt minting
 - `delist` — Scout-only, refunds staked balance
 - `set_walrus_blob_id` — One-time blob ID setter for two-step creation
@@ -46,7 +48,11 @@ Input validation: intel type range, decay hours (1–8760), minimum price, minim
 
 ### ZK Verification (on-chain + client-side)
 
-Scouts can attach a Groth16 zero-knowledge location proof to listings, proving physical presence at a star system without revealing exact coordinates.
+Two independent Groth16 circuits provide different trust signals on listings.
+
+#### Location Attestation (ZK Phase 1)
+
+Proves a scout knows the coordinates of a star system without revealing them (knowledge proof, not presence proof).
 
 **On-chain** (`create_verified_listing`):
 1. Parse verification key from `LocationVKey` shared object
@@ -56,12 +62,32 @@ Scouts can attach a Groth16 zero-knowledge location proof to listings, proving p
 5. Store `public_inputs_bytes` as `location_proof_hash` on the listing
 6. Emit `VerifiedIntelListed` event
 
-**Client-side** (`lib/zk-proof.ts`):
+**Client-side** (`lib/zk-proof.ts`, `generateLocationProof`):
 1. Lazy-load snarkjs (only on first proof generation)
-2. Fetch circuit WASM + proving key from `/public/zk/`
+2. Fetch circuit WASM + proving key from `/public/zk/location-attestation.*`
 3. Generate witness and Groth16 proof via `snarkjs.groth16.fullProve()`
 4. Convert snarkjs proof format to Arkworks compressed format (endianness, sign bits, G2 ordering)
 5. Submit proof bytes + public inputs in `buildCreateVerifiedListingTx`
+
+#### Distance Attestation (ZK Phase 2)
+
+Proves the Manhattan distance between a scout's system and a target system. Displayed as a "Proximity Verified" badge with a human-readable distance (km / light-seconds / light-years).
+
+**Current limitation**: Coordinates are sourced from `galaxy.json` (one coordinate set per solar system). This proves system-to-system distance, not per-object distance within a system. Full precision requires CCP Games to expose in-game location data as POD (Proof of Data), which is not yet available.
+
+**Circuit design** — EVE Frontier uses signed 64-bit coordinates that become ~254-bit BN254 field elements when negative, breaking standard `LessThan(64)` range checks. Solved via **AbsDiff hint pattern**: compute `|a − b|` off-chain and pass as a witness; the circuit verifies `hint² == (a−b)²` plus `Num2Bits(64)` to confirm the hint is a valid 64-bit value.
+
+**On-chain** (`attach_distance_proof`):
+1. Parse verification key from `DistanceVKey` shared object
+2. Verify Groth16 proof with `sui::groth16::verify_groth16_proof()`
+3. Extract `distance_meters` from public inputs (u64 stored as LE bytes)
+4. Store `distance_proof_hash` and `distance_meters` on the listing
+
+**Client-side** (`lib/zk-proof.ts`, `generateDistanceProof`):
+1. Fetch galaxy coordinates for scout and target systems from `galaxy.json`
+2. Compute `absDiffHints` (absolute differences per axis) off-chain as BigInt
+3. Generate Groth16 proof via snarkjs, convert to Arkworks format
+4. Call `attach_distance_proof` transaction after listing creation
 
 ### Seal Integration (on-chain + off-chain)
 
@@ -82,11 +108,11 @@ Intel payloads are encrypted and stored on Walrus via HTTP API:
 
 ### React Frontend (off-chain)
 
-Dashboard with 184 tests across 15 test files:
+Dashboard with 188 tests across 15 test files:
 
 - **3D Nebula Map**: Three.js + React Three Fiber canvas visualization with additive sprite nebulae, region-based navigation, camera focus on selected systems, dynamic glow based on intel density
 - **Library layer**: PTB builders (`transactions.ts`), Seal wrappers (`seal.ts`), Walrus client (`walrus.ts`), ZK proof generation (`zk-proof.ts`), Zod schemas (`intel-schemas.ts`), galaxy coordinate data (`galaxy-data.ts`), region aggregation (`region-data.ts`), heat map data (`heat-map-data.ts`)
-- **Hooks**: `useListings` (paginated event query → object fetch), `usePurchase` (sign + execute), `useDecrypt` (download → decrypt → validate), `useHeatMapData` (aggregate + 60s refresh)
+- **Hooks**: `useListings` (paginated event query → object fetch), `usePurchase` (sign + execute), `useDecrypt` (download → decrypt → validate), `useHeatMapData` (aggregate + 60s refresh), `useReceipts` (owned PurchaseReceipt query + listing join)
 - **Components**: `CreateListing` (two-step form with optional ZK verification toggle), `ListingBrowser` (filter by type/region/price/verified), `MyIntel` (purchase history + decrypt + receipt management), `MyListings` (scout listing management: delist, reclaim), `PurchaseFlow`, `IntelViewer`, `InfoModal` (landing modal with first-visit auto-show), `FloatingPanel`, `RegionPanel`, `SystemPicker`, `HeatMapControls`
 
 ### Data Flow
@@ -100,11 +126,20 @@ Scout fills form → Zod validates payload → create_listing (empty blob, on-ch
 
 **Scout creates ZK-verified intel**:
 ```
-Scout fills form + enables verification → generate Groth16 proof (snarkjs, client-side)
+Scout fills form + enables verification → generate Groth16 location proof (snarkjs, client-side)
   → convert proof to Arkworks format → create_verified_listing(proof, inputs, on-chain)
     → sui::groth16::verify_groth16_proof → listing with location_proof_hash
       → encrypt + upload + set_walrus_blob_id (same as above)
 ```
+
+**Scout attaches proximity proof**:
+```
+Scout selects target system → fetch galaxy coordinates for both systems
+  → compute absDiffHints off-chain → generate Groth16 distance proof (snarkjs)
+    → convert to Arkworks format → attach_distance_proof(listingId, proof, inputs)
+      → sui::groth16::verify_groth16_proof → listing gains distance_proof_hash + distance_meters
+```
+*Note: coordinates are currently solar system centroids from `galaxy.json`. Per-object precision requires CCP Games POD data.*
 
 **Buyer purchases and decrypts**:
 ```
@@ -123,6 +158,11 @@ erDiagram
         vector vkey_bytes
     }
 
+    DistanceVKey {
+        UID id
+        vector vkey_bytes
+    }
+
     IntelListing {
         UID id
         address scout
@@ -135,6 +175,8 @@ erDiagram
         Balance stake
         bool delisted
         vector location_proof_hash
+        vector distance_proof_hash
+        Option_u64 distance_meters
     }
 
     PurchaseReceipt {
@@ -144,7 +186,8 @@ erDiagram
         u64 paid_at
     }
 
-    LocationVKey ||--o{ IntelListing : "verifies"
+    LocationVKey ||--o{ IntelListing : "location-verifies"
+    DistanceVKey ||--o{ IntelListing : "proximity-verifies"
     IntelListing ||--o{ PurchaseReceipt : "generates"
 ```
 
@@ -173,3 +216,9 @@ Groth16 verification via `sui::groth16` runs natively on SUI with ~2ms verificat
 ### Why client-side proof generation?
 
 Proof generation is compute-intensive (~2-5s) but only happens at listing creation time. Running it client-side via lazy-loaded snarkjs keeps the architecture simple and avoids a centralized prover service. The Arkworks byte conversion layer handles the format mismatch between snarkjs (JSON, big-endian) and SUI's `sui::groth16` (compressed, little-endian).
+
+### Why the AbsDiff hint pattern for distance proofs?
+
+EVE Frontier coordinates are signed 64-bit integers (e.g., `-5,103,797,186,450,162,000`). In the BN254 scalar field used by Groth16, negative values wrap around to ~254-bit numbers. Standard `LessThan(64)` relies on `Num2Bits(65)` internally — it fails silently on inputs this large, producing wrong results or constraint violations.
+
+The solution: compute `|a − b|` off-chain and pass it as a witness `hint`. The circuit verifies `hint² == (a−b)²` (same absolute value) and `Num2Bits(64)(hint)` (hint is a valid positive 64-bit integer). This sidesteps the sign issue entirely while keeping the constraint sound — an attacker cannot forge a smaller distance because squaring catches sign flips and `Num2Bits` bounds the magnitude.
