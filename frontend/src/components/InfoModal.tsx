@@ -91,6 +91,7 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
               <li>Encrypted intel marketplace (4 intel types: Resource, Fleet, Base, Route)</li>
               <li>ZK-verified listings with on-chain Groth16 proof verification</li>
               <li>Proximity-proven intel — scouts attach a ZK distance proof showing how close their system was to a target system</li>
+              <li>Timestamp-bound freshness — verified intel decays from observation time, not listing time</li>
               <li>3D nebula heat map with region navigation</li>
               <li>Seal encryption + Walrus decentralized storage</li>
               <li>Purchase history with decrypt-on-demand</li>
@@ -108,9 +109,6 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
                 that CCP Games will expose as <strong>POD (Proof of Data)</strong> in a future update.
                 The ZK circuit is already deployed; precision improves automatically once that data is available.
               </dd>
-
-              <dt>&ldquo;Timestamp-Bound Freshness&rdquo;</dt>
-              <dd>Dual timestamp model ties intel to observation time. Staleness decay runs from when you were actually there, not when you listed.</dd>
 
               <dt>&ldquo;Scout Reputation&rdquo;</dt>
               <dd>On-chain profiles tracking verified observations. Consistent accuracy builds trust; bad intel burns your record.</dd>

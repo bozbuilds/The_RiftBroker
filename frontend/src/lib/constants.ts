@@ -46,6 +46,10 @@ export const LOCATION_VKEY_ID = '0xfee9b6601212ce44715874a99ff3f5ccec304a03b7e3c
 /** DistanceVKey shared object ID — created by marketplace init() on 2026-03-19 deploy. */
 export const DISTANCE_VKEY_ID = '0xf728694a51f4e88980d601c45be6e84cdd75e28ff996a3de10560131ca344026'
 
+// TODO (Phase 3 deploy): update PACKAGE_ID, LOCATION_VKEY_ID, DISTANCE_VKEY_ID
+// after recompiling the location circuit with the timestamp public output
+// and redeploying the contract with the new observed_at field.
+
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',
   downloading: 'Downloading encrypted intel...',
