@@ -2,17 +2,12 @@ import { useMemo, useState } from 'react'
 
 import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
-import { formatDistance, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
+import { formatDistance, isExpired, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import type { IntelListingFields } from '../lib/types'
 import { useListings } from '../hooks/useListings'
 import { useReceipts } from '../hooks/useReceipts'
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
-
-function isExpired(listing: IntelListingFields): boolean {
-  const expiryMs = Number(listing.observedAt) + Number(listing.decayHours) * 3_600_000
-  return Date.now() >= expiryMs
-}
 
 type PriceSort = 'asc' | 'desc' | null
 
@@ -78,11 +73,12 @@ export function ListingBrowser({
       result = result.filter((l) => l.isVerified)
     }
     if (priceSort) {
-      result = [...result].sort((a, b) =>
-        priceSort === 'asc'
-          ? Number(a.individualPrice - b.individualPrice)
-          : Number(b.individualPrice - a.individualPrice),
-      )
+      result = [...result].sort((a, b) => {
+        const [x, y] = priceSort === 'asc'
+          ? [a.individualPrice, b.individualPrice]
+          : [b.individualPrice, a.individualPrice]
+        return x < y ? -1 : x > y ? 1 : 0
+      })
     }
     return result
   }, [typeFiltered, regionFilter, verifiedOnly, priceSort, systemMap])

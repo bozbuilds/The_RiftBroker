@@ -9,7 +9,7 @@ import type { IntelListingFields, PurchaseReceiptFields } from './types'
  *   [1]: coordinatesHash1 — 32 bytes LE
  *   [2]: coordinatesHash2 — 32 bytes LE
  *
- * Returns: sqrt(distanceSquared) in meters, or null if proofHash is empty.
+ * Returns: manhattan distance in meters (sqrt of stored squared value), or null if proofHash is empty.
  */
 function parseDistanceMeters(proofHash: Uint8Array): number | null {
   if (proofHash.length < 32) return null

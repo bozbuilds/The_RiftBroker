@@ -70,7 +70,7 @@ export function useReceipts() {
       const receipts: EnrichedReceipt[] = parsed
         .filter((r) => listingMap.has(r.listingId))
         .map((r) => ({ receipt: r, listing: listingMap.get(r.listingId)! }))
-        .sort((a, b) => Number(b.receipt.paidAt - a.receipt.paidAt))
+        .sort((a, b) => b.receipt.paidAt > a.receipt.paidAt ? 1 : b.receipt.paidAt < a.receipt.paidAt ? -1 : 0)
 
       // 5. Build listing ID → receipt ID lookup
       const byListingId = new Map<string, string>()

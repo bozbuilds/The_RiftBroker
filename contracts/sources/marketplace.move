@@ -33,7 +33,7 @@ const ETimestampInFuture: u64 = 19;
 
 // === Regular constants (ALL_CAPS) ===
 
-const MAX_DECAY_HOURS: u64 = 8760; // 1 year
+const MAX_DECAY_HOURS: u64 = 8760; // 1 year — also bounds overflow: 8760 * 3_600_000 + max_timestamp << u64::MAX
 const MIN_DECAY_HOURS: u64 = 1;
 const MIN_PRICE: u64 = 1;
 const MIN_STAKE: u64 = 1;

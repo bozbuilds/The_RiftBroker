@@ -581,6 +581,23 @@ fun create_listing_excessive_decay_aborts() {
     scenario.end();
 }
 
+#[test, expected_failure(abort_code = marketplace::EDecayTooSmall)]
+fun test_create_listing_zero_decay_aborts() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        0, 42, 500_000,
+        0, // < MIN_DECAY_HOURS (1)
+        b"blob", stake, &clk, ctx,
+    );
+
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
 // === Double-delist guard ===
 
 #[test, expected_failure(abort_code = marketplace::EAlreadyDelisted)]

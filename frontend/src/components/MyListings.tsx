@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 
 import { INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
-import { isExpired, mistToSui, timeRemaining } from '../lib/format'
+import { formatDistance, isExpired, mistToSui, observedAgo, timeRemaining } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import { buildClaimExpiredStakeTx, buildDelistTx } from '../lib/transactions'
 import { useListings } from '../hooks/useListings'
@@ -75,6 +75,7 @@ export function MyListings() {
     const isPending = pendingId === listing.id
     const listingExpired = isExpired(listing)
     const hasStake = listing.stakeValue > 0n
+    const ago = observedAgo(listing)
 
     return (
       <li
@@ -86,6 +87,14 @@ export function MyListings() {
             {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
           </span>
           {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
+          {listing.hasDistanceProof && listing.distanceMeters !== null && (
+            <span className="listing-proximity-badge">
+              Proximity: {formatDistance(listing.distanceMeters / 1000)}
+            </span>
+          )}
+          {ago && (
+            <span className="listing-observed-badge">{ago}</span>
+          )}
           {listing.delisted && <span className="listing-expired-badge">Delisted</span>}
           {!listing.delisted && listingExpired && <span className="listing-expired-badge">Expired</span>}
           <span className="listing-item-meta">

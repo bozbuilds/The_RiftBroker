@@ -42,6 +42,7 @@ export function usePurchase() {
     }
   }, [signAndExecute, suiClient, queryClient])
 
+  // Scaffolding for future batch purchase feature (not yet wired to any component)
   const batchPurchase = useCallback(async (
     purchases: ReadonlyArray<{ listingId: string; price: bigint }>,
   ) => {
