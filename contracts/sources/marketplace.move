@@ -56,7 +56,7 @@ public struct MARKETPLACE has drop {}
 
 /// Core listing. Shared object so multiple buyers can purchase concurrently.
 /// Holds actual staked tokens in `stake` field (Balance<SUI>, not u64).
-/// `delisted` tracks manual removal; expiry computed from created_at + decay_hours.
+/// `delisted` tracks manual removal; expiry computed from observed_at + decay_hours.
 public struct IntelListing has key {
     id: UID,
     scout: address,
