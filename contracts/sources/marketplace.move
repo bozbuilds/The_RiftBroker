@@ -516,3 +516,13 @@ public fun set_distance_vkey_bytes_for_testing(
 ) {
     vkey.vkey_bytes = bytes;
 }
+
+#[test_only]
+public fun set_observed_at_for_testing(listing: &mut IntelListing, ts: u64) {
+    listing.observed_at = ts;
+}
+
+#[test_only]
+public fun bytes_to_u64_le_for_testing(bytes: &vector<u8>, offset: u64): u64 {
+    bytes_to_u64_le(bytes, offset)
+}

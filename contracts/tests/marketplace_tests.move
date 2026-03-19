@@ -972,6 +972,86 @@ fun test_attach_distance_proof_rejects_double_attach() {
     scenario.end();
 }
 
+// === Timestamp freshness (ZK Phase 3) ===
+
+#[test]
+fun test_unverified_listing_observed_at_equals_created_at() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let listing = scenario.take_shared<IntelListing>();
+        assert!(marketplace::observed_at(&listing) == marketplace::created_at(&listing));
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test]
+fun test_expiry_uses_observed_at() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    // Create listing at time T=172_800_000 (48h)
+    {
+        let ctx = scenario.ctx();
+        let mut clk = clock::create_for_testing(ctx);
+        clock::set_for_testing(&mut clk, 172_800_000);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        // Override observed_at to 0 (simulating 48h old observation)
+        // created_at=172_800_000 would NOT be expired at clock=172_800_000 (same instant),
+        // but observed_at=0 + 24h = 86_400_000 < 172_800_000, so listing IS expired
+        marketplace::set_observed_at_for_testing(&mut listing, 0);
+        let mut clk = clock::create_for_testing(scenario.ctx());
+        clock::set_for_testing(&mut clk, 172_800_000);
+        assert!(marketplace::is_expired(&listing, &clk));
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test]
+fun test_bytes_to_u64_le() {
+    // 1_711_036_800_000 in hex = 0x0000_018E_61BD_9C00
+    // LE bytes: [0x00, 0x9C, 0xBD, 0x61, 0x8E, 0x01, 0x00, 0x00]
+    let mut bytes = vector[0x00u8, 0x9C, 0xBD, 0x61, 0x8E, 0x01, 0x00, 0x00];
+    let mut i: u64 = 0;
+    while (i < 24) { bytes.push_back(0); i = i + 1; };
+    let result = marketplace::bytes_to_u64_le_for_testing(&bytes, 0);
+    assert!(result == 1_711_036_800_000);
+}
+
+#[test]
+fun test_observed_at_invariant_unverified_listings() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let listing = scenario.take_shared<IntelListing>();
+        // For unverified listings: observed_at should never exceed created_at
+        assert!(marketplace::observed_at(&listing) <= marketplace::created_at(&listing));
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
 #[test, expected_failure(abort_code = marketplace::EInvalidDistanceProof)]
 fun test_attach_distance_proof_invalid_proof_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
