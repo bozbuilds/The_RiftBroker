@@ -21,7 +21,7 @@ export const DEFAULT_FILTERS: HeatMapFilters = {
 
 function isActive(listing: IntelListingFields, now: number): boolean {
   if (listing.delisted) return false
-  const expiryMs = Number(listing.createdAt) + Number(listing.decayHours) * 3_600_000
+  const expiryMs = Number(listing.observedAt) + Number(listing.decayHours) * 3_600_000
   return now < expiryMs
 }
 
@@ -33,7 +33,7 @@ function computeFreshness(listings: IntelListingFields[], now: number): number {
   for (const l of listings) {
     const lifetimeMs = Number(l.decayHours) * 3_600_000
     if (lifetimeMs === 0) continue
-    const elapsed = now - Number(l.createdAt)
+    const elapsed = now - Number(l.observedAt)
     const remaining = Math.max(0, 1 - elapsed / lifetimeMs)
     if (remaining > maxFreshness) maxFreshness = remaining
   }
