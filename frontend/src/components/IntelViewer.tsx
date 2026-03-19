@@ -1,5 +1,6 @@
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
 
+import { formatDistance } from '../lib/format'
 import type { IntelPayload } from '../lib/intel-schemas'
 import type { IntelListingFields } from '../lib/types'
 
@@ -113,7 +114,7 @@ export function IntelViewer({ payload, listing }: {
       {listing?.hasDistanceProof && listing?.distanceMeters !== null && (
         <p className="intel-proximity">
           <span className="listing-proximity-badge">
-            Proximity Verified: {(listing.distanceMeters / 1000).toFixed(1)} km
+            Proximity Verified: {formatDistance(listing.distanceMeters / 1000)}
           </span>
         </p>
       )}

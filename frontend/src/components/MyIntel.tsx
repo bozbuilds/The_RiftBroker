@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 
 import { DECRYPT_STATUS_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
-import { isExpired, mistToSui, truncateAddress } from '../lib/format'
+import { formatDistance, isExpired, mistToSui, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import { buildBurnReceiptTx } from '../lib/transactions'
 import { useDecrypt } from '../hooks/useDecrypt'
@@ -83,7 +83,7 @@ export function MyIntel() {
           {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
           {listing.hasDistanceProof && listing.distanceMeters !== null && (
             <span className="listing-proximity-badge">
-              Proximity: {(listing.distanceMeters / 1000).toFixed(0)} km
+              Proximity: {formatDistance(listing.distanceMeters / 1000)}
             </span>
           )}
           <span className="listing-item-meta">

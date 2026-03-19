@@ -153,10 +153,9 @@ export function CreateListing() {
             setProofStatus(null)
           } catch (proofErr) {
             setProofStatus(null)
+            console.error('[ZK location proof failed]', proofErr)
             setError(
-              'ZK proof failed: ' +
-              (proofErr instanceof Error ? proofErr.message : 'Unknown error') +
-              ' — creating unverified listing instead.',
+              'Location proof generation failed — creating unverified listing instead.',
             )
           }
         } else {
@@ -250,10 +249,9 @@ export function CreateListing() {
             setDistanceProofStatus(null)
           } catch (distErr) {
             setDistanceProofStatus(null)
+            console.error('[ZK distance proof failed]', distErr)
             setError(
-              'Distance proof failed: ' +
-              (distErr instanceof Error ? distErr.message : 'Unknown error') +
-              ' — listing created with location verification only.',
+              'Distance proof failed — listing created with location verification only.',
             )
           }
         }

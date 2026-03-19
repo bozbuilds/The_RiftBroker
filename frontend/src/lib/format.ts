@@ -20,6 +20,21 @@ export function truncateAddress(addr: string): string {
   return addr.slice(0, 6) + '...' + addr.slice(-4)
 }
 
+// Distance formatting: km → ls → ly
+const KM_PER_LIGHT_SECOND = 299_792.458
+const KM_PER_LIGHT_YEAR = 9_460_730_472_580.8
+
+/** Format a distance in km to human-readable units (km, ls, or ly). */
+export function formatDistance(km: number): string {
+  if (km < KM_PER_LIGHT_SECOND)
+    return `${km.toFixed(0)} km`
+  const ly = km / KM_PER_LIGHT_YEAR
+  if (ly >= 1)
+    return `${ly.toFixed(2)} ly`
+  const ls = km / KM_PER_LIGHT_SECOND
+  return `${ls.toFixed(1)} ls`
+}
+
 const MIST_PER_SUI = 1_000_000_000
 
 export function mistToSui(mist: string): string | null {

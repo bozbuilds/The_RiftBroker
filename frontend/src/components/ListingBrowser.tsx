@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 
 import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
-import { mistToSui, timeRemaining, truncateAddress } from '../lib/format'
+import { formatDistance, mistToSui, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import type { IntelListingFields } from '../lib/types'
 import { useListings } from '../hooks/useListings'
@@ -162,7 +162,7 @@ export function ListingBrowser({
                 {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
                 {listing.hasDistanceProof && listing.distanceMeters !== null && (
                   <span className="listing-proximity-badge">
-                    Proximity: {(listing.distanceMeters / 1000).toFixed(0)} km
+                    Proximity: {formatDistance(listing.distanceMeters / 1000)}
                   </span>
                 )}
                 <span className="listing-item-meta">
