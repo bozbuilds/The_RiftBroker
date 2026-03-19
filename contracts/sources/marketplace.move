@@ -217,7 +217,7 @@ public fun purchase(
 ) {
     assert!(!listing.delisted, EListingDelisted);
     assert!(
-        clock.timestamp_ms() < listing.created_at + listing.decay_hours * 3_600_000,
+        clock.timestamp_ms() < listing.observed_at + listing.decay_hours * 3_600_000,
         EListingExpired,
     );
     assert!(payment.value() >= listing.individual_price, EInsufficientPayment);
@@ -280,7 +280,7 @@ public fun claim_expired_stake(
 ) {
     assert!(!listing.delisted, EAlreadyDelisted);
     assert!(
-        clock.timestamp_ms() >= listing.created_at + listing.decay_hours * 3_600_000,
+        clock.timestamp_ms() >= listing.observed_at + listing.decay_hours * 3_600_000,
         EListingNotExpired,
     );
 
@@ -310,7 +310,7 @@ public fun delisted(listing: &IntelListing): bool { listing.delisted }
 public fun stake_value(listing: &IntelListing): u64 { listing.stake.value() }
 
 public fun is_expired(listing: &IntelListing, clock: &Clock): bool {
-    clock.timestamp_ms() >= listing.created_at + listing.decay_hours * 3_600_000
+    clock.timestamp_ms() >= listing.observed_at + listing.decay_hours * 3_600_000
 }
 
 public fun observed_at(listing: &IntelListing): u64 { listing.observed_at }
