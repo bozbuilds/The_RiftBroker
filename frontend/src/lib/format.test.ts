@@ -84,6 +84,15 @@ describe('observedAgo', () => {
     })
     expect(observedAgo(listing)).toMatch(/Observed 15m ago/)
   })
+
+  it('returns "Observed just now" for sub-minute observations', () => {
+    const listing = makeListing({
+      isVerified: true,
+      locationProofHash: new Uint8Array([1]),
+      observedAt: BigInt(Date.now() - 30_000), // 30 seconds ago
+    })
+    expect(observedAgo(listing)).toBe('Observed just now')
+  })
 })
 
 describe('mistToSui', () => {

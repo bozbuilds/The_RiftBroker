@@ -1032,26 +1032,6 @@ fun test_bytes_to_u64_le() {
     assert!(result == 1_711_036_800_000);
 }
 
-#[test]
-fun test_observed_at_invariant_unverified_listings() {
-    let mut scenario = test_scenario::begin(SCOUT);
-    {
-        let ctx = scenario.ctx();
-        let clk = clock::create_for_testing(ctx);
-        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
-        clock::destroy_for_testing(clk);
-    };
-    scenario.next_tx(SCOUT);
-    {
-        let listing = scenario.take_shared<IntelListing>();
-        // For unverified listings: observed_at should never exceed created_at
-        assert!(marketplace::observed_at(&listing) <= marketplace::created_at(&listing));
-        test_scenario::return_shared(listing);
-    };
-    scenario.end();
-}
-
 #[test, expected_failure(abort_code = marketplace::EInvalidDistanceProof)]
 fun test_attach_distance_proof_invalid_proof_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);

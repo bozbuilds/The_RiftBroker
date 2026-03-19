@@ -43,7 +43,8 @@ export function observedAgo(listing: IntelListingFields): string | null {
   const hours = Math.floor(ms / 3_600_000)
   const minutes = Math.floor((ms % 3_600_000) / 60_000)
   if (hours > 0) return `Observed ${hours}h ${minutes}m ago`
-  return `Observed ${minutes}m ago`
+  if (minutes > 0) return `Observed ${minutes}m ago`
+  return 'Observed just now'
 }
 
 const MIST_PER_SUI = 1_000_000_000

@@ -362,17 +362,16 @@ public fun create_verified_listing(
     // Extract observation timestamp from proof's first public signal (32-byte LE field element).
     // snarkjs orders: outputs first → timestamp is bytes [0..8] of public_inputs_bytes.
     let observed_at = bytes_to_u64_le(&public_inputs_bytes, 0);
+    let now = clock.timestamp_ms();
 
     // Reject future timestamps (prevents gaming freshness)
-    assert!(observed_at <= clock.timestamp_ms(), ETimestampInFuture);
+    assert!(observed_at <= now, ETimestampInFuture);
 
     // Reject stale observations (scout has 24h to monetize)
     assert!(
-        clock.timestamp_ms() - observed_at <= MAX_OBSERVATION_AGE_MS,
+        now - observed_at <= MAX_OBSERVATION_AGE_MS,
         EObservationTooStale,
     );
-
-    let now = clock.timestamp_ms();
     let listing = IntelListing {
         id: object::new(ctx),
         scout: ctx.sender(),

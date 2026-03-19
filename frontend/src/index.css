@@ -1222,11 +1222,11 @@ button {
 .listing-observed-badge {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--accent-cyan, #22d3ee);
+  color: var(--accent-cyan, #00e5ff);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 2px 8px;
-  border: 1px solid var(--accent-cyan, #22d3ee);
+  border: 1px solid var(--accent-cyan, #00e5ff);
   border-radius: var(--radius);
   align-self: center;
 }
