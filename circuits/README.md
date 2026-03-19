@@ -1,101 +1,140 @@
 # ZK Circuit Compilation
 
-One-time offline workflow to compile the location attestation circuit and generate artifacts for TheRiftBroker.
+One-time offline workflow to compile Groth16 circuits and generate artifacts for TheRiftBroker.
 
-## Source
+## Circuits
 
-Circuit from CCP's official ZK repo: `https://github.com/evefrontier/eve-frontier-proximity-zk-poc`
-
-- Circuit: `src/on-chain/circuits/location-attestation/location-attestation.circom`
-- Reference utility: `src/on-chain/ts/utils/formatProofForSui.ts`
-
-Copy the `.circom` file (and any includes it references) into `circuits/location-attestation/`.
+| Circuit | Source | Constraints | Public Signals | Purpose |
+|---------|--------|-------------|----------------|---------|
+| `location-attestation` | CCP's [eve-frontier-proximity-zk-poc](https://github.com/evefrontier/eve-frontier-proximity-zk-poc) | ~4464 | 3 inputs + 0 outputs | Prove coordinate knowledge via Poseidon Merkle tree |
+| `distance-attestation` | Custom (TheRiftBroker) | ~1200 | 2 inputs + 1 output | Prove Manhattan distance between two coordinate sets |
 
 ## Prerequisites
 
-```bash
-# 1. Install circom compiler (v2.1+)
+Set up a temporary working directory with the required tooling:
+
+```powershell
+mkdir zk-compile; cd zk-compile
+
+# Install circom compiler (v2.2+)
 # https://docs.circom.io/getting-started/installation/
 
-# 2. Install JS tooling for witness generation and zkey setup
-npm install circomlib@^2.0.5 poseidon-lite@^0.3.0 snarkjs@^0.7.5
+# Install JS dependencies
+npm install circomlib@^2.0.5 snarkjs@^0.7.5
+
+# Download Powers of Tau (BN254, 2^13 = 8192 constraint capacity)
+# DO NOT generate a custom ceremony — use this production-grade PSE ceremony.
+Invoke-WebRequest -Uri "https://pse-trusted-setup-ppot.s3.eu-central-1.amazonaws.com/pot28_0080/ppot_0080_13.ptau" -OutFile ppot_0080_13.ptau
 ```
 
-## Compilation
+Use `npx snarkjs` if `snarkjs` isn't on PATH.
 
-```bash
-cd circuits/location-attestation
+## Compilation Workflow
 
-# Compile circuit → R1CS + WASM witness generator
-circom location-attestation.circom \
-  --r1cs --wasm --sym \
-  -l ../../node_modules \
-  -o build/
+These steps apply to **any** circuit. Replace `<circuit-name>` with `location-attestation` or `distance-attestation`.
 
-# Download Powers of Tau (BN254, 2^13 = 8192 constraints — circuit has 4464 constraints)
-# DO NOT generate a custom ceremony. Use this pre-computed production-grade one.
-curl -O https://pse-trusted-setup-ppot.s3.eu-central-1.amazonaws.com/pot28_0080/ppot_0080_13.ptau
+### Step 1: Compile circuit
 
-# Circuit-specific trusted setup (Phase 2)
-snarkjs groth16 setup build/location-attestation.r1cs ppot_0080_13.ptau circuit_0000.zkey
-snarkjs zkey contribute circuit_0000.zkey circuit_final.zkey --name="riftbroker" \
-  -e="$(head -c 64 /dev/urandom | xxd -p)"
+```powershell
+# Copy the .circom file into the working directory, then:
+mkdir build -ErrorAction SilentlyContinue
+circom <circuit-name>.circom --r1cs --wasm --sym -l node_modules -o build/
+```
+
+### Step 2: Trusted setup (Phase 2)
+
+```powershell
+npx snarkjs groth16 setup build/<circuit-name>.r1cs ppot_0080_13.ptau circuit_0000.zkey
+
+# Generate random entropy
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$bytes = New-Object byte[] 64
+$rng.GetBytes($bytes)
+$entropy = [Convert]::ToBase64String($bytes)
+
+# Contribute entropy (generates circuit_final.zkey)
+npx snarkjs zkey contribute circuit_0000.zkey circuit_final.zkey --name="riftbroker-<circuit-name>" -e="$entropy"
 
 # Verify the setup
-snarkjs zkey verify build/location-attestation.r1cs ppot_0080_13.ptau circuit_final.zkey
-
-# Export verification key JSON (convert this to Arkworks bytes for the contract)
-snarkjs zkey export verificationkey circuit_final.zkey verification_key.json
+npx snarkjs zkey verify build/<circuit-name>.r1cs ppot_0080_13.ptau circuit_final.zkey
 ```
 
-## Output Artifacts
+### Step 3: Export verification key
 
-| File | Destination | Purpose |
-|------|-------------|---------|
-| `build/location-attestation_js/location-attestation.wasm` | `frontend/public/zk/location-attestation.wasm` | Browser proof generation |
-| `circuit_final.zkey` | `frontend/public/zk/location-attestation_final.zkey` | Browser proving key |
-| `verification_key.json` | (kept local) | Source for on-chain VKey bytes |
+```powershell
+npx snarkjs zkey export verificationkey circuit_final.zkey verification_key.json
+```
 
-## Extract VKey Bytes for Contract
+### Step 4: Extract VKey bytes for the Move contract
 
-The `verification_key.json` from snarkjs contains affine coordinates as decimal strings.
-Convert to Arkworks compressed format (360 bytes for 3 public inputs):
+Use the extraction script at `circuits/extract-vkey.cjs`:
 
+```powershell
+node circuits\extract-vkey.cjs verification_key.json
+```
+
+This outputs the Arkworks compressed VKey hex string. Copy the `x"..."` value into the contract's `init()` function in `contracts/sources/marketplace.move`.
+
+**VKey byte layout:**
 ```
 alpha_g1(32B) || beta_g2(64B) || gamma_g2(64B) || delta_g2(64B)
-|| IC_len(8B little-endian u64) || IC[0](32B) || IC[1](32B) || IC[2](32B) || IC[3](32B)
+|| IC_len(8B little-endian u64) || IC[0..N](32B each)
 ```
 
-Use `frontend/src/lib/zk-proof.ts` conversion functions (`serializeG1Compressed`, `serializeG2Compressed`)
-to build a `snarkjsVKeyToArkworks(vk)` utility, then encode as hex.
+IC array has `N+1` elements where `N` = number of public signals (inputs + outputs).
 
-Update `contracts/sources/marketplace.move` `init()`:
-```move
-vkey_bytes: x"<360-byte hex>",
+| Circuit | Public Signals | IC Points | VKey Size |
+|---------|---------------|-----------|-----------|
+| location-attestation | 3 | 4 | 360 bytes |
+| distance-attestation | 3 | 4 | 360 bytes |
+
+### Step 5: Copy browser artifacts
+
+```powershell
+# WASM (witness generator for browser proof generation)
+Copy-Item -Force build\<circuit-name>_js\<circuit-name>.wasm frontend\public\zk\
+
+# Proving key
+Copy-Item -Force circuit_final.zkey frontend\public\zk\<circuit-name>_final.zkey
 ```
 
-Update `frontend/src/lib/constants.ts` `LOCATION_VKEY_ID` after fresh deploy.
+### Step 6: Deploy and update constants
 
-## Proof Generation Test
+1. Update VKey hex in `contracts/sources/marketplace.move` `init()`
+2. Clear `contracts\Published.toml` if present (remove `[published.testnet]` block)
+3. Deploy: `.sui-bin\sui.exe client publish contracts`
+4. Record from deploy output:
+   - Package ID
+   - LocationVKey object ID (`rift_broker::marketplace::LocationVKey`)
+   - DistanceVKey object ID (`rift_broker::marketplace::DistanceVKey`)
+   - UpgradeCap object ID
+5. Update `frontend/src/lib/constants.ts`:
+   - `PACKAGE_ID`
+   - `LOCATION_VKEY_ID`
+   - `DISTANCE_VKEY_ID`
 
-```bash
-# Generate a test proof for known coordinates
-node -e "
-const snarkjs = require('snarkjs')
-snarkjs.groth16.fullProve(
-  { x: '1000000', y: '2000000', z: '3000000', salt: '12345' },
-  'build/location-attestation_js/location-attestation.wasm',
-  'circuit_final.zkey'
-).then(({ proof, publicSignals }) => {
-  console.log('proof:', JSON.stringify(proof, null, 2))
-  console.log('signals:', publicSignals)
-})
-"
-```
+## Circuit-Specific Notes
 
-## VKey Format Notes
+### location-attestation
 
-- Location circuit has **3 public inputs** (merkle_root, coordinates_hash, signature_and_key_hash)
-- IC array has **4 elements** (IC[0] + one per public input)
-- Total VKey: 32 + 64 + 64 + 64 + 8 + (4 × 32) = **360 bytes**
-- SUI's groth16 supports max 8 public inputs — well within limit
+- Source: CCP's `eve-frontier-proximity-zk-poc` repo
+- 3 public inputs: `merkleRoot`, `coordinatesHash`, `signatureAndKeyHash`
+- Currently uses self-consistent dummy Merkle tree (Phase 1). Real POD integration planned when CCP exposes POD data.
+
+### distance-attestation
+
+- Custom circuit for TheRiftBroker
+- 2 public inputs: `coordinatesHash1`, `coordinatesHash2`
+- 1 public output: `distanceSquared` (Manhattan distance squared)
+- Uses algebraic `AbsDiff` template (hint² == diff²) instead of `LessThan(64)` to handle negative EVE coordinates that become large BN254 field elements
+- The `absDiffHints[3]` private inputs are computed off-chain by the witness generator and verified in-circuit via square equality + Num2Bits(64)
+
+## extract-vkey.cjs
+
+The VKey extraction script at `circuits/extract-vkey.cjs` converts snarkjs `verification_key.json` (affine coordinates as decimal strings) to Arkworks compressed byte format. It handles:
+
+- G1 point compression (32 bytes LE + y-sign bit in MSB of last byte)
+- G2 point compression (64 bytes: c0 LE || c1 LE + Fq2 y-sign bit)
+- IC array length as 8-byte LE u64
+
+Works for any BN254 Groth16 circuit regardless of public signal count.

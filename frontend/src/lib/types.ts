@@ -21,6 +21,11 @@ export interface IntelListingFields {
   readonly locationProofHash: Uint8Array
   /** Derived: true when locationProofHash is non-empty. */
   readonly isVerified: boolean
+  readonly distanceProofHash: Uint8Array
+  /** Derived: true when distanceProofHash is non-empty. */
+  readonly hasDistanceProof: boolean
+  /** Manhattan distance in meters, derived from distanceProofHash. null if no distance proof. */
+  readonly distanceMeters: number | null
 }
 
 export interface PurchaseReceiptFields {

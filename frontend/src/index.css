@@ -1207,6 +1207,18 @@ button {
   margin-left: 8px;
 }
 
+.listing-proximity-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-amber, #f59e0b);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border: 1px solid var(--accent-amber, #f59e0b);
+  border-radius: var(--radius);
+  align-self: center;
+}
+
 /* --- Verify Location Toggle (CreateListing) --- */
 
 .verify-toggle {

@@ -75,7 +75,7 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
               </div>
               <div className="info-step">
                 <span className="info-step-label">Verify</span>
-                <p>Optionally attach a ZK location proof — cryptographic evidence you know the coordinates.</p>
+                <p>Optionally attach ZK proofs — cryptographic evidence of your system location and proximity to a target.</p>
               </div>
               <div className="info-step">
                 <span className="info-step-label">Trade</span>
@@ -90,6 +90,7 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
             <ul className="info-features">
               <li>Encrypted intel marketplace (4 intel types: Resource, Fleet, Base, Route)</li>
               <li>ZK-verified listings with on-chain Groth16 proof verification</li>
+              <li>Proximity-proven intel — scouts attach a ZK distance proof showing how close their system was to a target system</li>
               <li>3D nebula heat map with region navigation</li>
               <li>Seal encryption + Walrus decentralized storage</li>
               <li>Purchase history with decrypt-on-demand</li>
@@ -100,8 +101,13 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
           <section className="info-section">
             <h3 className="info-section-title">Coming Soon</h3>
             <dl className="info-roadmap">
-              <dt>&ldquo;Proximity-Proven Intel&rdquo;</dt>
-              <dd>Distance proofs between two entities. Scouts prove they were near a target, not just in the system.</dd>
+              <dt>&ldquo;Full-Precision Proximity&rdquo;</dt>
+              <dd>
+                Proximity proofs today operate at <strong>solar system granularity</strong> using public star map coordinates.
+                The intended design — proving exact distance to a specific structure or ship — requires per-object position data
+                that CCP Games will expose as <strong>POD (Proof of Data)</strong> in a future update.
+                The ZK circuit is already deployed; precision improves automatically once that data is available.
+              </dd>
 
               <dt>&ldquo;Timestamp-Bound Freshness&rdquo;</dt>
               <dd>Dual timestamp model ties intel to observation time. Staleness decay runs from when you were actually there, not when you listed.</dd>

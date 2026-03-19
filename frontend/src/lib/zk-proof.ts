@@ -216,8 +216,9 @@ async function buildCircuitInput(
  */
 export async function generateLocationProof(
   coords: { x: number; y: number; z: number },
-): Promise<{ proofBytes: Uint8Array; publicInputsBytes: Uint8Array }> {
-  const salt = generateSalt()
+  existingSalt?: bigint,
+): Promise<{ proofBytes: Uint8Array; publicInputsBytes: Uint8Array; salt: bigint }> {
+  const salt = existingSalt ?? generateSalt()
 
   // Lazy-load snarkjs and circomlibjs Poseidon
   // @ts-expect-error snarkjs has no bundled types and is a runtime-only dep
@@ -234,6 +235,70 @@ export async function generateLocationProof(
     circuitInput,
     CIRCUIT_WASM_URL,
     CIRCUIT_ZKEY_URL,
+  )
+
+  return {
+    proofBytes: snarkjsProofToArkworks(proof as SnarkjsProof),
+    publicInputsBytes: publicSignalsToBytes(publicSignals as string[]),
+    salt,
+  }
+}
+
+const DISTANCE_WASM_URL = '/zk/distance-attestation.wasm'
+const DISTANCE_ZKEY_URL = '/zk/distance-attestation_final.zkey'
+
+/**
+ * Generate a Groth16 distance proof between two coordinate sets.
+ *
+ * Both sets must have their own salt. The circuit:
+ * 1. Verifies both coordinate hashes match (Poseidon(x,y,z,salt))
+ * 2. Computes Manhattan distance |dx|+|dy|+|dz|
+ * 3. Outputs distanceSquared = manhattan^2
+ */
+export async function generateDistanceProof(
+  coords1: { x: number; y: number; z: number },
+  salt1: bigint,
+  coords2: { x: number; y: number; z: number },
+  salt2: bigint,
+): Promise<{ proofBytes: Uint8Array; publicInputsBytes: Uint8Array }> {
+  // @ts-expect-error snarkjs has no bundled types
+  const snarkjs = await import('snarkjs')
+  // @ts-expect-error circomlibjs has no bundled types
+  const { buildPoseidon } = await import('circomlibjs')
+  const poseidon = await buildPoseidon()
+  const F = poseidon.F
+
+  const x1 = BigInt(Math.round(coords1.x))
+  const y1 = BigInt(Math.round(coords1.y))
+  const z1 = BigInt(Math.round(coords1.z))
+  const x2 = BigInt(Math.round(coords2.x))
+  const y2 = BigInt(Math.round(coords2.y))
+  const z2 = BigInt(Math.round(coords2.z))
+
+  // Compute absolute differences off-chain (witness hints for the circuit).
+  // EVE coordinates can be negative i64 values; the circuit verifies hint^2 == (a-b)^2
+  // and Num2Bits(64) ensures the hint is the small positive solution.
+  const absDx = x1 > x2 ? x1 - x2 : x2 - x1
+  const absDy = y1 > y2 ? y1 - y2 : y2 - y1
+  const absDz = z1 > z2 ? z1 - z2 : z2 - z1
+
+  const coordinatesHash1 = F.toObject(poseidon([x1, y1, z1, salt1]))
+  const coordinatesHash2 = F.toObject(poseidon([x2, y2, z2, salt2]))
+
+  const circuitInput = {
+    coordinatesHash1: coordinatesHash1.toString(),
+    coordinatesHash2: coordinatesHash2.toString(),
+    coordinates1: [x1.toString(), y1.toString(), z1.toString()],
+    salt1: salt1.toString(),
+    coordinates2: [x2.toString(), y2.toString(), z2.toString()],
+    salt2: salt2.toString(),
+    absDiffHints: [absDx.toString(), absDy.toString(), absDz.toString()],
+  }
+
+  const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+    circuitInput,
+    DISTANCE_WASM_URL,
+    DISTANCE_ZKEY_URL,
   )
 
   return {

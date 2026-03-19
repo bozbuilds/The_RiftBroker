@@ -1,6 +1,8 @@
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
 
+import { formatDistance } from '../lib/format'
 import type { IntelPayload } from '../lib/intel-schemas'
+import type { IntelListingFields } from '../lib/types'
 
 const YIELD_TIER_LABELS: Record<string, string> = {
   low: 'Low (1+ Basic)',
@@ -92,12 +94,30 @@ function RouteView({ data }: { data: Extract<IntelPayload, { type: 3 }> }) {
   )
 }
 
-export function IntelViewer({ payload }: { payload: IntelPayload }) {
-  switch (payload.type) {
-    case 0: return <ResourceView data={payload} />
-    case 1: return <FleetView data={payload} />
-    case 2: return <BaseView data={payload} />
-    case 3: return <RouteView data={payload} />
-    default: return <div className="intel-type-view"><h4>Unknown Intel Type</h4></div>
-  }
+export function IntelViewer({ payload, listing }: {
+  payload: IntelPayload
+  listing?: IntelListingFields
+}) {
+  const view = (() => {
+    switch (payload.type) {
+      case 0: return <ResourceView data={payload} />
+      case 1: return <FleetView data={payload} />
+      case 2: return <BaseView data={payload} />
+      case 3: return <RouteView data={payload} />
+      default: return <div className="intel-type-view"><h4>Unknown Intel Type</h4></div>
+    }
+  })()
+
+  return (
+    <>
+      {view}
+      {listing?.hasDistanceProof && listing?.distanceMeters !== null && (
+        <p className="intel-proximity">
+          <span className="listing-proximity-badge">
+            Proximity Verified: {formatDistance(listing.distanceMeters / 1000)}
+          </span>
+        </p>
+      )}
+    </>
+  )
 }

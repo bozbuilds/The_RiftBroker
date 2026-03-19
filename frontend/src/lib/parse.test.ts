@@ -73,6 +73,46 @@ describe('parseListingFields', () => {
   })
 })
 
+describe('parseListingFields — distance proof', () => {
+  const baseFields = {
+    scout: '0xABC',
+    intel_type: 1,
+    system_id: '42',
+    created_at: '1000',
+    decay_hours: '24',
+    walrus_blob_id: [],
+    individual_price: '500000',
+    stake: { value: '1000000' },
+    delisted: false,
+    location_proof_hash: [1, 2, 3],
+  }
+
+  it('no distance_proof_hash field → empty, null distance', () => {
+    const result = parseListingFields('0x1', { ...baseFields })
+    expect(result.hasDistanceProof).toBe(false)
+    expect(result.distanceProofHash.length).toBe(0)
+    expect(result.distanceMeters).toBeNull()
+  })
+
+  it('empty distance_proof_hash → hasDistanceProof false', () => {
+    const result = parseListingFields('0x1', { ...baseFields, distance_proof_hash: [] })
+    expect(result.hasDistanceProof).toBe(false)
+    expect(result.distanceMeters).toBeNull()
+  })
+
+  it('non-empty distance_proof_hash → hasDistanceProof true + parsed distance', () => {
+    // Encode distanceSquared = 1000000 (= 1000m Manhattan distance) as 32-byte LE
+    // 1000000 = 0xF4240
+    const distanceBytes = new Array(96).fill(0)
+    distanceBytes[0] = 0x40
+    distanceBytes[1] = 0x42
+    distanceBytes[2] = 0x0F
+    const result = parseListingFields('0x1', { ...baseFields, distance_proof_hash: distanceBytes })
+    expect(result.hasDistanceProof).toBe(true)
+    expect(result.distanceMeters).toBeCloseTo(1000, 0)
+  })
+})
+
 describe('parseReceiptFields', () => {
   const objectId = '0xreceipt01'
 

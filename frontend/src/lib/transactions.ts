@@ -117,6 +117,25 @@ export function buildClaimExpiredStakeTx(listingId: string): Transaction {
   return tx
 }
 
+export function buildAttachDistanceProofTx(params: {
+  listingId: string
+  distanceVkeyId: string
+  proofPointsBytes: Uint8Array
+  publicInputsBytes: Uint8Array
+}): Transaction {
+  const tx = new Transaction()
+  tx.moveCall({
+    target: `${PACKAGE_ID}::marketplace::attach_distance_proof`,
+    arguments: [
+      tx.object(params.listingId),
+      tx.object(params.distanceVkeyId),
+      tx.pure.vector('u8', Array.from(params.proofPointsBytes)),
+      tx.pure.vector('u8', Array.from(params.publicInputsBytes)),
+    ],
+  })
+  return tx
+}
+
 export function buildBatchPurchaseTx(
   purchases: ReadonlyArray<{ listingId: string; price: bigint }>,
 ): Transaction {

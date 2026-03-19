@@ -25,6 +25,9 @@ const EStakeTooLow: u64 = 11;
 const EPriceTooLow: u64 = 12;
 const EAlreadyDelisted: u64 = 13;
 const EListingNotExpired: u64 = 14;
+const ENoLocationProof: u64 = 15;
+const EDistanceProofAlreadySet: u64 = 16;
+const EInvalidDistanceProof: u64 = 17;
 
 // === Regular constants (ALL_CAPS) ===
 
@@ -63,11 +66,19 @@ public struct IntelListing has key {
     stake: Balance<SUI>,
     delisted: bool,
     location_proof_hash: vector<u8>,  // empty = unverified; non-empty = valid proof was verified at creation
+    distance_proof_hash: vector<u8>,  // empty = no distance proof; non-empty = valid proof was verified
 }
 
 /// Shared object holding the Groth16 verification key for the location attestation circuit.
 /// Created once at package publish via init(). Object ID stored in frontend constants.
 public struct LocationVKey has key {
+    id: UID,
+    vkey_bytes: vector<u8>,
+}
+
+/// Verification key for the distance attestation Groth16 circuit.
+/// Created once at package publish via init(). Object ID stored in frontend constants.
+public struct DistanceVKey has key {
     id: UID,
     vkey_bytes: vector<u8>,
 }
@@ -112,14 +123,25 @@ public struct VerifiedIntelListed has copy, drop {
     scout: address,
 }
 
+public struct DistanceProofAttached has copy, drop {
+    listing_id: ID,
+    scout: address,
+}
+
 // === Init ===
 
 fun init(_otw: MARKETPLACE, ctx: &mut TxContext) {
-    let vkey = LocationVKey {
+    let location_vkey = LocationVKey {
         id: object::new(ctx),
         vkey_bytes: x"c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e196108497b1768853e7bb6bd90424b49d19af63b50d70c31295b66199e91324c27096caacdf821d4d8f50df1766a9198c7d781b5def0984f3357eb5f008ecf351d0400000000000000d020745c5d9aa5e987327c45664f758f99c8b45f183ef9a9d5d8c979d7f9bb870d07303455723d5fda3f261f6173908c341a1f79f49f6ff8e2909cbac64b8682c579be738dd77124d3e60ce22087acfc06f73db1ad2515628826569d687d168a069c3e79b5ddd8ed539a19cf107298105f8d13c9feb3e78fd2c48e5b38995989",
     };
-    transfer::share_object(vkey);
+    transfer::share_object(location_vkey);
+
+    let distance_vkey = DistanceVKey {
+        id: object::new(ctx),
+        vkey_bytes: x"c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e1999b02f020468a6c6711b99af7d9b3587f6c99f0d991fa21ba68d7fc88763fb08ec860e72d093efb7b3dabe6b70a52abd46b2f4fe7ce87f4decb3cc772bb21eac0400000000000000746c4b7fb00e5edca937f3133b8ef153d173950c07a9fb415a6272e0f11fb983c3cbb6b96dc9e277429c79e4929dbb4952d56371a2b0d1f1e60d99ceee81442ffcfe5a369bd08a5bbf14d485fb22b6982a27c9df0b81bc01e612200cc21d6f96a9bc217de435b89c8956a94e44bb4e8efc66616df9d7fd6c51935dedaa47db81",
+    };
+    transfer::share_object(distance_vkey);
 }
 
 // === Public functions ===
@@ -152,6 +174,7 @@ public fun create_listing(
         stake: stake.into_balance(),
         delisted: false,
         location_proof_hash: vector::empty(),
+        distance_proof_hash: vector::empty(),
     };
 
     event::emit(IntelListed {
@@ -325,6 +348,7 @@ public fun create_verified_listing(
         stake: stake.into_balance(),
         delisted: false,
         location_proof_hash: public_inputs_bytes,
+        distance_proof_hash: vector::empty(),
     };
     let listing_id_val = object::id(&listing);
     event::emit(IntelListed {
@@ -340,12 +364,49 @@ public fun create_verified_listing(
     transfer::share_object(listing);
 }
 
+/// Attach a ZK distance proof to an existing listing.
+/// Requires: caller is scout, listing has location proof, no distance proof yet.
+public fun attach_distance_proof(
+    listing: &mut IntelListing,
+    vkey: &DistanceVKey,
+    proof_points_bytes: vector<u8>,
+    public_inputs_bytes: vector<u8>,
+    ctx: &TxContext,
+) {
+    assert!(listing.scout == ctx.sender(), ENotScout);
+    assert!(!listing.location_proof_hash.is_empty(), ENoLocationProof);
+    assert!(listing.distance_proof_hash.is_empty(), EDistanceProofAlreadySet);
+
+    let pvk = groth16::prepare_verifying_key(&groth16::bn254(), &vkey.vkey_bytes);
+    let public_inputs = groth16::public_proof_inputs_from_bytes(public_inputs_bytes);
+    let proof_points = groth16::proof_points_from_bytes(proof_points_bytes);
+    assert!(
+        groth16::verify_groth16_proof(&groth16::bn254(), &pvk, &public_inputs, &proof_points),
+        EInvalidDistanceProof,
+    );
+
+    listing.distance_proof_hash = public_inputs_bytes;
+
+    event::emit(DistanceProofAttached {
+        listing_id: object::id(listing),
+        scout: listing.scout,
+    });
+}
+
 public fun location_proof_hash(listing: &IntelListing): vector<u8> {
     listing.location_proof_hash
 }
 
 public fun is_verified(listing: &IntelListing): bool {
     !listing.location_proof_hash.is_empty()
+}
+
+public fun distance_proof_hash(listing: &IntelListing): vector<u8> {
+    listing.distance_proof_hash
+}
+
+public fun has_distance_proof(listing: &IntelListing): bool {
+    !listing.distance_proof_hash.is_empty()
 }
 
 // === Receipt management ===
@@ -392,4 +453,28 @@ public fun transfer_receipt_for_testing(receipt: PurchaseReceipt, to: address) {
 #[test_only]
 public fun init_for_testing(ctx: &mut TxContext) {
     init(MARKETPLACE {}, ctx);
+}
+
+#[test_only]
+public fun set_location_proof_hash_for_testing(
+    listing: &mut IntelListing,
+    hash: vector<u8>,
+) {
+    listing.location_proof_hash = hash;
+}
+
+#[test_only]
+public fun set_distance_proof_hash_for_testing(
+    listing: &mut IntelListing,
+    hash: vector<u8>,
+) {
+    listing.distance_proof_hash = hash;
+}
+
+#[test_only]
+public fun set_distance_vkey_bytes_for_testing(
+    vkey: &mut DistanceVKey,
+    bytes: vector<u8>,
+) {
+    vkey.vkey_bytes = bytes;
 }
