@@ -6,7 +6,7 @@ One-time offline workflow to compile Groth16 circuits and generate artifacts for
 
 | Circuit | Source | Constraints | Public Signals | Purpose |
 |---------|--------|-------------|----------------|---------|
-| `location-attestation` | CCP's [eve-frontier-proximity-zk-poc](https://github.com/evefrontier/eve-frontier-proximity-zk-poc) | ~4464 | 3 inputs + 0 outputs | Prove coordinate knowledge via Poseidon Merkle tree |
+| `location-attestation` | CCP's [eve-frontier-proximity-zk-poc](https://github.com/evefrontier/eve-frontier-proximity-zk-poc) | ~4465 | 3 inputs + 1 output | Prove coordinate knowledge via Poseidon Merkle tree + timestamp freshness |
 | `distance-attestation` | Custom (TheRiftBroker) | ~1200 | 2 inputs + 1 output | Prove Manhattan distance between two coordinate sets |
 
 ## Prerequisites
@@ -85,7 +85,7 @@ IC array has `N+1` elements where `N` = number of public signals (inputs + outpu
 
 | Circuit | Public Signals | IC Points | VKey Size |
 |---------|---------------|-----------|-----------|
-| location-attestation | 3 | 4 | 360 bytes |
+| location-attestation | 4 | 5 | 392 bytes |
 | distance-attestation | 3 | 4 | 360 bytes |
 
 ### Step 5: Copy browser artifacts
@@ -119,6 +119,7 @@ Copy-Item -Force circuit_final.zkey frontend\public\zk\<circuit-name>_final.zkey
 
 - Source: CCP's `eve-frontier-proximity-zk-poc` repo
 - 3 public inputs: `merkleRoot`, `coordinatesHash`, `signatureAndKeyHash`
+- 1 public output: `timestamp` (observation time exposed for on-chain staleness validation)
 - Currently uses self-consistent dummy Merkle tree (Phase 1). Real POD integration planned when CCP exposes POD data.
 
 ### distance-attestation
