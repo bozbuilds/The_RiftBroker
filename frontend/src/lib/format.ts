@@ -1,7 +1,7 @@
 import type { IntelListingFields } from './types'
 
 function expiryMs(listing: IntelListingFields): number {
-  return Number(listing.createdAt) + Number(listing.decayHours) * 3_600_000
+  return Number(listing.observedAt) + Number(listing.decayHours) * 3_600_000
 }
 
 export function isExpired(listing: IntelListingFields): boolean {
@@ -33,6 +33,17 @@ export function formatDistance(km: number): string {
     return `${ly.toFixed(2)} ly`
   const ls = km / KM_PER_LIGHT_SECOND
   return `${ls.toFixed(1)} ls`
+}
+
+/** Returns "Observed Xh Ym ago" for verified listings, null for unverified. */
+export function observedAgo(listing: IntelListingFields): string | null {
+  if (!listing.isVerified) return null
+  const ms = Date.now() - Number(listing.observedAt)
+  if (ms <= 0) return 'Observed just now'
+  const hours = Math.floor(ms / 3_600_000)
+  const minutes = Math.floor((ms % 3_600_000) / 60_000)
+  if (hours > 0) return `Observed ${hours}h ${minutes}m ago`
+  return `Observed ${minutes}m ago`
 }
 
 const MIST_PER_SUI = 1_000_000_000

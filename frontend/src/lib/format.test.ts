@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { isExpired, mistToSui } from './format'
+import { isExpired, mistToSui, observedAgo, timeRemaining } from './format'
 import type { IntelListingFields } from './types'
 
 function makeListing(overrides: Partial<IntelListingFields> = {}): IntelListingFields {
@@ -59,6 +59,30 @@ describe('isExpired', () => {
     })
     expect(isExpired(listing)).toBe(false)
     vi.useRealTimers()
+  })
+})
+
+describe('observedAgo', () => {
+  it('returns null for unverified listings', () => {
+    expect(observedAgo(makeListing({ isVerified: false }))).toBeNull()
+  })
+
+  it('returns formatted string for verified listings observed 4h ago', () => {
+    const listing = makeListing({
+      isVerified: true,
+      locationProofHash: new Uint8Array([1]),
+      observedAt: BigInt(Date.now() - 4 * 3_600_000),
+    })
+    expect(observedAgo(listing)).toMatch(/Observed 4h/)
+  })
+
+  it('returns minutes-only for recent observations (15m)', () => {
+    const listing = makeListing({
+      isVerified: true,
+      locationProofHash: new Uint8Array([1]),
+      observedAt: BigInt(Date.now() - 15 * 60_000),
+    })
+    expect(observedAgo(listing)).toMatch(/Observed 15m ago/)
   })
 })
 
