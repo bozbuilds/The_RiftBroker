@@ -28,9 +28,7 @@ const EListingNotExpired: u64 = 14;
 const ENoLocationProof: u64 = 15;
 const EDistanceProofAlreadySet: u64 = 16;
 const EInvalidDistanceProof: u64 = 17;
-#[allow(unused_const)]
 const EObservationTooStale: u64 = 18;
-#[allow(unused_const)]
 const ETimestampInFuture: u64 = 19;
 
 // === Regular constants (ALL_CAPS) ===
@@ -39,7 +37,6 @@ const MAX_DECAY_HOURS: u64 = 8760; // 1 year
 const MIN_DECAY_HOURS: u64 = 1;
 const MIN_PRICE: u64 = 1;
 const MIN_STAKE: u64 = 1;
-#[allow(unused_const)]
 const MAX_OBSERVATION_AGE_MS: u64 = 86_400_000; // 24 hours
 
 #[allow(unused_const)]
@@ -155,7 +152,6 @@ fun init(_otw: MARKETPLACE, ctx: &mut TxContext) {
 
 /// Read 8 bytes starting at `offset` as a little-endian u64.
 /// Used to extract the timestamp field element from proof public signals.
-#[allow(unused_function)]
 fun bytes_to_u64_le(bytes: &vector<u8>, offset: u64): u64 {
     (*bytes.borrow(offset) as u64)
         | ((*bytes.borrow(offset + 1) as u64) << 8)
@@ -363,6 +359,19 @@ public fun create_verified_listing(
         EInvalidLocationProof,
     );
 
+    // Extract observation timestamp from proof's first public signal (32-byte LE field element).
+    // snarkjs orders: outputs first → timestamp is bytes [0..8] of public_inputs_bytes.
+    let observed_at = bytes_to_u64_le(&public_inputs_bytes, 0);
+
+    // Reject future timestamps (prevents gaming freshness)
+    assert!(observed_at <= clock.timestamp_ms(), ETimestampInFuture);
+
+    // Reject stale observations (scout has 24h to monetize)
+    assert!(
+        clock.timestamp_ms() - observed_at <= MAX_OBSERVATION_AGE_MS,
+        EObservationTooStale,
+    );
+
     let now = clock.timestamp_ms();
     let listing = IntelListing {
         id: object::new(ctx),
@@ -370,7 +379,7 @@ public fun create_verified_listing(
         intel_type,
         system_id,
         created_at: now,
-        observed_at: now,
+        observed_at,
         decay_hours,
         walrus_blob_id,
         individual_price,
