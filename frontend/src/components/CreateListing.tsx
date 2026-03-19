@@ -3,13 +3,13 @@ import { SealClient } from '@mysten/seal'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 
-import { INTEL_TYPE_LABELS, LOCATION_VKEY_ID, SEAL_KEY_SERVERS } from '../lib/constants'
+import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, SEAL_KEY_SERVERS } from '../lib/constants'
 import { mistToSui } from '../lib/format'
 import { intelPayloadSchema } from '../lib/intel-schemas'
 import { encryptIntel } from '../lib/seal'
-import { buildCreateListingTx, buildCreateVerifiedListingTx, buildSetBlobIdTx } from '../lib/transactions'
+import { buildAttachDistanceProofTx, buildCreateListingTx, buildCreateVerifiedListingTx, buildSetBlobIdTx } from '../lib/transactions'
 import { uploadBlob } from '../lib/walrus'
-import { generateLocationProof } from '../lib/zk-proof'
+import { generateDistanceProof, generateLocationProof, generateSalt } from '../lib/zk-proof'
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
 import { SystemPicker } from './SystemPicker'
 
@@ -41,6 +41,8 @@ export function CreateListing() {
   const [error, setError] = useState<string | null>(null)
   const [verifyLocation, setVerifyLocation] = useState(false)
   const [proofStatus, setProofStatus] = useState<string | null>(null)
+  const [targetSystemId, setTargetSystemId] = useState<bigint | null>(null)
+  const [distanceProofStatus, setDistanceProofStatus] = useState<string | null>(null)
 
   // Resource fields
   const [resourceType, setResourceType] = useState('')
@@ -136,6 +138,7 @@ export function CreateListing() {
       // Attempt ZK proof generation when requested (non-Route intel only)
       let proofBytes: Uint8Array | null = null
       let publicInputsBytes: Uint8Array | null = null
+      let locationSalt: bigint | null = null
       const shouldVerify = verifyLocation && intelType !== 3
 
       if (shouldVerify) {
@@ -146,6 +149,7 @@ export function CreateListing() {
             const proof = await generateLocationProof({ x: system.rawX, y: system.rawY, z: system.rawZ })
             proofBytes = proof.proofBytes
             publicInputsBytes = proof.publicInputsBytes
+            locationSalt = proof.salt
             setProofStatus(null)
           } catch (proofErr) {
             setProofStatus(null)
@@ -220,6 +224,41 @@ export function CreateListing() {
       const setResult = await signAndExecute({ transaction: setBlobTx })
       await suiClient.waitForTransaction({ digest: setResult.digest })
 
+      // Distance proof flow (non-Route, when target system selected)
+      if (useVerified && locationSalt && targetSystemId && intelType !== 3) {
+        const targetSystem = galaxy?.systemMap.get(targetSystemId)
+        const scoutSystem = galaxy?.systemMap.get(onChainSystemId!)
+        if (targetSystem?.rawX !== undefined && scoutSystem?.rawX !== undefined) {
+          setDistanceProofStatus('Generating distance proof...')
+          try {
+            const salt2 = generateSalt()
+            const distanceResult = await generateDistanceProof(
+              { x: scoutSystem.rawX, y: scoutSystem.rawY, z: scoutSystem.rawZ },
+              locationSalt,
+              { x: targetSystem.rawX, y: targetSystem.rawY, z: targetSystem.rawZ },
+              salt2,
+            )
+            setDistanceProofStatus('Attaching distance proof...')
+            const attachTx = buildAttachDistanceProofTx({
+              listingId,
+              distanceVkeyId: DISTANCE_VKEY_ID,
+              proofPointsBytes: distanceResult.proofBytes,
+              publicInputsBytes: distanceResult.publicInputsBytes,
+            })
+            const attachResult = await signAndExecute({ transaction: attachTx })
+            await suiClient.waitForTransaction({ digest: attachResult.digest })
+            setDistanceProofStatus(null)
+          } catch (distErr) {
+            setDistanceProofStatus(null)
+            setError(
+              'Distance proof failed: ' +
+              (distErr instanceof Error ? distErr.message : 'Unknown error') +
+              ' — listing created with location verification only.',
+            )
+          }
+        }
+      }
+
       await queryClient.invalidateQueries({ queryKey: ['listings'] })
       setStatus('Listing created successfully!')
     } catch (err) {
@@ -233,6 +272,7 @@ export function CreateListing() {
     setSystemId(null)
     setOriginSystem(null)
     setDestSystem(null)
+    setTargetSystemId(null)
   }
 
   return (
@@ -290,6 +330,22 @@ export function CreateListing() {
         {proofStatus && (
           <div className="status-message">
             <span className="loading-spinner" />{proofStatus}
+          </div>
+        )}
+
+        {verifyLocation && intelType !== 3 && (
+          <SystemPicker
+            systems={galaxy?.systems ?? []}
+            value={targetSystemId}
+            onChange={setTargetSystemId}
+            label="Observed Entity Location (optional)"
+            required={false}
+          />
+        )}
+
+        {distanceProofStatus && (
+          <div className="status-message">
+            <span className="loading-spinner" />{distanceProofStatus}
           </div>
         )}
 

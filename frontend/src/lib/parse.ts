@@ -1,10 +1,30 @@
 import type { IntelListingFields, PurchaseReceiptFields } from './types'
 
+/**
+ * Extract the Manhattan distance from distance proof public inputs.
+ *
+ * snarkjs public signals order: outputs first, then inputs.
+ * Distance circuit layout:
+ *   [0]: distanceSquared (output) — 32 bytes LE
+ *   [1]: coordinatesHash1 — 32 bytes LE
+ *   [2]: coordinatesHash2 — 32 bytes LE
+ *
+ * Returns: sqrt(distanceSquared) in meters, or null if proofHash is empty.
+ */
+function parseDistanceMeters(proofHash: Uint8Array): number | null {
+  if (proofHash.length < 32) return null
+  let val = 0n
+  for (let i = 31; i >= 0; i--)
+    val = (val << 8n) | BigInt(proofHash[i] ?? 0)
+  return Math.sqrt(Number(val))
+}
+
 export function parseListingFields(
   objectId: string,
   fields: Record<string, unknown>,
 ): IntelListingFields {
   const locationProofHash = new Uint8Array((fields.location_proof_hash as number[] | undefined) ?? [])
+  const distanceProofHash = new Uint8Array((fields.distance_proof_hash as number[] | undefined) ?? [])
   return {
     id: objectId,
     scout: fields.scout as string,
@@ -22,6 +42,9 @@ export function parseListingFields(
     delisted: fields.delisted as boolean,
     locationProofHash,
     isVerified: locationProofHash.length > 0,
+    distanceProofHash,
+    hasDistanceProof: distanceProofHash.length > 0,
+    distanceMeters: parseDistanceMeters(distanceProofHash),
   }
 }
 

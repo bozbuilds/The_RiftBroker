@@ -160,6 +160,11 @@ export function ListingBrowser({
                 </span>
                 {owned && <span className="listing-owned-badge">Owned</span>}
                 {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
+                {listing.hasDistanceProof && listing.distanceMeters !== null && (
+                  <span className="listing-proximity-badge">
+                    Proximity: {(listing.distanceMeters / 1000).toFixed(0)} km
+                  </span>
+                )}
                 <span className="listing-item-meta">
                   {' '}&mdash; {obfuscatedLocation(listing.systemId, systemMap, regionCounts)} | {truncateAddress(listing.scout)}
                 </span>

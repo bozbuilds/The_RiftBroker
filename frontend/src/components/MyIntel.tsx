@@ -81,6 +81,11 @@ export function MyIntel() {
           </span>
           {isItemExpired && <span className="listing-expired-badge">Expired</span>}
           {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
+          {listing.hasDistanceProof && listing.distanceMeters !== null && (
+            <span className="listing-proximity-badge">
+              Proximity: {(listing.distanceMeters / 1000).toFixed(0)} km
+            </span>
+          )}
           <span className="listing-item-meta">
             {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
           </span>
@@ -150,7 +155,7 @@ export function MyIntel() {
         {!isItemExpired && isActive && decryptedPayload && (
           <div className="intel-panel listing-item-expand">
             <h3>Decrypted Intel</h3>
-            <IntelViewer payload={decryptedPayload} />
+            <IntelViewer payload={decryptedPayload} listing={listing} />
             <button className="btn-secondary" onClick={clearActive}>
               Close
             </button>

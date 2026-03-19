@@ -8,6 +8,7 @@ import {
   buildBurnReceiptTx,
   buildDelistTx,
   buildClaimExpiredStakeTx,
+  buildAttachDistanceProofTx,
   buildBatchPurchaseTx,
 } from './transactions'
 
@@ -73,6 +74,18 @@ describe('buildDelistTx', () => {
 describe('buildClaimExpiredStakeTx', () => {
   it('returns a Transaction', () => {
     const tx = buildClaimExpiredStakeTx('0xlisting123')
+    expect(tx).toBeInstanceOf(Transaction)
+  })
+})
+
+describe('buildAttachDistanceProofTx', () => {
+  it('returns a Transaction', () => {
+    const tx = buildAttachDistanceProofTx({
+      listingId: '0xLISTING',
+      distanceVkeyId: '0xDVKEY',
+      proofPointsBytes: new Uint8Array(128),
+      publicInputsBytes: new Uint8Array(96),
+    })
     expect(tx).toBeInstanceOf(Transaction)
   })
 })
