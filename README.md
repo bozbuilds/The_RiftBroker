@@ -4,7 +4,7 @@ An encrypted intelligence marketplace for [EVE Frontier](https://www.evefrontier
 
 ## How It Works
 
-Scouts encrypt intelligence payloads, store them on Walrus, and list them on-chain. Optionally, scouts attach zero-knowledge proofs (Groth16) — a location proof verifying physical presence at a star system, and a proximity proof showing how close they were to a target. Buyers browse unencrypted metadata, pay to unlock Seal decryption, and view intel client-side. A live 3D nebula heat map shows intel density across star systems.
+Scouts encrypt intelligence payloads, store them on Walrus, and list them on-chain. Optionally, scouts verify their presence using on-chain SUI events — a JumpEvent proves they entered a system, and LocationRevealedEvents provide per-assembly coordinates for ZK proximity proofs. Buyers browse unencrypted metadata, pay to unlock Seal decryption, and view intel client-side. A live 3D nebula heat map shows intel density across star systems.
 
 ```
 Scout encrypts intel → uploads to Walrus → lists on-chain (optional ZK proof)
@@ -16,8 +16,10 @@ Buyer browses metadata → purchases listing → decrypts client-side
 
 - **Seal encryption** — SUI-native conditional decryption. Only buyers with a valid PurchaseReceipt can decrypt.
 - **Walrus storage** — Encrypted blobs stored on decentralized storage, retrieved by blob ID.
-- **ZK location proofs** — Groth16 on-chain verification proves scout was physically present at a star system without revealing exact coordinates. Earns a "ZK-Verified" badge.
-- **ZK proximity proofs** — Scouts can also attach a distance proof showing how close their system was to a target. Displayed as a "Proximity Verified" badge with distance in km / light-seconds / light-years. *Note: currently limited to solar system granularity using public star map coordinates — full per-object precision requires CCP Games POD data, which is not yet available.*
+- **On-chain presence proofs** — Scouts prove system presence via SUI blockchain events (JumpEvent + LocationRevealedEvent), verified through a unified Groth16 circuit. Earns a "Presence Verified" badge with purple glow.
+- **ZK proximity** — Distance from scout's entry gate to a target assembly, computed in-circuit and displayed as km / light-seconds / light-years. Uses per-assembly coordinates from on-chain events.
+- **ZK location proofs** (legacy) — Groth16 proof of coordinate knowledge using galaxy.json system centroids. Earns a "ZK-Verified" badge. Retained for backward compatibility.
+- **Timestamp freshness** — Verified intel decays from observation time (JumpEvent block timestamp), not listing time. 24h staleness cap enforced on-chain.
 - **4 intel types** — Resource deposits, fleet movements, base structures, trade routes.
 - **3D nebula heat map** — Three.js canvas nebula visualization with region-based navigation, camera focus, and real-time intel density.
 - **PTB composability** — Batch purchase multiple listings in a single atomic transaction.
@@ -25,9 +27,10 @@ Buyer browses metadata → purchases listing → decrypts client-side
 
 ## Deployed
 
-- **Contract**: [`0x8ff3a1a4e6f983749026ca40c73e3d6ea6ee75c70f947d80914f56d50278b7d2`](https://suiscan.xyz/testnet/object/0x8ff3a1a4e6f983749026ca40c73e3d6ea6ee75c70f947d80914f56d50278b7d2) (SUI testnet)
-- **LocationVKey**: [`0xfee9b6601212ce44715874a99ff3f5ccec304a03b7e3cc2e7a41b81a83b19bb1`](https://suiscan.xyz/testnet/object/0xfee9b6601212ce44715874a99ff3f5ccec304a03b7e3cc2e7a41b81a83b19bb1) (location ZK verification key)
-- **DistanceVKey**: [`0xf728694a51f4e88980d601c45be6e84cdd75e28ff996a3de10560131ca344026`](https://suiscan.xyz/testnet/object/0xf728694a51f4e88980d601c45be6e84cdd75e28ff996a3de10560131ca344026) (proximity ZK verification key)
+- **Contract**: [`0x361aeb5a22f71441800364cd976941e7de302dc0eaad55fbf4de18cf378fbf01`](https://suiscan.xyz/testnet/object/0x361aeb5a22f71441800364cd976941e7de302dc0eaad55fbf4de18cf378fbf01) (SUI testnet)
+- **LocationVKey**: [`0xd4bddf80818eb19fb57c7fbea6e69998e96adbfa6210ceaa60e0b33a86720913`](https://suiscan.xyz/testnet/object/0xd4bddf80818eb19fb57c7fbea6e69998e96adbfa6210ceaa60e0b33a86720913)
+- **DistanceVKey**: [`0xfaf9a8fc17e18253b06d943b00cb7c0f3970dca61007b27690e8c9738d1ebc24`](https://suiscan.xyz/testnet/object/0xfaf9a8fc17e18253b06d943b00cb7c0f3970dca61007b27690e8c9738d1ebc24)
+- **PresenceVKey**: [`0x39bebf31fd6923be13d3662c687f3c07823da059fba0e6f249a70f4121f68c02`](https://suiscan.xyz/testnet/object/0x39bebf31fd6923be13d3662c687f3c07823da059fba0e6f249a70f4121f68c02)
 
 ## Tech Stack
 
@@ -51,13 +54,13 @@ Buyer browses metadata → purchases listing → decrypts client-side
 ```bash
 # Move contracts
 sui move build --path contracts
-sui move test --path contracts    # 35 tests
+sui move test --path contracts    # 42 tests
 
 # Frontend
 cd frontend
 pnpm install
 pnpm dev                          # http://localhost:5173
-pnpm test                         # 188 tests
+pnpm test                         # 210 tests
 pnpm build                        # Production build
 ```
 
@@ -76,24 +79,29 @@ Creates 15 demo listings across 12 systems with encrypted payloads on Walrus.
 TheRiftBroker/
 ├── contracts/
 │   ├── Move.toml
-│   ├── sources/marketplace.move        # Core contract + Seal policies + ZK verification (~395 lines)
-│   └── tests/marketplace_tests.move    # 30 tests
+│   ├── sources/marketplace.move        # Core contract + Seal policies + ZK verification (~530 lines)
+│   └── tests/marketplace_tests.move    # 42 tests
 ├── circuits/
 │   ├── README.md                       # Circuit compilation workflow (PowerShell)
 │   ├── location-attestation/           # Location Groth16 circuit + compiled artifacts
-│   └── distance-attestation/           # Proximity Groth16 circuit + compiled artifacts
+│   ├── distance-attestation/           # Proximity Groth16 circuit + compiled artifacts
+│   └── presence-attestation/           # Unified presence + proximity Groth16 circuit
 ├── frontend/
 │   ├── public/
 │   │   ├── galaxy.json                 # Real EVE Frontier star data
-│   │   └── zk/                         # Browser proof WASM + proving key
+│   │   └── zk/
+│   │       ├── location-attestation.wasm          # Browser proof WASM (location)
+│   │       ├── location-attestation_final.zkey    # Browser proving key (location)
+│   │       ├── presence-attestation.wasm        # Browser proof WASM (presence)
+│   │       └── presence-attestation_final.zkey  # Browser proving key (presence)
 │   ├── src/
 │   │   ├── App.tsx                     # 3D map + panel navigation + purchase flow
 │   │   ├── providers/                  # SUI, wallet, query, galaxy data providers
 │   │   ├── lib/
-│   │   │   ├── constants.ts            # Package ID, Seal key servers, VKey IDs
+│   │   │   ├── constants.ts            # Package ID, VKey IDs, WORLD_PACKAGE_ID
 │   │   │   ├── types.ts               # On-chain type mirrors (bigint, isVerified)
 │   │   │   ├── transactions.ts         # Pure PTB builders incl. verified listings
-│   │   │   ├── zk-proof.ts            # snarkjs → Arkworks byte conversion
+│   │   │   ├── zk-proof.ts            # snarkjs → Arkworks + generatePresenceProof
 │   │   │   ├── seal.ts                # Encrypt/decrypt wrappers
 │   │   │   ├── walrus.ts              # Upload/download (HTTP API)
 │   │   │   ├── intel-schemas.ts       # Zod schemas (4 intel types)
@@ -102,7 +110,8 @@ TheRiftBroker/
 │   │   │   ├── region-data.ts         # Region aggregation for navigation
 │   │   │   ├── format.ts              # Shared timeRemaining, truncateAddress
 │   │   │   ├── parse.ts              # On-chain field parsing
-│   │   │   └── empty-maps.ts         # Empty state constants
+│   │   │   ├── empty-maps.ts         # Empty state constants
+│   │   │   └── events.ts             # SUI event queries (JumpEvent, LocationRevealedEvent)
 │   │   ├── scripts/
 │   │   │   ├── seed-data.ts           # 15 demo listings (7 tests)
 │   │   │   └── seed.ts               # CLI seed script
@@ -129,18 +138,18 @@ TheRiftBroker/
 
 | Suite | Count |
 |-------|-------|
-| Move contract | 35 |
-| Frontend (Vitest) | 188 |
-| **Total** | **223** |
+| Move contract | 42 |
+| Frontend (Vitest) | 210 |
+| **Total** | **252** |
 
 ## Upcoming Features
 
-- **Full-precision proximity** — Per-object distance proofs once CCP Games exposes in-game location as POD data. The circuit is live today at solar system granularity.
-- **ZK Phase 3**: Timestamp freshness — prove intel was gathered recently
-- **ZK Phase 4**: Scout reputation — on-chain reputation derived from verified intel history
-- **Dispute system**: Stake-backed challenges with community voting
-- **zkLogin**: Google/Twitch sign-in without requiring a crypto wallet
-- **Sponsored transactions**: Gasless UX for new players
+- **Player proximity** — Prove distance to another player's ship. The ZK circuit supports any coordinate source; only the data availability is missing. Requires CCP Games to emit player position events on-chain.
+- **Resource proximity** — Prove distance to rifts, asteroids, or other resources. Requires CCP to publish resource locations on-chain or via PODs.
+- **Scout reputation** — On-chain profiles tracking verified observations. Consistent accuracy builds trust; bad intel burns your record.
+- **Dispute system** — Stake-backed challenges with community voting
+- **zkLogin** — Google/Twitch sign-in without requiring a crypto wallet
+- **Sponsored transactions** — Gasless UX for new players
 
 ## License
 

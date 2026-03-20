@@ -75,7 +75,7 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
               </div>
               <div className="info-step">
                 <span className="info-step-label">Verify</span>
-                <p>Optionally attach ZK proofs — cryptographic evidence of your system location and proximity to a target.</p>
+                <p>Prove presence using on-chain SUI events — your jump history and gate coordinates become ZK proof inputs, verified on-chain via Groth16.</p>
               </div>
               <div className="info-step">
                 <span className="info-step-label">Trade</span>

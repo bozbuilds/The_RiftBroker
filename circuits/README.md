@@ -8,6 +8,7 @@ One-time offline workflow to compile Groth16 circuits and generate artifacts for
 |---------|--------|-------------|----------------|---------|
 | `location-attestation` | CCP's [eve-frontier-proximity-zk-poc](https://github.com/evefrontier/eve-frontier-proximity-zk-poc) | ~4465 | 3 inputs + 1 output | Prove coordinate knowledge via Poseidon Merkle tree + timestamp freshness |
 | `distance-attestation` | Custom (TheRiftBroker) | ~1200 | 2 inputs + 1 output | Prove Manhattan distance between two coordinate sets |
+| `presence-attestation` | Custom (TheRiftBroker) | ~1063 | 3 inputs + 2 outputs | Unified presence + proximity: on-chain event binding + Manhattan distance + timestamp |
 
 ## Prerequisites
 
@@ -87,6 +88,7 @@ IC array has `N+1` elements where `N` = number of public signals (inputs + outpu
 |---------|---------------|-----------|-----------|
 | location-attestation | 4 | 5 | 392 bytes |
 | distance-attestation | 3 | 4 | 360 bytes |
+| presence-attestation | 5 | 6 | 424 bytes |
 
 ### Step 5: Copy browser artifacts
 
@@ -107,11 +109,13 @@ Copy-Item -Force circuit_final.zkey frontend\public\zk\<circuit-name>_final.zkey
    - Package ID
    - LocationVKey object ID (`rift_broker::marketplace::LocationVKey`)
    - DistanceVKey object ID (`rift_broker::marketplace::DistanceVKey`)
+   - PresenceVKey object ID (`rift_broker::marketplace::PresenceVKey`)
    - UpgradeCap object ID
 5. Update `frontend/src/lib/constants.ts`:
    - `PACKAGE_ID`
    - `LOCATION_VKEY_ID`
    - `DISTANCE_VKEY_ID`
+   - `PRESENCE_VKEY_ID`
 
 ## Circuit-Specific Notes
 
@@ -129,6 +133,16 @@ Copy-Item -Force circuit_final.zkey frontend\public\zk\<circuit-name>_final.zkey
 - 1 public output: `distanceSquared` (Manhattan distance squared)
 - Uses algebraic `AbsDiff` template (hint² == diff²) instead of `LessThan(64)` to handle negative EVE coordinates that become large BN254 field elements
 - The `absDiffHints[3]` private inputs are computed off-chain by the witness generator and verified in-circuit via square equality + Num2Bits(64)
+
+### presence-attestation
+
+- Custom unified circuit for TheRiftBroker (Phase 5)
+- 3 public inputs: `coordinatesHash`, `targetHash`, `locationHash`
+- 2 public outputs: `distanceSquared` (Manhattan distance²), `timestamp` (JumpEvent block time)
+- Combines location binding + distance computation + timestamp in a single proof
+- Uses the same algebraic `AbsDiff` hint pattern as `distance-attestation` for signed EVE coordinates
+- `locationHash` is a public input for audit purposes — CCP's on-chain `location_hash` uses a different Poseidon variant than circomlibjs, so the equality constraint was removed. The hash remains as an unconstrained public input for verifiers to inspect.
+- Trust anchor: SUI blockchain events (JumpEvent + LocationRevealedEvent) instead of self-signed galaxy.json data
 
 ## extract-vkey.cjs
 

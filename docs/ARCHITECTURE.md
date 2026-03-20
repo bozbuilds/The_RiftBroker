@@ -1,6 +1,6 @@
 # Architecture
 
-**Last Updated**: 2026-03-19
+**Last Updated**: 2026-03-20
 
 ## System Layers
 
@@ -27,17 +27,19 @@
 
 ### Move Contracts (on-chain)
 
-Single module: `rift_broker::marketplace` (~480 lines, 35 tests). Manages:
+Single module: `rift_broker::marketplace` (~530 lines, 42 tests). Manages:
 
-- **IntelListing** (shared object) — Unencrypted metadata + Walrus blob reference + staked `Balance<SUI>` + expiry via `created_at + decay_hours` + optional `location_proof_hash` for ZK location verification + optional `distance_proof_hash` and `distance_meters` for ZK proximity attestation
+- **IntelListing** (shared object) — Unencrypted metadata + Walrus blob reference + staked `Balance<SUI>` + expiry via `created_at + decay_hours` + optional `location_proof_hash` for ZK location verification + optional `distance_proof_hash` for ZK proximity + `jump_tx_digest` for on-chain presence audit trail
 - **PurchaseReceipt** (owned, soulbound) — `key` only (no `store`), non-transferable proof of purchase for Seal decryption policy
 - **LocationVKey** (shared object) — Groth16 verification key for location attestation circuit, created once at package init
 - **DistanceVKey** (shared object) — Groth16 verification key for distance attestation circuit, created once at package init
+- **PresenceVKey** (shared object) — Groth16 verification key for unified presence-attestation circuit (Phase 5), created once at package init
 
 Key functions:
 - `create_listing` — Standard listing with optional empty blob (for two-step creation)
 - `create_verified_listing` — Listing with on-chain Groth16 location proof verification (128-byte proof points + public inputs)
 - `attach_distance_proof` — Post-creation function to attach a ZK proximity proof to an existing listing
+- `create_presence_verified_listing` — Listing with unified presence proof: distance + timestamp + coordinate hashes + location_hash binding. Takes PresenceVKey, 160-byte public inputs (5×32), and JumpEvent tx digest for audit trail.
 - `purchase` — Payment to scout, overpayment refund, receipt minting
 - `delist` — Scout-only, refunds staked balance
 - `set_walrus_blob_id` — One-time blob ID setter for two-step creation
@@ -48,7 +50,7 @@ Input validation: intel type range, decay hours (1–8760), minimum price, minim
 
 ### ZK Verification (on-chain + client-side)
 
-Two independent Groth16 circuits provide different trust signals on listings.
+Three Groth16 circuits provide different trust signals on listings.
 
 #### Location Attestation (ZK Phase 1)
 
@@ -89,6 +91,35 @@ Proves the Manhattan distance between a scout's system and a target system. Disp
 3. Generate Groth16 proof via snarkjs, convert to Arkworks format
 4. Call `attach_distance_proof` transaction after listing creation
 
+#### Presence Attestation (ZK Phase 5)
+
+Unified circuit that replaces both location and distance for on-chain verified listings. Uses SUI blockchain events as the trust anchor instead of self-signed galaxy.json data.
+
+**Trust model**: Scouts prove they jumped through a gate (JumpEvent) and compute distance to a target assembly using coordinates from LocationRevealedEvents. The circuit binds to the on-chain `location_hash` as a public input for audit trail purposes. (CCP's location_hash uses a different Poseidon variant than circomlibjs, so the binding is audit-only rather than cryptographically enforced.)
+
+**Public signals** (5 total, 160 bytes, snarkjs output-first order):
+- `distanceSquared` — (|dx|+|dy|+|dz|)² in meters²
+- `timestamp` — JumpEvent block timestamp for on-chain staleness validation
+- `coordinatesHash` — Poseidon(scoutX, scoutY, scoutZ, salt)
+- `targetHash` — Poseidon(targetX, targetY, targetZ, salt)
+- `locationHash` — Poseidon(scoutX, scoutY, scoutZ) — audit binding to on-chain event
+
+**On-chain** (`create_presence_verified_listing`):
+1. Parse verification key from `PresenceVKey` shared object
+2. Verify Groth16 proof (128-byte proof points + 160-byte public inputs)
+3. Extract timestamp from bytes [32..40] for staleness validation (24h cap)
+4. Store public inputs as `location_proof_hash`, JumpEvent tx digest as `jump_tx_digest`
+5. Emit `IntelListed` + `VerifiedIntelListed` events
+
+**Client-side** (`lib/events.ts` + `lib/zk-proof.ts`):
+1. Query `suix_queryEvents` for scout's JumpEvents (no auth required)
+2. Fetch `LocationRevealedEvent` for the destination gate → gate coordinates
+3. Fetch `LocationRevealedEvent` for target assembly → target coordinates
+4. Generate unified Groth16 proof via `generatePresenceProof()`
+5. Submit with `buildCreatePresenceVerifiedListingTx()` including JumpEvent tx digest
+
+**Data requirements from CCP Games**: Currently verifies structure proximity (gates, SSUs). Player proximity and resource proximity require CCP to emit additional position events on-chain.
+
 ### Seal Integration (on-chain + off-chain)
 
 Two entry functions serve as Seal decryption policies:
@@ -108,7 +139,7 @@ Intel payloads are encrypted and stored on Walrus via HTTP API:
 
 ### React Frontend (off-chain)
 
-Dashboard with 188 tests across 15 test files:
+Dashboard with 210 tests across 16 test files:
 
 - **3D Nebula Map**: Three.js + React Three Fiber canvas visualization with additive sprite nebulae, region-based navigation, camera focus on selected systems, dynamic glow based on intel density
 - **Library layer**: PTB builders (`transactions.ts`), Seal wrappers (`seal.ts`), Walrus client (`walrus.ts`), ZK proof generation (`zk-proof.ts`), Zod schemas (`intel-schemas.ts`), galaxy coordinate data (`galaxy-data.ts`), region aggregation (`region-data.ts`), heat map data (`heat-map-data.ts`)
@@ -141,6 +172,18 @@ Scout selects target system → fetch galaxy coordinates for both systems
 ```
 *Note: coordinates are currently solar system centroids from `galaxy.json`. Per-object precision requires CCP Games POD data.*
 
+**Scout creates presence-verified intel (Phase 5)**:
+```
+Scout toggles "Verify with On-Chain Data" → fetchJumpEvents from SUI
+  → scout selects jump → fetchLocationEvent for destination gate → gate coordinates
+    → scout enters target assembly ID → fetchLocationEvent for target → target coordinates
+      → generatePresenceProof(gateCoords, targetCoords, jumpTimestamp)
+        → create_presence_verified_listing(proof, inputs, jumpTxDigest)
+          → sui::groth16::verify_groth16_proof → listing with location_proof_hash + jump_tx_digest
+            → encrypt + upload + set_walrus_blob_id (same as above)
+```
+*Coordinates come from on-chain LocationRevealedEvents, not galaxy.json.*
+
 **Buyer purchases and decrypts**:
 ```
 Buyer browses listings (IntelListed events → object queries)
@@ -163,6 +206,11 @@ erDiagram
         vector vkey_bytes
     }
 
+    PresenceVKey {
+        UID id
+        vector vkey_bytes
+    }
+
     IntelListing {
         UID id
         address scout
@@ -176,6 +224,8 @@ erDiagram
         bool delisted
         vector location_proof_hash
         vector distance_proof_hash
+        vector jump_tx_digest
+        u64 observed_at
     }
 
     PurchaseReceipt {
@@ -187,6 +237,7 @@ erDiagram
 
     LocationVKey ||--o{ IntelListing : "location-verifies"
     DistanceVKey ||--o{ IntelListing : "proximity-verifies"
+    PresenceVKey ||--o{ IntelListing : "presence-verifies"
     IntelListing ||--o{ PurchaseReceipt : "generates"
 ```
 
