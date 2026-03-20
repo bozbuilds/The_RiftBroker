@@ -54,7 +54,11 @@ export function RegionPanel({ region, footer, onSelectListing, onClose }: Region
               <span className="listing-item-type">
                 {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
               </span>
-              {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
+              {listing.jumpTxDigest.length > 0 ? (
+                <span className="listing-verified-badge">Presence Verified</span>
+              ) : listing.isVerified ? (
+                <span className="listing-verified-badge">ZK-Verified</span>
+              ) : null}
               {listing.hasDistanceProof && listing.distanceMeters !== null && (
                 <span className="listing-proximity-badge">
                   Proximity: {formatDistance(listing.distanceMeters / 1000)}

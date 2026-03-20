@@ -90,7 +90,8 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
             <ul className="info-features">
               <li>Encrypted intel marketplace (4 intel types: Resource, Fleet, Base, Route)</li>
               <li>ZK-verified listings with on-chain Groth16 proof verification</li>
-              <li>Proximity-proven intel — scouts attach a ZK distance proof showing how close their system was to a target system</li>
+              <li>Proximity-proven intel — ZK distance proof from scout's entry gate to a specific target assembly, with per-object precision from on-chain coordinates</li>
+              <li>On-chain verified intel — Phase 5 presence proofs backed by SUI blockchain events, not self-signed data</li>
               <li>Timestamp-bound freshness — verified intel decays from observation time, not listing time</li>
               <li>3D nebula heat map with region navigation</li>
               <li>Seal encryption + Walrus decentralized storage</li>
@@ -102,12 +103,15 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
           <section className="info-section">
             <h3 className="info-section-title">Coming Soon</h3>
             <dl className="info-roadmap">
-              <dt>&ldquo;Full-Precision Proximity&rdquo;</dt>
+              <dt>&ldquo;Player Proximity&rdquo;</dt>
               <dd>
-                Proximity proofs today operate at <strong>solar system granularity</strong> using public star map coordinates.
-                The intended design — proving exact distance to a specific structure or ship — requires per-object position data
-                that CCP Games will expose as <strong>POD (Proof of Data)</strong> in a future update.
-                The ZK circuit is already deployed; precision improves automatically once that data is available.
+                Prove distance to another player's ship. Requires CCP to emit player position events on-chain.
+                The ZK circuit supports any coordinate source — only the data availability is missing.
+              </dd>
+
+              <dt>&ldquo;Resource Proximity&rdquo;</dt>
+              <dd>
+                Prove distance to rifts, asteroids, or other resources. Requires CCP to publish resource locations on-chain or via PODs.
               </dd>
 
               <dt>&ldquo;Scout Reputation&rdquo;</dt>

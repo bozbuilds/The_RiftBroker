@@ -156,7 +156,11 @@ export function ListingBrowser({
                   {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
                 </span>
                 {owned && <span className="listing-owned-badge">Owned</span>}
-                {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
+                {listing.jumpTxDigest.length > 0 ? (
+                  <span className="listing-verified-badge">Presence Verified</span>
+                ) : listing.isVerified ? (
+                  <span className="listing-verified-badge">ZK-Verified</span>
+                ) : null}
                 {listing.hasDistanceProof && listing.distanceMeters !== null && (
                   <span className="listing-proximity-badge">
                     Proximity: {formatDistance(listing.distanceMeters / 1000)}
