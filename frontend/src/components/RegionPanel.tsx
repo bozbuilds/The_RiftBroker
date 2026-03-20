@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 import { INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
-import { mistToSui, timeRemaining, truncateAddress } from '../lib/format'
+import { formatDistance, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import { TYPE_COLORS } from '../lib/region-data'
 import type { RegionHeatData } from '../lib/region-data'
@@ -54,6 +54,13 @@ export function RegionPanel({ region, footer, onSelectListing, onClose }: Region
               <span className="listing-item-type">
                 {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
               </span>
+              {listing.isVerified && <span className="listing-verified-badge">ZK-Verified</span>}
+              {listing.hasDistanceProof && listing.distanceMeters !== null && (
+                <span className="listing-proximity-badge">
+                  Proximity: {formatDistance(listing.distanceMeters / 1000)}
+                </span>
+              )}
+              {(() => { const ago = observedAgo(listing); return ago && <span className="listing-observed-badge">{ago}</span> })()}
               <span className="listing-item-meta">
                 {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
               </span>
