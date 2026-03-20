@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 
 import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, PRESENCE_VKEY_ID, SEAL_KEY_SERVERS, WORLD_PACKAGE_ID } from '../lib/constants'
-import { fetchJumpEvents, fetchLocationEvent, resolveCharacterId } from '../lib/events'
+import { fetchJumpEvents, fetchLocationEvent, fetchLocationEvents, resolveCharacterId } from '../lib/events'
 import { mistToSui } from '../lib/format'
 import { intelPayloadSchema } from '../lib/intel-schemas'
 import { encryptIntel } from '../lib/seal'
@@ -53,6 +53,7 @@ export function CreateListing() {
   const [targetAssemblyId, setTargetAssemblyId] = useState('')
   const [targetLocation, setTargetLocation] = useState<LocationEvent | null>(null)
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null)
+  const [gateSystemNames, setGateSystemNames] = useState<Map<string, string>>(new Map())
 
   // Resource fields
   const [resourceType, setResourceType] = useState('')
@@ -177,7 +178,7 @@ export function CreateListing() {
       let presenceProofBytes: Uint8Array | null = null
       let presenceInputsBytes: Uint8Array | null = null
       let jumpTxDigest: Uint8Array = new Uint8Array(0)
-      const shouldVerifyPresence = verifyPresence && intelType !== 3 && PRESENCE_VKEY_ID !== '' && selectedJump && gateLocation && targetLocation
+      const shouldVerifyPresence = verifyPresence && intelType !== 3 && (PRESENCE_VKEY_ID as string) !== '' && selectedJump && gateLocation && targetLocation
 
       if (shouldVerifyPresence && selectedJump && gateLocation && targetLocation) {
         setPresenceStatus('Generating presence proof...')
@@ -332,6 +333,7 @@ export function CreateListing() {
     setGateLocation(null)
     setTargetAssemblyId('')
     setTargetLocation(null)
+    setGateSystemNames(new Map())
     if (!enabled) return
     if (!account) return
     try {
@@ -340,6 +342,20 @@ export function CreateListing() {
       setPresenceStatus('Fetching recent jumps...')
       const jumps = await fetchJumpEvents(suiClient, characterId ?? undefined, WORLD_PACKAGE_ID)
       setJumpEvents(jumps)
+
+      // Resolve gate solar systems for dropdown labels
+      if (jumps.length > 0) {
+        setPresenceStatus('Resolving gate locations...')
+        const gateIds = [...new Set(jumps.map(j => j.destinationGateId))]
+        const gateLocations = await fetchLocationEvents(suiClient, gateIds, WORLD_PACKAGE_ID)
+        const names = new Map<string, string>()
+        for (const [gateId, loc] of gateLocations) {
+          const sys = galaxy?.systemMap.get(BigInt(loc.solarSystem))
+          names.set(gateId, sys?.name ?? `System ${loc.solarSystem}`)
+        }
+        setGateSystemNames(names)
+      }
+
       setPresenceStatus(null)
     } catch (err) {
       console.error('[fetchJumpEvents failed]', err)
@@ -487,11 +503,14 @@ export function CreateListing() {
                   }}
                 >
                   <option value="">— Select a jump —</option>
-                  {jumpEvents.map(j => (
-                    <option key={j.txDigest} value={j.txDigest}>
-                      {new Date(Number(j.timestamp)).toLocaleString()} — gate {j.destinationGateId.slice(0, 10)}...
-                    </option>
-                  ))}
+                  {jumpEvents.map(j => {
+                    const sysName = gateSystemNames.get(j.destinationGateId)
+                    return (
+                      <option key={j.txDigest} value={j.txDigest}>
+                        {new Date(Number(j.timestamp)).toLocaleString()} — {sysName ?? `gate ${j.destinationGateId.slice(0, 10)}...`}
+                      </option>
+                    )
+                  })}
                 </select>
                 {gateLocation && (
                   <div className="form-hint">Gate coordinates loaded from system {gateLocation.solarSystem}</div>

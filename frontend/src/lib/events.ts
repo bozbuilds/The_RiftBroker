@@ -1,6 +1,8 @@
-import type { SuiClient } from '@mysten/sui/client'
-
 import { WORLD_PACKAGE_ID } from './constants'
+
+/** SUI client type — inferred from dapp-kit's useSuiClient(). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SuiClient = any
 
 export interface JumpEvent {
   readonly characterId: string
@@ -59,7 +61,7 @@ export async function fetchJumpEvents(
   })
   const all = data.map(parseJumpEvent)
   // SUI queryEvents can't filter by inner fields — filter client-side
-  if (characterId) return all.filter(e => e.characterId === characterId)
+  if (characterId) return all.filter((e: JumpEvent) => e.characterId === characterId)
   return all
 }
 
@@ -77,7 +79,31 @@ export async function fetchLocationEvent(
     limit: 200,
   })
   const parsed = data.map(parseLocationEvent)
-  return parsed.find(e => e.assemblyId === assemblyId) ?? null
+  return parsed.find((e: LocationEvent) => e.assemblyId === assemblyId) ?? null
+}
+
+/**
+ * Batch-fetch LocationRevealedEvents and return a map of assemblyId → LocationEvent.
+ * Useful for resolving gate locations for a list of jump events.
+ */
+export async function fetchLocationEvents(
+  suiClient: SuiClient,
+  assemblyIds: string[],
+  packageId: string = WORLD_PACKAGE_ID,
+): Promise<Map<string, LocationEvent>> {
+  if (assemblyIds.length === 0) return new Map()
+  const { data } = await suiClient.queryEvents({
+    query: { MoveEventType: `${packageId}::location::LocationRevealedEvent` },
+    order: 'descending',
+    limit: 200,
+  })
+  const parsed = data.map(parseLocationEvent)
+  const idSet = new Set(assemblyIds)
+  const result = new Map<string, LocationEvent>()
+  for (const loc of parsed)
+    if (idSet.has(loc.assemblyId) && !result.has(loc.assemblyId))
+      result.set(loc.assemblyId, loc)
+  return result
 }
 
 /**

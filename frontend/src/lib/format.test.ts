@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { isExpired, mistToSui, observedAgo, timeRemaining } from './format'
+import { isExpired, mistToSui, observedAgo } from './format'
 import type { IntelListingFields } from './types'
 
 function makeListing(overrides: Partial<IntelListingFields> = {}): IntelListingFields {
