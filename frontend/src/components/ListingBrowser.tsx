@@ -151,7 +151,7 @@ export function ListingBrowser({
               className={`listing-item${owned ? ' listing-item-owned' : ''}`}
               onClick={() => onSelect(listing)}
             >
-              <div>
+              <div className="listing-item-badges">
                 <span className="listing-item-type">
                   {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
                 </span>

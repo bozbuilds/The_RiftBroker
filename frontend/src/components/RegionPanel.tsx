@@ -50,7 +50,7 @@ export function RegionPanel({ region, footer, onSelectListing, onClose }: Region
             className="listing-item"
             onClick={() => onSelectListing(listing)}
           >
-            <div>
+            <div className="listing-item-badges">
               <span className="listing-item-type">
                 {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
               </span>
@@ -62,7 +62,7 @@ export function RegionPanel({ region, footer, onSelectListing, onClose }: Region
               )}
               {(() => { const ago = observedAgo(listing); return ago && <span className="listing-observed-badge">{ago}</span> })()}
               <span className="listing-item-meta">
-                {' '}— {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
+                — {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
               </span>
             </div>
             <div>
