@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseJumpEvent, parseLocationEvent } from './events'
+import { extractCharacterId, parseJumpEvent, parseLocationEvent } from './events'
 
 describe('parseJumpEvent', () => {
   const rawEvent = {
@@ -67,5 +67,35 @@ describe('parseLocationEvent', () => {
 
   it('parses assemblyId', () => {
     expect(parseLocationEvent(rawEvent).assemblyId).toBe('0x970ed2')
+  })
+})
+
+describe('extractCharacterId', () => {
+  it('extracts character_id from content fields as bare string', () => {
+    const content = {
+      dataType: 'moveObject',
+      fields: { character_id: '0xef0945b' },
+    }
+    expect(extractCharacterId(content, '0xfallback')).toBe('0xef0945b')
+  })
+
+  it('extracts character_id from content fields as { id } shape', () => {
+    const content = {
+      dataType: 'moveObject',
+      fields: { character_id: { id: '0xef0945b' } },
+    }
+    expect(extractCharacterId(content, '0xfallback')).toBe('0xef0945b')
+  })
+
+  it('falls back to objectId when content has no character_id field', () => {
+    const content = {
+      dataType: 'moveObject',
+      fields: { name: 'Scout' },
+    }
+    expect(extractCharacterId(content, '0xfallback')).toBe('0xfallback')
+  })
+
+  it('falls back to objectId when content is null', () => {
+    expect(extractCharacterId(null, '0xfallback')).toBe('0xfallback')
   })
 })

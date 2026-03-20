@@ -81,6 +81,20 @@ export async function fetchLocationEvent(
 }
 
 /**
+ * Extract the character_id from a PlayerProfile's content fields.
+ * Handles both bare string and `{ id: string }` shapes.
+ * Falls back to objectId if the field is missing.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractCharacterId(content: any, objectId: string): string {
+  if (!content?.fields) return objectId
+  const cid = content.fields.character_id
+  if (typeof cid === 'string') return cid
+  if (cid && typeof cid === 'object' && 'id' in cid) return cid.id
+  return objectId
+}
+
+/**
  * Resolve a wallet address to an EVE Frontier character ID.
  * Queries PlayerProfile objects owned by the wallet address.
  * Returns null if no PlayerProfile is found.
@@ -97,6 +111,5 @@ export async function resolveCharacterId(
     limit: 1,
   })
   if (data.length === 0 || !data[0]?.data?.content) return null
-  // The PlayerProfile object ID is the character_id used in JumpEvents
-  return data[0].data.objectId
+  return extractCharacterId(data[0].data.content, data[0].data.objectId)
 }

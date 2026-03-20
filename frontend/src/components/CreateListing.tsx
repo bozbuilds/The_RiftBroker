@@ -12,9 +12,9 @@ import { buildAttachDistanceProofTx, buildCreateListingTx, buildCreatePresenceVe
 import { uploadBlob } from '../lib/walrus'
 import { generateDistanceProof, generateLocationProof, generatePresenceProof, generateSalt } from '../lib/zk-proof'
 
-import type { JumpEvent, LocationEvent } from '../lib/events'
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
 import { SystemPicker } from './SystemPicker'
+import type { JumpEvent, LocationEvent } from '../lib/events'
 
 function MistHint({ mist }: { mist: string }) {
   const sui = mistToSui(mist)
@@ -344,6 +344,7 @@ export function CreateListing() {
     } catch (err) {
       console.error('[fetchJumpEvents failed]', err)
       setPresenceStatus(null)
+      setError('Failed to fetch jump events. Check your connection and try again.')
     }
   }
 
@@ -361,8 +362,7 @@ export function CreateListing() {
     }
   }
 
-  async function handleTargetAssemblyChange(assemblyId: string) {
-    setTargetAssemblyId(assemblyId)
+  async function handleTargetAssemblyLookup(assemblyId: string) {
     setTargetLocation(null)
     if (!assemblyId.trim()) return
     try {
@@ -504,7 +504,8 @@ export function CreateListing() {
                   className="form-input"
                   type="text"
                   value={targetAssemblyId}
-                  onChange={e => handleTargetAssemblyChange(e.target.value)}
+                  onChange={e => setTargetAssemblyId(e.target.value)}
+                  onBlur={e => handleTargetAssemblyLookup(e.target.value)}
                   placeholder="0x... (SUI object ID of SSU, gate, or other assembly)"
                 />
                 {targetLocation && (
