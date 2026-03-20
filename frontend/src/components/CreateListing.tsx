@@ -54,6 +54,7 @@ export function CreateListing() {
   const [targetLocation, setTargetLocation] = useState<LocationEvent | null>(null)
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null)
   const [gateSystemNames, setGateSystemNames] = useState<Map<string, string>>(new Map())
+  const [isGlobalFeed, setIsGlobalFeed] = useState(false)
 
   // Resource fields
   const [resourceType, setResourceType] = useState('')
@@ -334,12 +335,15 @@ export function CreateListing() {
     setTargetAssemblyId('')
     setTargetLocation(null)
     setGateSystemNames(new Map())
+    setIsGlobalFeed(false)
     if (!enabled) return
     if (!account) return
     try {
       setPresenceStatus('Resolving character...')
       const characterId = await resolveCharacterId(suiClient, account.address, WORLD_PACKAGE_ID)
-      setPresenceStatus('Fetching recent jumps...')
+      const isGlobal = !characterId
+      setIsGlobalFeed(isGlobal)
+      setPresenceStatus(isGlobal ? 'No character found — fetching global jumps...' : 'Fetching your jumps...')
       const jumps = await fetchJumpEvents(suiClient, characterId ?? undefined, WORLD_PACKAGE_ID)
       setJumpEvents(jumps)
 
@@ -488,6 +492,11 @@ export function CreateListing() {
 
         {verifyPresence && intelType !== 3 && PRESENCE_VKEY_ID && (
           <>
+            {isGlobalFeed && jumpEvents.length > 0 && (
+              <div className="status-message" style={{ marginBottom: '0.5rem', fontSize: '0.8rem' }}>
+                No EVE Frontier character found for this wallet. Showing global jump feed for demo purposes. Connect your in-game wallet to see only your jumps.
+              </div>
+            )}
             {jumpEvents.length === 0 && !presenceStatus && (
               <div className="form-hint">No recent jump events found. Jump through a gate to prove presence.</div>
             )}
@@ -512,8 +521,13 @@ export function CreateListing() {
                     )
                   })}
                 </select>
+                {selectedJump && !gateLocation && !presenceStatus && (
+                  <div className="form-hint">Jump selected. Gate location not found in recent events.</div>
+                )}
                 {gateLocation && (
-                  <div className="form-hint">Gate coordinates loaded from system {gateLocation.solarSystem}</div>
+                  <div className="form-hint" style={{ color: 'var(--success)' }}>
+                    Gate coordinates loaded — system {gateLocation.solarSystem} ({gateSystemNames.get(selectedJump?.destinationGateId ?? '') ?? 'unknown'})
+                  </div>
                 )}
               </div>
             )}
