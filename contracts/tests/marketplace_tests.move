@@ -5,7 +5,7 @@ use sui::test_scenario;
 use sui::coin;
 use sui::sui::SUI;
 use sui::clock;
-use rift_broker::marketplace::{Self, IntelListing, LocationVKey, DistanceVKey, PurchaseReceipt};
+use rift_broker::marketplace::{Self, IntelListing, LocationVKey, DistanceVKey, PurchaseReceipt, PresenceVKey};
 
 const SCOUT: address = @0xA;
 const BUYER: address = @0xB;
@@ -986,6 +986,76 @@ fun test_attach_distance_proof_rejects_double_attach() {
         );
         test_scenario::return_shared(listing);
         test_scenario::return_shared(dvkey);
+    };
+    scenario.end();
+}
+
+// === Presence proof (ZK Phase 5) ===
+
+#[test]
+fun test_unverified_listing_empty_jump_tx_digest() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let listing = scenario.take_shared<IntelListing>();
+        assert!(marketplace::jump_tx_digest(&listing).is_empty());
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test]
+fun test_presence_listing_stores_jump_tx_digest() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::set_jump_tx_digest_for_testing(&mut listing, b"test_digest_abc123");
+        assert!(*marketplace::jump_tx_digest(&listing) == b"test_digest_abc123");
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EInvalidPresenceProof)]
+fun test_create_presence_verified_listing_invalid_proof() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        marketplace::init_presence_vkey_for_testing(scenario.ctx());
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let vkey = scenario.take_shared<PresenceVKey>();
+        let ctx = scenario.ctx();
+        let clock = clock::create_for_testing(ctx);
+        let coin = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        // 128-byte garbage proof, 160-byte garbage inputs (5×32)
+        let fake_proof = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        let fake_inputs = x"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        marketplace::create_presence_verified_listing(
+            1, 42, 500_000, 24, b"blob", coin,
+            &vkey,
+            fake_proof,
+            fake_inputs,
+            b"fake_tx_digest",
+            &clock, ctx,
+        );
+        clock::destroy_for_testing(clock);
+        test_scenario::return_shared(vkey);
     };
     scenario.end();
 }

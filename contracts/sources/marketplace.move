@@ -624,3 +624,20 @@ public fun set_observed_at_for_testing(listing: &mut IntelListing, ts: u64) {
 public fun bytes_to_u64_le_for_testing(bytes: &vector<u8>, offset: u64): u64 {
     bytes_to_u64_le(bytes, offset)
 }
+
+#[test_only]
+public fun init_presence_vkey_for_testing(ctx: &mut TxContext) {
+    // Use a valid Arkworks-format VKey (same structure as location vkey) so
+    // prepare_verifying_key succeeds. The garbage proof bytes will then fail
+    // verify_groth16_proof → EInvalidPresenceProof.
+    let presence_vkey = PresenceVKey {
+        id: object::new(ctx),
+        vkey_bytes: x"c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e1922f4807d90f7579c0681a7c4326ed9cd492392529908d1a5e1be4fc1d40b74279e93eb8cf729fd0be9150e6e59c43b66e5dd5030b568dda6cc970539fafefe2a0500000000000000d020745c5d9aa5e987327c45664f758f99c8b45f183ef9a9d5d8c979d7f9bb87136e391188eccb9532949c42958e4593b1a0b94a812c9d1841ea3ac5e5970f2e18eccea780b7b38b85d4e098a22d6bf736fb236671d22f66b89d7a0b0ac0cb8fc625336c215d095d3d0aa8173592150c7751f4474d1709a8cb94a5981008d8abb2abb84835430836dd82b373f5f032575f094831ccb5ac870d30943780a4c393",
+    };
+    transfer::share_object(presence_vkey);
+}
+
+#[test_only]
+public fun set_jump_tx_digest_for_testing(listing: &mut IntelListing, digest: vector<u8>) {
+    listing.jump_tx_digest = digest;
+}
