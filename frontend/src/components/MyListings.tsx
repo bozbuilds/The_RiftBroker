@@ -87,7 +87,7 @@ export function MyListings() {
             {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
           </span>
           {listing.jumpTxDigest.length > 0 ? (
-            <span className="listing-verified-badge">Presence Verified</span>
+            <span className="listing-presence-badge">Presence Verified</span>
           ) : listing.isVerified ? (
             <span className="listing-verified-badge">ZK-Verified</span>
           ) : null}

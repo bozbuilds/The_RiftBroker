@@ -82,7 +82,7 @@ export function MyIntel() {
           </span>
           {isItemExpired && <span className="listing-expired-badge">Expired</span>}
           {listing.jumpTxDigest.length > 0 ? (
-            <span className="listing-verified-badge">Presence Verified</span>
+            <span className="listing-presence-badge">Presence Verified</span>
           ) : listing.isVerified ? (
             <span className="listing-verified-badge">ZK-Verified</span>
           ) : null}

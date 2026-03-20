@@ -1,8 +1,8 @@
 // Galaxy data JSON (served from /public — relative URL works in dev and production)
 export const GALAXY_JSON_URL = '/galaxy.json'
 
-// Deployed on SUI testnet (2026-03-19) — Phase 3 deploy with timestamp freshness
-export const PACKAGE_ID = '0x66d75eb0601a93ae70c64aecad52e2b83143adc6e07ea281f2896692c8c3b2b3'
+// Deployed on SUI testnet (2026-03-20) — Phase 5 deploy with presence proofs
+export const PACKAGE_ID = '0x361aeb5a22f71441800364cd976941e7de302dc0eaad55fbf4de18cf378fbf01'
 
 // SUI shared Clock object
 export const CLOCK_ID = '0x6'
@@ -40,17 +40,17 @@ export const INTEL_TYPE_COLORS_NEON: Record<number, string> = {
   3: '#ffea00', // Route — yellow
 }
 
-/** LocationVKey shared object ID — created by marketplace init() on Phase 3 deploy. */
-export const LOCATION_VKEY_ID = '0xe285d9f30562c765470413bc92f30f4309cdff58656087cd6a6c3e6091f72534'
+/** LocationVKey shared object ID — created by marketplace init() on Phase 5 deploy. */
+export const LOCATION_VKEY_ID = '0xd4bddf80818eb19fb57c7fbea6e69998e96adbfa6210ceaa60e0b33a86720913'
 
-/** DistanceVKey shared object ID — created by marketplace init() on Phase 3 deploy. */
-export const DISTANCE_VKEY_ID = '0x62b51fbed00138f6472ff562d1187fd207b2939695b9098277b061b6607a2e68'
+/** DistanceVKey shared object ID — created by marketplace init() on Phase 5 deploy. */
+export const DISTANCE_VKEY_ID = '0xfaf9a8fc17e18253b06d943b00cb7c0f3970dca61007b27690e8c9738d1ebc24'
 
 /** EVE Frontier world-contracts package ID on Utopia testnet. */
 export const WORLD_PACKAGE_ID = '0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75'
 
-/** PresenceVKey shared object ID — set after Phase 5 circuit deploy. Empty = not yet deployed. */
-export const PRESENCE_VKEY_ID = ''
+/** PresenceVKey shared object ID — created by marketplace init() on Phase 5 deploy. */
+export const PRESENCE_VKEY_ID = '0x39bebf31fd6923be13d3662c687f3c07823da059fba0e6f249a70f4121f68c02'
 
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',

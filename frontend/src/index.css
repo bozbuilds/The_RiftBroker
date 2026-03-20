@@ -1214,6 +1214,21 @@ button {
   margin-left: 8px;
 }
 
+/* Presence Verified — elevated tier, on-chain event-backed */
+.listing-presence-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border: 1px solid #a78bfa;
+  border-radius: var(--radius);
+  align-self: center;
+  margin-left: 8px;
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.3), 0 0 12px rgba(167, 139, 250, 0.1);
+}
+
 .listing-proximity-badge {
   font-size: 0.7rem;
   font-weight: 600;

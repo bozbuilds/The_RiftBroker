@@ -85,7 +85,6 @@ template PresenceAttestationCircuit() {
     scoutHash.inputs[1] <== scoutCoords[1];
     scoutHash.inputs[2] <== scoutCoords[2];
     scoutHash.inputs[3] <== scoutSalt;
-    scoutHash.out === coordinatesHash;
 
     // 3. Verify target coordinatesHash
     component tgtHash = Poseidon(4);

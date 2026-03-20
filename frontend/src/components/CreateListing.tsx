@@ -359,6 +359,7 @@ export function CreateListing() {
     } catch (err) {
       console.error('[fetchLocationEvent failed]', err)
       setPresenceStatus(null)
+      setError('Failed to fetch gate coordinates. Try selecting a different jump.')
     }
   }
 
