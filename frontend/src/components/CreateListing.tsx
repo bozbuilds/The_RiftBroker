@@ -3,13 +3,16 @@ import { SealClient } from '@mysten/seal'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 
-import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, SEAL_KEY_SERVERS } from '../lib/constants'
+import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, PRESENCE_VKEY_ID, SEAL_KEY_SERVERS, WORLD_PACKAGE_ID } from '../lib/constants'
+import { fetchJumpEvents, fetchLocationEvent, resolveCharacterId } from '../lib/events'
 import { mistToSui } from '../lib/format'
 import { intelPayloadSchema } from '../lib/intel-schemas'
 import { encryptIntel } from '../lib/seal'
-import { buildAttachDistanceProofTx, buildCreateListingTx, buildCreateVerifiedListingTx, buildSetBlobIdTx } from '../lib/transactions'
+import { buildAttachDistanceProofTx, buildCreateListingTx, buildCreatePresenceVerifiedListingTx, buildCreateVerifiedListingTx, buildSetBlobIdTx } from '../lib/transactions'
 import { uploadBlob } from '../lib/walrus'
-import { generateDistanceProof, generateLocationProof, generateSalt } from '../lib/zk-proof'
+import { generateDistanceProof, generateLocationProof, generatePresenceProof, generateSalt } from '../lib/zk-proof'
+
+import type { JumpEvent, LocationEvent } from '../lib/events'
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
 import { SystemPicker } from './SystemPicker'
 
@@ -43,6 +46,13 @@ export function CreateListing() {
   const [proofStatus, setProofStatus] = useState<string | null>(null)
   const [targetSystemId, setTargetSystemId] = useState<bigint | null>(null)
   const [distanceProofStatus, setDistanceProofStatus] = useState<string | null>(null)
+  const [verifyPresence, setVerifyPresence] = useState(false)
+  const [jumpEvents, setJumpEvents] = useState<JumpEvent[]>([])
+  const [selectedJump, setSelectedJump] = useState<JumpEvent | null>(null)
+  const [gateLocation, setGateLocation] = useState<LocationEvent | null>(null)
+  const [targetAssemblyId, setTargetAssemblyId] = useState('')
+  const [targetLocation, setTargetLocation] = useState<LocationEvent | null>(null)
+  const [presenceStatus, setPresenceStatus] = useState<string | null>(null)
 
   // Resource fields
   const [resourceType, setResourceType] = useState('')
@@ -163,11 +173,51 @@ export function CreateListing() {
         }
       }
 
+      // Presence proof path (Phase 5 — on-chain event data)
+      let presenceProofBytes: Uint8Array | null = null
+      let presenceInputsBytes: Uint8Array | null = null
+      let jumpTxDigest: Uint8Array = new Uint8Array(0)
+      const shouldVerifyPresence = verifyPresence && intelType !== 3 && PRESENCE_VKEY_ID !== '' && selectedJump && gateLocation && targetLocation
+
+      if (shouldVerifyPresence && selectedJump && gateLocation && targetLocation) {
+        setPresenceStatus('Generating presence proof...')
+        try {
+          const proof = await generatePresenceProof(
+            { x: gateLocation.x, y: gateLocation.y, z: gateLocation.z },
+            { x: targetLocation.x, y: targetLocation.y, z: targetLocation.z },
+            selectedJump.timestamp,
+          )
+          presenceProofBytes = proof.proofBytes
+          presenceInputsBytes = proof.publicInputsBytes
+          jumpTxDigest = new TextEncoder().encode(selectedJump.txDigest)
+          setPresenceStatus(null)
+        } catch (proofErr) {
+          setPresenceStatus(null)
+          console.error('[ZK presence proof failed]', proofErr)
+          setError('Presence proof generation failed — creating unverified listing instead.')
+        }
+      }
+
       setStatus('Creating listing...')
       const payload = new TextEncoder().encode(JSON.stringify(result.data))
 
-      const useVerified = proofBytes !== null && publicInputsBytes !== null
-      const createTx = useVerified
+      const usePresenceVerified = presenceProofBytes !== null && presenceInputsBytes !== null
+      const useLocationVerified = !usePresenceVerified && proofBytes !== null && publicInputsBytes !== null
+
+      const createTx = usePresenceVerified
+        ? buildCreatePresenceVerifiedListingTx({
+            intelType,
+            systemId: onChainSystemId,
+            individualPrice: BigInt(price),
+            decayHours: BigInt(decayHours),
+            walrusBlobId: new Uint8Array(0),
+            stakeAmount: BigInt(stakeAmount),
+            presenceVkeyId: PRESENCE_VKEY_ID,
+            proofPointsBytes: presenceProofBytes!,
+            publicInputsBytes: presenceInputsBytes!,
+            jumpTxDigest,
+          })
+        : useLocationVerified
         ? buildCreateVerifiedListingTx({
             intelType,
             systemId: onChainSystemId,
@@ -224,7 +274,7 @@ export function CreateListing() {
       await suiClient.waitForTransaction({ digest: setResult.digest })
 
       // Distance proof flow (non-Route, when target system selected)
-      if (useVerified && locationSalt && targetSystemId && onChainSystemId && intelType !== 3) {
+      if (useLocationVerified && locationSalt && targetSystemId && onChainSystemId && intelType !== 3) {
         const targetSystem = galaxy?.systemMap.get(targetSystemId)
         const scoutSystem = galaxy?.systemMap.get(onChainSystemId)
         if (targetSystem?.rawX !== undefined && scoutSystem?.rawX !== undefined) {
@@ -271,6 +321,54 @@ export function CreateListing() {
     setOriginSystem(null)
     setDestSystem(null)
     setTargetSystemId(null)
+  }
+
+  async function handleVerifyPresenceToggle(enabled: boolean) {
+    setVerifyPresence(enabled)
+    setJumpEvents([])
+    setSelectedJump(null)
+    setGateLocation(null)
+    setTargetAssemblyId('')
+    setTargetLocation(null)
+    if (!enabled) return
+    if (!account) return
+    try {
+      setPresenceStatus('Resolving character...')
+      const characterId = await resolveCharacterId(suiClient, account.address, WORLD_PACKAGE_ID)
+      setPresenceStatus('Fetching recent jumps...')
+      const jumps = await fetchJumpEvents(suiClient, characterId ?? undefined, WORLD_PACKAGE_ID)
+      setJumpEvents(jumps)
+      setPresenceStatus(null)
+    } catch (err) {
+      console.error('[fetchJumpEvents failed]', err)
+      setPresenceStatus(null)
+    }
+  }
+
+  async function handleJumpSelect(jump: JumpEvent) {
+    setSelectedJump(jump)
+    setGateLocation(null)
+    try {
+      setPresenceStatus('Fetching gate coordinates...')
+      const loc = await fetchLocationEvent(suiClient, jump.destinationGateId, WORLD_PACKAGE_ID)
+      setGateLocation(loc)
+      setPresenceStatus(null)
+    } catch (err) {
+      console.error('[fetchLocationEvent failed]', err)
+      setPresenceStatus(null)
+    }
+  }
+
+  async function handleTargetAssemblyChange(assemblyId: string) {
+    setTargetAssemblyId(assemblyId)
+    setTargetLocation(null)
+    if (!assemblyId.trim()) return
+    try {
+      const loc = await fetchLocationEvent(suiClient, assemblyId.trim(), WORLD_PACKAGE_ID)
+      setTargetLocation(loc)
+    } catch (err) {
+      console.error('[fetchLocationEvent for target failed]', err)
+    }
   }
 
   return (
@@ -345,6 +443,73 @@ export function CreateListing() {
           <div className="status-message">
             <span className="loading-spinner" />{distanceProofStatus}
           </div>
+        )}
+
+        {intelType !== 3 && (
+          <div className="form-group">
+            <label className={`verify-toggle${!PRESENCE_VKEY_ID ? ' verify-toggle-disabled' : ''}`}>
+              <input
+                type="checkbox"
+                checked={verifyPresence}
+                onChange={e => handleVerifyPresenceToggle(e.target.checked)}
+                disabled={intelType === 3 || !PRESENCE_VKEY_ID}
+              />
+              {' Verify with On-Chain Data'}
+              {!PRESENCE_VKEY_ID && <span className="verify-toggle-hint"> (circuit not yet deployed)</span>}
+            </label>
+          </div>
+        )}
+
+        {presenceStatus && (
+          <div className="status-message">
+            <span className="loading-spinner" />{presenceStatus}
+          </div>
+        )}
+
+        {verifyPresence && intelType !== 3 && PRESENCE_VKEY_ID && (
+          <>
+            {jumpEvents.length === 0 && !presenceStatus && (
+              <div className="form-hint">No recent jump events found. Jump through a gate to prove presence.</div>
+            )}
+            {jumpEvents.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Select Jump Event</label>
+                <select
+                  className="form-select"
+                  value={selectedJump?.txDigest ?? ''}
+                  onChange={e => {
+                    const jump = jumpEvents.find(j => j.txDigest === e.target.value)
+                    if (jump) handleJumpSelect(jump)
+                  }}
+                >
+                  <option value="">— Select a jump —</option>
+                  {jumpEvents.map(j => (
+                    <option key={j.txDigest} value={j.txDigest}>
+                      {new Date(Number(j.timestamp)).toLocaleString()} — gate {j.destinationGateId.slice(0, 10)}...
+                    </option>
+                  ))}
+                </select>
+                {gateLocation && (
+                  <div className="form-hint">Gate coordinates loaded from system {gateLocation.solarSystem}</div>
+                )}
+              </div>
+            )}
+            {selectedJump && (
+              <div className="form-group">
+                <label className="form-label">Target Assembly ID</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={targetAssemblyId}
+                  onChange={e => handleTargetAssemblyChange(e.target.value)}
+                  placeholder="0x... (SUI object ID of SSU, gate, or other assembly)"
+                />
+                {targetLocation && (
+                  <div className="form-hint">Target coordinates loaded from system {targetLocation.solarSystem}</div>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         <div className="form-group">

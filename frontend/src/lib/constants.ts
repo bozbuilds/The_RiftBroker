@@ -49,7 +49,8 @@ export const DISTANCE_VKEY_ID = '0x62b51fbed00138f6472ff562d1187fd207b2939695b90
 /** EVE Frontier world-contracts package ID on Utopia testnet. */
 export const WORLD_PACKAGE_ID = '0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75'
 
-// TODO (Phase 5 deploy): add PRESENCE_VKEY_ID after contract deployment
+/** PresenceVKey shared object ID — set after Phase 5 circuit deploy. Empty = not yet deployed. */
+export const PRESENCE_VKEY_ID = ''
 
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',
