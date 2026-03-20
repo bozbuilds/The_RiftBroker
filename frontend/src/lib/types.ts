@@ -27,6 +27,7 @@ export interface IntelListingFields {
   readonly hasDistanceProof: boolean
   /** Manhattan distance in meters, derived from distanceProofHash. null if no distance proof. */
   readonly distanceMeters: number | null
+  readonly jumpTxDigest: Uint8Array
 }
 
 export interface PurchaseReceiptFields {

@@ -59,6 +59,7 @@ export function parseListingFields(
     distanceProofHash,
     hasDistanceProof: distanceProofHash.length > 0,
     distanceMeters: parseDistanceMeters(distanceProofHash),
+    jumpTxDigest: new Uint8Array((fields.jump_tx_digest as number[] | undefined) ?? []),
   }
 }
 

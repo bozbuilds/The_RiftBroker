@@ -138,6 +138,32 @@ describe('parseListingFields — observed_at', () => {
   })
 })
 
+describe('parseListingFields — jump_tx_digest', () => {
+  const baseFields = {
+    scout: '0xABC',
+    intel_type: 1,
+    system_id: '42',
+    created_at: '1000',
+    observed_at: '900',
+    decay_hours: '24',
+    walrus_blob_id: [],
+    individual_price: '500000',
+    stake: { value: '1000000' },
+    delisted: false,
+    location_proof_hash: [],
+  }
+
+  it('parses jump_tx_digest when present', () => {
+    const result = parseListingFields('0x1', { ...baseFields, jump_tx_digest: [65, 66, 67] })
+    expect(result.jumpTxDigest).toEqual(new Uint8Array([65, 66, 67]))
+  })
+
+  it('returns empty Uint8Array when jump_tx_digest is missing', () => {
+    const result = parseListingFields('0x1', { ...baseFields })
+    expect(result.jumpTxDigest).toEqual(new Uint8Array([]))
+  })
+})
+
 describe('parseReceiptFields', () => {
   const objectId = '0xreceipt01'
 

@@ -22,6 +22,7 @@ function makeListing(overrides: Partial<IntelListingFields> = {}): IntelListingF
     distanceProofHash: new Uint8Array([]),
     hasDistanceProof: false,
     distanceMeters: null,
+    jumpTxDigest: new Uint8Array([]),
     ...overrides,
   }
 }
