@@ -419,6 +419,87 @@ public fun create_verified_listing(
     transfer::share_object(listing);
 }
 
+/// Create a listing verified by the unified presence-attestation circuit (Phase 5).
+/// Proof embeds: distance to target, jump timestamp, coordinate hashes, location_hash binding.
+/// public_inputs_bytes: 160 bytes (5 × 32), snarkjs output order:
+///   [0]: distanceSquared (32 bytes LE) — output
+///   [1]: timestamp (32 bytes LE) — output
+///   [2]: coordinatesHash (32 bytes LE) — input
+///   [3]: targetHash (32 bytes LE) — input
+///   [4]: locationHash (32 bytes LE) — input
+public fun create_presence_verified_listing(
+    intel_type: u8,
+    system_id: u64,
+    individual_price: u64,
+    decay_hours: u64,
+    walrus_blob_id: vector<u8>,
+    stake: Coin<SUI>,
+    vkey: &PresenceVKey,
+    proof_points_bytes: vector<u8>,
+    public_inputs_bytes: vector<u8>,
+    jump_tx_digest: vector<u8>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    assert!(intel_type <= INTEL_TYPE_ROUTE, EInvalidIntelType);
+    assert!(decay_hours >= MIN_DECAY_HOURS, EDecayTooSmall);
+    assert!(decay_hours <= MAX_DECAY_HOURS, EDecayTooLarge);
+    assert!(individual_price >= MIN_PRICE, EPriceTooLow);
+    assert!(coin::value(&stake) >= MIN_STAKE, EStakeTooLow);
+
+    // Verify Groth16 proof on-chain
+    let pvk = groth16::prepare_verifying_key(&groth16::bn254(), &vkey.vkey_bytes);
+    let public_inputs = groth16::public_proof_inputs_from_bytes(public_inputs_bytes);
+    let proof_points = groth16::proof_points_from_bytes(proof_points_bytes);
+    assert!(
+        groth16::verify_groth16_proof(&groth16::bn254(), &pvk, &public_inputs, &proof_points),
+        EInvalidPresenceProof,
+    );
+
+    // Extract timestamp from second public signal (bytes [32..40])
+    // snarkjs output order: [distanceSquared, timestamp, ...]
+    let observed_at = bytes_to_u64_le(&public_inputs_bytes, 32);
+    let now = clock.timestamp_ms();
+
+    // Reject future timestamps
+    assert!(observed_at <= now, ETimestampInFuture);
+
+    // Reject stale observations (24h cap)
+    assert!(
+        now - observed_at <= MAX_OBSERVATION_AGE_MS,
+        EObservationTooStale,
+    );
+
+    let listing = IntelListing {
+        id: object::new(ctx),
+        scout: ctx.sender(),
+        intel_type,
+        system_id,
+        created_at: now,
+        observed_at,
+        decay_hours,
+        walrus_blob_id,
+        individual_price,
+        stake: stake.into_balance(),
+        delisted: false,
+        location_proof_hash: public_inputs_bytes,
+        distance_proof_hash: vector::empty(),
+        jump_tx_digest,
+    };
+    let listing_id_val = object::id(&listing);
+    event::emit(IntelListed {
+        listing_id: listing_id_val,
+        scout: ctx.sender(),
+        intel_type,
+        system_id,
+    });
+    event::emit(VerifiedIntelListed {
+        listing_id: listing_id_val,
+        scout: ctx.sender(),
+    });
+    transfer::share_object(listing);
+}
+
 /// Attach a ZK distance proof to an existing listing.
 /// Requires: caller is scout, listing has location proof, no distance proof yet.
 public fun attach_distance_proof(
