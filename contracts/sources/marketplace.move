@@ -30,6 +30,7 @@ const EDistanceProofAlreadySet: u64 = 16;
 const EInvalidDistanceProof: u64 = 17;
 const EObservationTooStale: u64 = 18;
 const ETimestampInFuture: u64 = 19;
+const EInvalidPresenceProof: u64 = 22;
 
 // === Regular constants (ALL_CAPS) ===
 
@@ -71,6 +72,7 @@ public struct IntelListing has key {
     delisted: bool,
     location_proof_hash: vector<u8>,  // empty = unverified; non-empty = valid proof was verified at creation
     distance_proof_hash: vector<u8>,  // empty = no distance proof; non-empty = valid proof was verified
+    jump_tx_digest: vector<u8>,     // SUI tx digest of JumpEvent (audit trail, empty for unverified)
 }
 
 /// Shared object holding the Groth16 verification key for the location attestation circuit.
@@ -83,6 +85,13 @@ public struct LocationVKey has key {
 /// Verification key for the distance attestation Groth16 circuit.
 /// Created once at package publish via init(). Object ID stored in frontend constants.
 public struct DistanceVKey has key {
+    id: UID,
+    vkey_bytes: vector<u8>,
+}
+
+/// Verification key for the unified presence-attestation circuit (Phase 5).
+/// Created once at package publish via init(). Object ID stored in frontend constants.
+public struct PresenceVKey has key {
     id: UID,
     vkey_bytes: vector<u8>,
 }
@@ -146,6 +155,12 @@ fun init(_otw: MARKETPLACE, ctx: &mut TxContext) {
         vkey_bytes: x"c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e1999b02f020468a6c6711b99af7d9b3587f6c99f0d991fa21ba68d7fc88763fb08ec860e72d093efb7b3dabe6b70a52abd46b2f4fe7ce87f4decb3cc772bb21eac0400000000000000746c4b7fb00e5edca937f3133b8ef153d173950c07a9fb415a6272e0f11fb983c3cbb6b96dc9e277429c79e4929dbb4952d56371a2b0d1f1e60d99ceee81442ffcfe5a369bd08a5bbf14d485fb22b6982a27c9df0b81bc01e612200cc21d6f96a9bc217de435b89c8956a94e44bb4e8efc66616df9d7fd6c51935dedaa47db81",
     };
     transfer::share_object(distance_vkey);
+
+    let presence_vkey = PresenceVKey {
+        id: object::new(ctx),
+        vkey_bytes: x"00", // Placeholder — updated after circuit compilation
+    };
+    transfer::share_object(presence_vkey);
 }
 
 // === Private helpers ===
@@ -196,6 +211,7 @@ public fun create_listing(
         delisted: false,
         location_proof_hash: vector::empty(),
         distance_proof_hash: vector::empty(),
+        jump_tx_digest: vector::empty(),
     };
 
     event::emit(IntelListed {
@@ -314,6 +330,7 @@ public fun is_expired(listing: &IntelListing, clock: &Clock): bool {
 }
 
 public fun observed_at(listing: &IntelListing): u64 { listing.observed_at }
+public fun jump_tx_digest(listing: &IntelListing): &vector<u8> { &listing.jump_tx_digest }
 
 // Receipt getters
 
@@ -386,6 +403,7 @@ public fun create_verified_listing(
         delisted: false,
         location_proof_hash: public_inputs_bytes,
         distance_proof_hash: vector::empty(),
+        jump_tx_digest: vector::empty(),
     };
     let listing_id_val = object::id(&listing);
     event::emit(IntelListed {
