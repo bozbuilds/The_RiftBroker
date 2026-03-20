@@ -47,6 +47,7 @@ export function CreateListing() {
   const [targetSystemId, setTargetSystemId] = useState<bigint | null>(null)
   const [distanceProofStatus, setDistanceProofStatus] = useState<string | null>(null)
   const [verifyPresence, setVerifyPresence] = useState(false)
+  const [inGameWallet, setInGameWallet] = useState('')
   const [jumpEvents, setJumpEvents] = useState<JumpEvent[]>([])
   const [selectedJump, setSelectedJump] = useState<JumpEvent | null>(null)
   const [gateLocation, setGateLocation] = useState<LocationEvent | null>(null)
@@ -327,8 +328,9 @@ export function CreateListing() {
     setTargetSystemId(null)
   }
 
-  async function handleVerifyPresenceToggle(enabled: boolean) {
+  function handleVerifyPresenceToggle(enabled: boolean) {
     setVerifyPresence(enabled)
+    setInGameWallet('')
     setJumpEvents([])
     setSelectedJump(null)
     setGateLocation(null)
@@ -336,36 +338,56 @@ export function CreateListing() {
     setTargetLocation(null)
     setGateSystemNames(new Map())
     setIsGlobalFeed(false)
-    if (!enabled) return
-    if (!account) return
+  }
+
+  async function handleLookupJumps(walletAddress: string) {
+    setJumpEvents([])
+    setSelectedJump(null)
+    setGateLocation(null)
+    setTargetAssemblyId('')
+    setTargetLocation(null)
+    setGateSystemNames(new Map())
+    setIsGlobalFeed(false)
+
+    const trimmed = walletAddress.trim()
     try {
-      setPresenceStatus('Resolving character...')
-      const characterId = await resolveCharacterId(suiClient, account.address, WORLD_PACKAGE_ID)
-      const isGlobal = !characterId
-      setIsGlobalFeed(isGlobal)
-      setPresenceStatus(isGlobal ? 'No character found — fetching global jumps...' : 'Fetching your jumps...')
-      const jumps = await fetchJumpEvents(suiClient, characterId ?? undefined, WORLD_PACKAGE_ID)
-      setJumpEvents(jumps)
-
-      // Resolve gate solar systems for dropdown labels
-      if (jumps.length > 0) {
-        setPresenceStatus('Resolving gate locations...')
-        const gateIds = [...new Set(jumps.map(j => j.destinationGateId))]
-        const gateLocations = await fetchLocationEvents(suiClient, gateIds, WORLD_PACKAGE_ID)
-        const names = new Map<string, string>()
-        for (const [gateId, loc] of gateLocations) {
-          const sys = galaxy?.systemMap.get(BigInt(loc.solarSystem))
-          names.set(gateId, sys?.name ?? `System ${loc.solarSystem}`)
+      if (trimmed) {
+        setPresenceStatus('Resolving character...')
+        const characterId = await resolveCharacterId(suiClient, trimmed, WORLD_PACKAGE_ID)
+        if (characterId) {
+          setPresenceStatus('Fetching your jumps...')
+          const jumps = await fetchJumpEvents(suiClient, characterId, WORLD_PACKAGE_ID)
+          setJumpEvents(jumps)
+          await resolveGateNames(jumps)
+          setPresenceStatus(null)
+          return
         }
-        setGateSystemNames(names)
       }
-
+      // Fallback: no wallet entered or no character found → global feed
+      setIsGlobalFeed(true)
+      setPresenceStatus('No character found — fetching global jumps...')
+      const jumps = await fetchJumpEvents(suiClient, undefined, WORLD_PACKAGE_ID)
+      setJumpEvents(jumps)
+      await resolveGateNames(jumps)
       setPresenceStatus(null)
     } catch (err) {
       console.error('[fetchJumpEvents failed]', err)
       setPresenceStatus(null)
       setError('Failed to fetch jump events. Check your connection and try again.')
     }
+  }
+
+  async function resolveGateNames(jumps: JumpEvent[]) {
+    if (jumps.length === 0) return
+    setPresenceStatus('Resolving gate locations...')
+    const gateIds = [...new Set(jumps.map(j => j.destinationGateId))]
+    const gateLocations = await fetchLocationEvents(suiClient, gateIds, WORLD_PACKAGE_ID)
+    const names = new Map<string, string>()
+    for (const [gateId, loc] of gateLocations) {
+      const sys = galaxy?.systemMap.get(BigInt(loc.solarSystem))
+      names.set(gateId, sys?.name ?? `System ${loc.solarSystem}`)
+    }
+    setGateSystemNames(names)
   }
 
   async function handleJumpSelect(jump: JumpEvent) {
@@ -492,13 +514,37 @@ export function CreateListing() {
 
         {verifyPresence && intelType !== 3 && PRESENCE_VKEY_ID && (
           <>
+            <div className="form-group">
+              <label className="form-label">In-Game Wallet Address</label>
+              <input
+                className="form-input"
+                type="text"
+                value={inGameWallet}
+                onChange={e => setInGameWallet(e.target.value)}
+                onBlur={e => handleLookupJumps(e.target.value)}
+                placeholder="0x... (your EVE Frontier SUI wallet address)"
+              />
+              <div className="form-hint">
+                Paste the SUI address from your EVE Frontier client. Leave blank to browse the global jump feed.
+              </div>
+              {!jumpEvents.length && !presenceStatus && inGameWallet === '' && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ marginTop: '0.5rem' }}
+                  onClick={() => handleLookupJumps('')}
+                >
+                  Browse global jump feed
+                </button>
+              )}
+            </div>
             {isGlobalFeed && jumpEvents.length > 0 && (
               <div className="status-message" style={{ marginBottom: '0.5rem', fontSize: '0.8rem' }}>
-                No EVE Frontier character found for this wallet. Showing global jump feed for demo purposes. Connect your in-game wallet to see only your jumps.
+                Showing global jump feed. Enter your in-game wallet address above to see only your jumps.
               </div>
             )}
-            {jumpEvents.length === 0 && !presenceStatus && (
-              <div className="form-hint">No recent jump events found. Jump through a gate to prove presence.</div>
+            {jumpEvents.length === 0 && !presenceStatus && inGameWallet !== '' && (
+              <div className="form-hint">No jump events found for this character. Have you jumped through a gate recently?</div>
             )}
             {jumpEvents.length > 0 && (
               <div className="form-group">
