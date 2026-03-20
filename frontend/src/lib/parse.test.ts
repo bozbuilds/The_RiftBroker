@@ -164,6 +164,34 @@ describe('parseListingFields — jump_tx_digest', () => {
   })
 })
 
+describe('parseListingFields — presence listing distance', () => {
+  it('extracts distance from location_proof_hash when jumpTxDigest is non-empty', () => {
+    // A presence listing has 160 bytes in location_proof_hash: [0..31] = distanceSquared
+    // Build a fake distanceSquared: manhattan=100, so distanceSquared=10000 in LE
+    const distSq = 10000n
+    const locationProofHash = new Uint8Array(160)
+    for (let i = 0; i < 32; i++) {
+      locationProofHash[i] = Number((distSq >> BigInt(i * 8)) & 0xffn)
+    }
+    const result = parseListingFields('0x1', {
+      scout: '0xABC',
+      intel_type: 1,
+      system_id: '42',
+      created_at: '1000',
+      observed_at: '900',
+      decay_hours: '24',
+      walrus_blob_id: [],
+      individual_price: '500000',
+      stake: { value: '1000000' },
+      delisted: false,
+      location_proof_hash: Array.from(locationProofHash),
+      jump_tx_digest: [65, 66, 67],
+    })
+    expect(result.hasDistanceProof).toBe(true)
+    expect(result.distanceMeters).toBe(100) // sqrt(10000) = 100
+  })
+})
+
 describe('parseReceiptFields', () => {
   const objectId = '0xreceipt01'
 

@@ -189,6 +189,8 @@ export function CreateListing() {
           )
           presenceProofBytes = proof.proofBytes
           presenceInputsBytes = proof.publicInputsBytes
+          // txDigest is a Base58 string — encode as UTF-8 bytes for on-chain audit trail storage.
+          // Verifiers read the bytes as UTF-8 to reconstruct the Base58 tx digest.
           jumpTxDigest = new TextEncoder().encode(selectedJump.txDigest)
           setPresenceStatus(null)
         } catch (proofErr) {
@@ -401,14 +403,15 @@ export function CreateListing() {
 
         {intelType !== 3 && (
           <div className="form-group">
-            <label className={`verify-toggle${intelType === 3 ? ' verify-toggle-disabled' : ''}`}>
+            <label className={`verify-toggle${(intelType === 3 || verifyPresence) ? ' verify-toggle-disabled' : ''}`}>
               <input
                 type="checkbox"
                 checked={verifyLocation}
                 onChange={e => setVerifyLocation(e.target.checked)}
-                disabled={intelType === 3}
+                disabled={intelType === 3 || verifyPresence}
               />
               {' ZK-Verify Location'}
+              {verifyPresence && <span className="verify-toggle-hint"> (disabled when Verify with On-Chain Data is active)</span>}
             </label>
           </div>
         )}
@@ -447,12 +450,12 @@ export function CreateListing() {
 
         {intelType !== 3 && (
           <div className="form-group">
-            <label className={`verify-toggle${!PRESENCE_VKEY_ID ? ' verify-toggle-disabled' : ''}`}>
+            <label className={`verify-toggle${(!PRESENCE_VKEY_ID || verifyLocation) ? ' verify-toggle-disabled' : ''}`}>
               <input
                 type="checkbox"
                 checked={verifyPresence}
                 onChange={e => handleVerifyPresenceToggle(e.target.checked)}
-                disabled={intelType === 3 || !PRESENCE_VKEY_ID}
+                disabled={intelType === 3 || !PRESENCE_VKEY_ID || verifyLocation}
               />
               {' Verify with On-Chain Data'}
               {!PRESENCE_VKEY_ID && <span className="verify-toggle-hint"> (circuit not yet deployed)</span>}

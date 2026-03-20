@@ -30,6 +30,7 @@ const EDistanceProofAlreadySet: u64 = 16;
 const EInvalidDistanceProof: u64 = 17;
 const EObservationTooStale: u64 = 18;
 const ETimestampInFuture: u64 = 19;
+// Codes 20-21 reserved: future EInvalidLocationHash and EJumpTooOld if granular errors needed
 const EInvalidPresenceProof: u64 = 22;
 
 // === Regular constants (ALL_CAPS) ===

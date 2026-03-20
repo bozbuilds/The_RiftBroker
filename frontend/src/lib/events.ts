@@ -1,5 +1,7 @@
 import type { SuiClient } from '@mysten/sui/client'
 
+import { WORLD_PACKAGE_ID } from './constants'
+
 export interface JumpEvent {
   readonly characterId: string
   readonly sourceGateId: string
@@ -44,13 +46,11 @@ export function parseLocationEvent(raw: any): LocationEvent {
   }
 }
 
-const UTOPIA_WORLD_PACKAGE = '0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75'
-
 /** Fetch recent JumpEvents, optionally filtered by character ID. */
 export async function fetchJumpEvents(
   suiClient: SuiClient,
   characterId?: string,
-  packageId: string = UTOPIA_WORLD_PACKAGE,
+  packageId: string = WORLD_PACKAGE_ID,
 ): Promise<JumpEvent[]> {
   const { data } = await suiClient.queryEvents({
     query: { MoveEventType: `${packageId}::gate::JumpEvent` },
@@ -67,7 +67,7 @@ export async function fetchJumpEvents(
 export async function fetchLocationEvent(
   suiClient: SuiClient,
   assemblyId: string,
-  packageId: string = UTOPIA_WORLD_PACKAGE,
+  packageId: string = WORLD_PACKAGE_ID,
 ): Promise<LocationEvent | null> {
   // SUI queryEvents can't filter by inner fields — fetch and filter client-side.
   // For large event volumes, consider paginating. limit: 200 covers most deployments.
@@ -88,7 +88,7 @@ export async function fetchLocationEvent(
 export async function resolveCharacterId(
   suiClient: SuiClient,
   walletAddress: string,
-  packageId: string = UTOPIA_WORLD_PACKAGE,
+  packageId: string = WORLD_PACKAGE_ID,
 ): Promise<string | null> {
   const { data } = await suiClient.getOwnedObjects({
     owner: walletAddress,

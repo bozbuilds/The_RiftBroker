@@ -36,6 +36,11 @@ export function parseListingFields(
 ): IntelListingFields {
   const locationProofHash = new Uint8Array((fields.location_proof_hash as number[] | undefined) ?? [])
   const distanceProofHash = new Uint8Array((fields.distance_proof_hash as number[] | undefined) ?? [])
+  const jumpTxDigest = new Uint8Array((fields.jump_tx_digest as number[] | undefined) ?? [])
+  // Presence listings (jumpTxDigest non-empty) embed distanceSquared in location_proof_hash[0..31].
+  const presenceDistance = jumpTxDigest.length > 0 && distanceProofHash.length === 0
+    ? parseDistanceMeters(locationProofHash)
+    : null
   return {
     id: objectId,
     scout: fields.scout as string,
@@ -57,9 +62,9 @@ export function parseListingFields(
     locationProofHash,
     isVerified: locationProofHash.length > 0,
     distanceProofHash,
-    hasDistanceProof: distanceProofHash.length > 0,
-    distanceMeters: parseDistanceMeters(distanceProofHash),
-    jumpTxDigest: new Uint8Array((fields.jump_tx_digest as number[] | undefined) ?? []),
+    hasDistanceProof: distanceProofHash.length > 0 || (jumpTxDigest.length > 0 && locationProofHash.length >= 32),
+    distanceMeters: parseDistanceMeters(distanceProofHash) ?? presenceDistance,
+    jumpTxDigest,
   }
 }
 
