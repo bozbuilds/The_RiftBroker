@@ -10,6 +10,7 @@ import {
   buildClaimExpiredStakeTx,
   buildAttachDistanceProofTx,
   buildBatchPurchaseTx,
+  buildCreatePresenceVerifiedListingTx,
 } from './transactions'
 
 describe('buildCreateListingTx', () => {
@@ -108,5 +109,23 @@ describe('buildBatchPurchaseTx', () => {
 
   it('throws on empty array', () => {
     expect(() => buildBatchPurchaseTx([])).toThrow('Cannot create empty batch purchase')
+  })
+})
+
+describe('buildCreatePresenceVerifiedListingTx', () => {
+  it('returns a Transaction', () => {
+    const tx = buildCreatePresenceVerifiedListingTx({
+      intelType: 1,
+      systemId: 42n,
+      individualPrice: 500_000n,
+      decayHours: 24n,
+      walrusBlobId: new Uint8Array([1, 2, 3]),
+      stakeAmount: 1_000_000n,
+      presenceVkeyId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      proofPointsBytes: new Uint8Array(128),
+      publicInputsBytes: new Uint8Array(160),
+      jumpTxDigest: new Uint8Array([65, 66, 67]),
+    })
+    expect(tx).toBeInstanceOf(Transaction)
   })
 })

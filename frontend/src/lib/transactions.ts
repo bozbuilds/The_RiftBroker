@@ -136,6 +136,39 @@ export function buildAttachDistanceProofTx(params: {
   return tx
 }
 
+export function buildCreatePresenceVerifiedListingTx(params: {
+  intelType: number
+  systemId: bigint
+  individualPrice: bigint
+  decayHours: bigint
+  walrusBlobId: Uint8Array
+  stakeAmount: bigint
+  presenceVkeyId: string
+  proofPointsBytes: Uint8Array
+  publicInputsBytes: Uint8Array
+  jumpTxDigest: Uint8Array
+}): Transaction {
+  const tx = new Transaction()
+  const [stake] = tx.splitCoins(tx.gas, [tx.pure.u64(params.stakeAmount)])
+  tx.moveCall({
+    target: `${PACKAGE_ID}::marketplace::create_presence_verified_listing`,
+    arguments: [
+      tx.pure.u8(params.intelType),
+      tx.pure.u64(params.systemId),
+      tx.pure.u64(params.individualPrice),
+      tx.pure.u64(params.decayHours),
+      tx.pure.vector('u8', Array.from(params.walrusBlobId)),
+      stake,
+      tx.object(params.presenceVkeyId),
+      tx.pure.vector('u8', Array.from(params.proofPointsBytes)),
+      tx.pure.vector('u8', Array.from(params.publicInputsBytes)),
+      tx.pure.vector('u8', Array.from(params.jumpTxDigest)),
+      tx.object(CLOCK_ID),
+    ],
+  })
+  return tx
+}
+
 export function buildBatchPurchaseTx(
   purchases: ReadonlyArray<{ listingId: string; price: bigint }>,
 ): Transaction {
