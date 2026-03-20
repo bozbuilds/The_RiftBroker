@@ -306,3 +306,76 @@ export async function generateDistanceProof(
     publicInputsBytes: publicSignalsToBytes(publicSignals as string[]),
   }
 }
+
+const PRESENCE_WASM_URL = '/zk/presence-attestation.wasm'
+const PRESENCE_ZKEY_URL = '/zk/presence-attestation_final.zkey'
+
+/**
+ * Generate a unified presence + proximity proof from on-chain event data.
+ *
+ * This replaces both generateLocationProof and generateDistanceProof for
+ * Phase 5 on-chain verified listings.
+ *
+ * The circuit (presence-attestation.circom) accepts:
+ *   - scoutCoords: gate coordinates from LocationRevealedEvent
+ *   - targetCoords: target assembly coordinates from LocationRevealedEvent
+ *   - jumpTimestamp: block timestamp of the JumpEvent
+ *
+ * Public signals (outputs first per snarkjs convention):
+ *   [0]: distanceSquared — (|dx|+|dy|+|dz|)^2
+ *   [1]: timestamp — jump block timestamp
+ *   [2]: coordinatesHash — Poseidon(scoutX, scoutY, scoutZ, scoutSalt)
+ *   [3]: targetHash — Poseidon(targetX, targetY, targetZ, targetSalt)
+ *   [4]: locationHash — Poseidon(scoutX, scoutY, scoutZ) — on-chain trust binding
+ */
+export async function generatePresenceProof(
+  scoutCoords: { x: bigint; y: bigint; z: bigint },
+  targetCoords: { x: bigint; y: bigint; z: bigint },
+  jumpTimestamp: bigint,
+): Promise<{ proofBytes: Uint8Array; publicInputsBytes: Uint8Array; scoutSalt: bigint; targetSalt: bigint }> {
+  const scoutSalt = generateSalt()
+  const targetSalt = generateSalt()
+
+  // @ts-expect-error snarkjs has no bundled types and is a runtime-only dep
+  const snarkjs = await import('snarkjs')
+  // @ts-expect-error circomlibjs has no bundled types
+  const { buildPoseidon } = await import('circomlibjs')
+  const poseidon = await buildPoseidon()
+  const F = poseidon.F
+
+  // Compute public hashes
+  const coordinatesHash = F.toObject(poseidon([scoutCoords.x, scoutCoords.y, scoutCoords.z, scoutSalt]))
+  const targetHash = F.toObject(poseidon([targetCoords.x, targetCoords.y, targetCoords.z, targetSalt]))
+  // locationHash binds scout gate coords to the on-chain LocationRevealedEvent.location_hash
+  const locationHash = F.toObject(poseidon([scoutCoords.x, scoutCoords.y, scoutCoords.z]))
+
+  // Compute AbsDiff hints (EVE coords are signed i64 — may be negative BigInts)
+  const absDx = scoutCoords.x > targetCoords.x ? scoutCoords.x - targetCoords.x : targetCoords.x - scoutCoords.x
+  const absDy = scoutCoords.y > targetCoords.y ? scoutCoords.y - targetCoords.y : targetCoords.y - scoutCoords.y
+  const absDz = scoutCoords.z > targetCoords.z ? scoutCoords.z - targetCoords.z : targetCoords.z - scoutCoords.z
+
+  const circuitInput = {
+    coordinatesHash: coordinatesHash.toString(),
+    targetHash: targetHash.toString(),
+    locationHash: locationHash.toString(),
+    scoutCoords: [scoutCoords.x.toString(), scoutCoords.y.toString(), scoutCoords.z.toString()],
+    scoutSalt: scoutSalt.toString(),
+    targetCoords: [targetCoords.x.toString(), targetCoords.y.toString(), targetCoords.z.toString()],
+    targetSalt: targetSalt.toString(),
+    absDiffHints: [absDx.toString(), absDy.toString(), absDz.toString()],
+    jumpTimestamp: jumpTimestamp.toString(),
+  }
+
+  const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+    circuitInput,
+    PRESENCE_WASM_URL,
+    PRESENCE_ZKEY_URL,
+  )
+
+  return {
+    proofBytes: snarkjsProofToArkworks(proof as SnarkjsProof),
+    publicInputsBytes: publicSignalsToBytes(publicSignals as string[]),
+    scoutSalt,
+    targetSalt,
+  }
+}

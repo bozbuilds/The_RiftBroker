@@ -46,6 +46,11 @@ export const LOCATION_VKEY_ID = '0xe285d9f30562c765470413bc92f30f4309cdff5865608
 /** DistanceVKey shared object ID — created by marketplace init() on Phase 3 deploy. */
 export const DISTANCE_VKEY_ID = '0x62b51fbed00138f6472ff562d1187fd207b2939695b9098277b061b6607a2e68'
 
+/** EVE Frontier world-contracts package ID on Utopia testnet. */
+export const WORLD_PACKAGE_ID = '0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75'
+
+// TODO (Phase 5 deploy): add PRESENCE_VKEY_ID after contract deployment
+
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',
   downloading: 'Downloading encrypted intel...',
