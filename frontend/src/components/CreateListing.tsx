@@ -68,6 +68,7 @@ export function CreateListing() {
   const [selectedDeposit, setSelectedDeposit] = useState<InventoryEvent | null>(null)
   const [selectedStructure, setSelectedStructure] = useState<LocationEvent | null>(null)
   const [badgeSystemId, setBadgeSystemId] = useState<bigint | null>(null)
+  const [assemblySystemIds, setAssemblySystemIds] = useState<Map<string, number>>(new Map())
 
   // Filter jump events to only those whose gate is in the selected system
   const filteredJumps = useMemo(() => {
@@ -75,6 +76,20 @@ export function CreateListing() {
     const sysNum = Number(systemId)
     return jumpEvents.filter(j => gateSystemIds.get(j.destinationGateId) === sysNum)
   }, [jumpEvents, systemId, gateSystemIds])
+
+  // Filter killmails to only those in the selected system
+  const filteredKillmails = useMemo(() => {
+    if (!systemId) return killmails
+    const sysStr = systemId.toString()
+    return killmails.filter(km => km.solarSystemId === sysStr)
+  }, [killmails, systemId])
+
+  // Filter deposits to only those whose SSU is in the selected system
+  const filteredDeposits = useMemo(() => {
+    if (!systemId || assemblySystemIds.size === 0) return []
+    const sysNum = Number(systemId)
+    return inventoryEvents.filter(dep => assemblySystemIds.get(dep.assemblyId) === sysNum)
+  }, [inventoryEvents, systemId, assemblySystemIds])
 
   // Resource fields
   const [resourceType, setResourceType] = useState('')
@@ -383,25 +398,38 @@ export function CreateListing() {
     lastLookedUpWallet.current = null
     // Fetch badge events immediately when toggled on (no wallet needed)
     if (enabled) {
-      try {
-        const [kms, invs] = await Promise.all([
-          fetchKillmails(suiClient),
-          fetchInventoryEvents(suiClient),
-        ])
-        setKillmails(kms)
-        setInventoryEvents(invs)
-      } catch {
-        // Non-critical — badge events are optional
-      }
+      await fetchBadgeEvents()
     } else {
       setKillmails([])
       setInventoryEvents([])
+      setAssemblySystemIds(new Map())
       setAttachCombat(false)
       setAttachActivity(false)
       setAttachStructure(false)
       setSelectedKillmail(null)
       setSelectedDeposit(null)
       setSelectedStructure(null)
+    }
+  }
+
+  async function fetchBadgeEvents(characterId?: string) {
+    try {
+      const [kms, invs] = await Promise.all([
+        fetchKillmails(suiClient, characterId),
+        fetchInventoryEvents(suiClient, characterId),
+      ])
+      setKillmails(kms)
+      setInventoryEvents(invs)
+      // Resolve SSU locations for system filtering
+      const assemblyIds = [...new Set(invs.map(d => d.assemblyId))]
+      if (assemblyIds.length > 0) {
+        const locs = await fetchLocationEvents(suiClient, assemblyIds)
+        const sysMap = new Map<string, number>()
+        for (const [id, loc] of locs) sysMap.set(id, loc.solarSystem)
+        setAssemblySystemIds(sysMap)
+      }
+    } catch {
+      // Non-critical — badge events are optional
     }
   }
 
@@ -430,13 +458,7 @@ export function CreateListing() {
           const jumps = await fetchJumpEvents(suiClient, characterId)
           setJumpEvents(jumps)
           await resolveGateNames(jumps)
-          // Fetch badge events in parallel with jump lookup
-          const [kms, invs] = await Promise.all([
-            fetchKillmails(suiClient, characterId ?? undefined),
-            fetchInventoryEvents(suiClient, characterId ?? undefined),
-          ])
-          setKillmails(kms)
-          setInventoryEvents(invs)
+          await fetchBadgeEvents(characterId)
           setPresenceStatus(null)
           lastLookedUpWallet.current = trimmedInput
           return
@@ -448,15 +470,9 @@ export function CreateListing() {
       const jumps = await fetchJumpEvents(suiClient, undefined)
       setJumpEvents(jumps)
       await resolveGateNames(jumps)
-      // Fetch badge events — resolvedCharacterId is undefined in the global feed
-      // fallback, which is intentional: shows all recent events so scouts can
-      // still attach evidence even when character resolution fails.
-      const [kms, invs] = await Promise.all([
-        fetchKillmails(suiClient, resolvedCharacterId),
-        fetchInventoryEvents(suiClient, resolvedCharacterId),
-      ])
-      setKillmails(kms)
-      setInventoryEvents(invs)
+      // Badge events fetched unfiltered — shows all recent events so scouts
+      // can attach evidence even when character resolution fails.
+      await fetchBadgeEvents(resolvedCharacterId)
       setPresenceStatus(null)
       lastLookedUpWallet.current = trimmedInput
     } catch (err) {
@@ -705,12 +721,12 @@ export function CreateListing() {
           </>
         )}
 
-        {/* Attach Evidence section — visible when badge events are loaded */}
-        {(killmails.length > 0 || inventoryEvents.length > 0) && (
+        {/* Attach Evidence section — visible when system-relevant badge events exist */}
+        {(filteredKillmails.length > 0 || filteredDeposits.length > 0) && (
           <div className="form-section">
             <label className="form-label">Attach Evidence (optional)</label>
 
-            {killmails.length > 0 && (
+            {filteredKillmails.length > 0 && (
               <div className="form-group">
                 <label className="verify-toggle">
                   <input
@@ -725,14 +741,14 @@ export function CreateListing() {
                     className="form-select"
                     value={selectedKillmail?.txDigest ?? ''}
                     onChange={e => {
-                      const km = killmails.find(k => k.txDigest === e.target.value)
+                      const km = filteredKillmails.find(k => k.txDigest === e.target.value)
                       setSelectedKillmail(km ?? null)
                     }}
                   >
                     <option value="">— Select a killmail —</option>
-                    {killmails.map((km, idx) => (
+                    {filteredKillmails.map((km, idx) => (
                       <option key={`${km.txDigest}-${idx}`} value={km.txDigest}>
-                        {new Date(Number(km.killTimestamp) * 1000).toLocaleDateString()} — System {km.solarSystemId} — {km.lossType?.toLowerCase() ?? 'unknown'}
+                        {new Date(Number(km.killTimestamp) * 1000).toLocaleDateString()} — {km.lossType?.toLowerCase() ?? 'unknown'}
                       </option>
                     ))}
                   </select>
@@ -740,7 +756,7 @@ export function CreateListing() {
               </div>
             )}
 
-            {inventoryEvents.length > 0 && (
+            {filteredDeposits.length > 0 && (
               <div className="form-group">
                 <label className="verify-toggle">
                   <input
@@ -755,12 +771,12 @@ export function CreateListing() {
                     className="form-select"
                     value={selectedDeposit?.txDigest ?? ''}
                     onChange={e => {
-                      const dep = inventoryEvents.find(d => d.txDigest === e.target.value)
+                      const dep = filteredDeposits.find(d => d.txDigest === e.target.value)
                       setSelectedDeposit(dep ?? null)
                     }}
                   >
                     <option value="">— Select a deposit —</option>
-                    {inventoryEvents.map((dep, idx) => (
+                    {filteredDeposits.map((dep, idx) => (
                       <option key={`${dep.txDigest}-${idx}`} value={dep.txDigest}>
                         SSU {dep.assemblyId.slice(0, 10)}... — {dep.quantity}x item {dep.typeId}
                       </option>
