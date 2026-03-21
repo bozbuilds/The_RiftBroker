@@ -62,6 +62,26 @@ describe('getBadges', () => {
     expect(badges.find(b => b.type === 'zk-verified')).toBeUndefined()
   })
 
+  it('includes proximity badge when distance proof exists', () => {
+    const badges = getBadges(makeListing({
+      hasDistanceProof: true,
+      distanceMeters: 500_000,
+      isVerified: true,
+      locationProofHash: new Uint8Array([1]),
+    }))
+    const proximity = badges.find(b => b.type === 'proximity')
+    expect(proximity).toBeDefined()
+    expect(proximity!.label).toContain('500')
+  })
+
+  it('does not include proximity badge without distance proof', () => {
+    const badges = getBadges(makeListing({
+      isVerified: true,
+      locationProofHash: new Uint8Array([1]),
+    }))
+    expect(badges.find(b => b.type === 'proximity')).toBeUndefined()
+  })
+
   it('returns badges in trust order (combat first)', () => {
     const badges = getBadges(makeListing({
       revealTxDigest: new Uint8Array([1]),

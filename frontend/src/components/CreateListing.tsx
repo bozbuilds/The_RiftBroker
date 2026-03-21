@@ -410,7 +410,9 @@ export function CreateListing() {
       const jumps = await fetchJumpEvents(suiClient, undefined, WORLD_PACKAGE_UTOPIA)
       setJumpEvents(jumps)
       await resolveGateNames(jumps)
-      // Fetch badge events in parallel with jump lookup
+      // Fetch badge events — resolvedCharacterId is undefined in the global feed
+      // fallback, which is intentional: shows all recent events so scouts can
+      // still attach evidence even when character resolution fails.
       const [kms, invs] = await Promise.all([
         fetchKillmails(suiClient, resolvedCharacterId),
         fetchInventoryEvents(suiClient, resolvedCharacterId),
@@ -435,6 +437,7 @@ export function CreateListing() {
       setStructuresInSystem(structures)
     } catch (err) {
       console.error('[fetchStructuresInSystem failed]', err)
+      setError('Failed to fetch structures. Check your connection and try again.')
     }
   }
 
@@ -745,7 +748,7 @@ export function CreateListing() {
                       className="form-select"
                       value={selectedStructure?.assemblyId ?? ''}
                       onChange={e => {
-                        const s = structuresInSystem.find(s => s.assemblyId === e.target.value)
+                        const s = structuresInSystem.find(st => st.assemblyId === e.target.value)
                         setSelectedStructure(s ?? null)
                       }}
                     >

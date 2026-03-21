@@ -1,3 +1,4 @@
+import { formatDistance } from './format'
 import type { IntelListingFields } from './types'
 
 export interface Badge {
@@ -7,7 +8,7 @@ export interface Badge {
 }
 
 /** Trust order: highest first. Used for collapse display. */
-export const BADGE_TRUST_ORDER = ['combat', 'presence', 'activity', 'discovery', 'zk-verified'] as const
+export const BADGE_TRUST_ORDER = ['combat', 'presence', 'activity', 'discovery', 'proximity', 'zk-verified'] as const
 
 const BADGE_DEFS = {
   combat: { label: 'Combat Verified', className: 'listing-combat-badge' },
@@ -33,17 +34,18 @@ export function getBadges(listing: IntelListingFields): Badge[] {
     badges.push({ type: 'activity', ...BADGE_DEFS.activity })
   if (listing.revealTxDigest.length > 0)
     badges.push({ type: 'discovery', ...BADGE_DEFS.discovery })
+  if (listing.hasDistanceProof && listing.distanceMeters !== null)
+    badges.push({
+      type: 'proximity',
+      label: `Proximity: ${formatDistance(listing.distanceMeters / 1000)}`,
+      className: 'listing-proximity-badge',
+    })
 
   // ZK-Verified fallback: only when no event badges and location proof exists
   if (badges.length === 0 && listing.isVerified)
     badges.push({ type: 'zk-verified', ...BADGE_DEFS['zk-verified'] })
 
-  // Sort by trust order
-  badges.sort((a, b) =>
-    BADGE_TRUST_ORDER.indexOf(a.type as typeof BADGE_TRUST_ORDER[number])
-    - BADGE_TRUST_ORDER.indexOf(b.type as typeof BADGE_TRUST_ORDER[number])
-  )
-
+  // Badges are pushed in trust order above — no sort needed
   return badges
 }
 
