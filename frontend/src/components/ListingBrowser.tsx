@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 
 import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
-import { formatDistance, isExpired, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
+import { isExpired, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
+import { getBadges, MAX_INLINE_BADGES } from '../lib/badge-verify'
 import type { IntelListingFields } from '../lib/types'
 import { useListings } from '../hooks/useListings'
 import { useReceipts } from '../hooks/useReceipts'
@@ -156,16 +157,23 @@ export function ListingBrowser({
                   {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
                 </span>
                 {owned && <span className="listing-owned-badge">Owned</span>}
-                {listing.jumpTxDigest.length > 0 ? (
-                  <span className="listing-presence-badge">Presence Verified</span>
-                ) : listing.isVerified ? (
-                  <span className="listing-verified-badge">ZK-Verified</span>
-                ) : null}
-                {listing.hasDistanceProof && listing.distanceMeters !== null && (
-                  <span className="listing-proximity-badge">
-                    Proximity: {formatDistance(listing.distanceMeters / 1000)}
-                  </span>
-                )}
+                {(() => {
+                  const badges = getBadges(listing)
+                  const visible = badges.slice(0, MAX_INLINE_BADGES)
+                  const overflow = badges.length - visible.length
+                  return (
+                    <>
+                      {visible.map(b => (
+                        <span key={b.type} className={b.className}>{b.label}</span>
+                      ))}
+                      {overflow > 0 && (
+                        <span className="listing-verified-badge" title={badges.map(b => b.label).join(', ')}>
+                          +{overflow} more
+                        </span>
+                      )}
+                    </>
+                  )
+                })()}
                 {ago && (
                   <span className="listing-observed-badge">{ago}</span>
                 )}

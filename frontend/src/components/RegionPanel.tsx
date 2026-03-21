@@ -2,8 +2,9 @@ import type { ReactNode } from 'react'
 
 import { INTEL_TYPE_LABEL_MAP } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
-import { formatDistance, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
+import { mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
+import { getBadges, MAX_INLINE_BADGES } from '../lib/badge-verify'
 import { TYPE_COLORS } from '../lib/region-data'
 import type { RegionHeatData } from '../lib/region-data'
 import type { IntelListingFields } from '../lib/types'
@@ -54,16 +55,23 @@ export function RegionPanel({ region, footer, onSelectListing, onClose }: Region
               <span className="listing-item-type">
                 {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
               </span>
-              {listing.jumpTxDigest.length > 0 ? (
-                <span className="listing-presence-badge">Presence Verified</span>
-              ) : listing.isVerified ? (
-                <span className="listing-verified-badge">ZK-Verified</span>
-              ) : null}
-              {listing.hasDistanceProof && listing.distanceMeters !== null && (
-                <span className="listing-proximity-badge">
-                  Proximity: {formatDistance(listing.distanceMeters / 1000)}
-                </span>
-              )}
+              {(() => {
+                const badges = getBadges(listing)
+                const visible = badges.slice(0, MAX_INLINE_BADGES)
+                const overflow = badges.length - visible.length
+                return (
+                  <>
+                    {visible.map(b => (
+                      <span key={b.type} className={b.className}>{b.label}</span>
+                    ))}
+                    {overflow > 0 && (
+                      <span className="listing-verified-badge" title={badges.map(b => b.label).join(', ')}>
+                        +{overflow} more
+                      </span>
+                    )}
+                  </>
+                )
+              })()}
               {(() => { const ago = observedAgo(listing); return ago && <span className="listing-observed-badge">{ago}</span> })()}
               <span className="listing-item-meta">
                 — {obfuscatedLocation(listing.systemId, galaxy?.systemMap ?? EMPTY_SYSTEM_MAP, galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS)} | {truncateAddress(listing.scout)}
