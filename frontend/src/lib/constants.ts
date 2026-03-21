@@ -1,8 +1,8 @@
 // Galaxy data JSON (served from /public — relative URL works in dev and production)
 export const GALAXY_JSON_URL = '/galaxy.json'
 
-// Deployed on SUI testnet (2026-03-20) — Phase 5 deploy with presence proofs
-export const PACKAGE_ID = '0x361aeb5a22f71441800364cd976941e7de302dc0eaad55fbf4de18cf378fbf01'
+// Deployed on SUI testnet (2026-03-21) — Stackable event badges deploy
+export const PACKAGE_ID = '0x6d102eec5614b00e508394bf3fc593658056e2914e450ab00ea1ee2637cd3f74'
 
 // SUI shared Clock object
 export const CLOCK_ID = '0x6'
@@ -40,11 +40,11 @@ export const INTEL_TYPE_COLORS_NEON: Record<number, string> = {
   3: '#ffea00', // Route — yellow
 }
 
-/** LocationVKey shared object ID — created by marketplace init() on Phase 5 deploy. */
-export const LOCATION_VKEY_ID = '0xd4bddf80818eb19fb57c7fbea6e69998e96adbfa6210ceaa60e0b33a86720913'
+/** LocationVKey shared object ID — created by marketplace init(). */
+export const LOCATION_VKEY_ID = '0xc1c590a05ac9ccccafe71c5b1dc57d893c596fcef25c50e0f4d23bf1ed817534'
 
-/** DistanceVKey shared object ID — created by marketplace init() on Phase 5 deploy. */
-export const DISTANCE_VKEY_ID = '0xfaf9a8fc17e18253b06d943b00cb7c0f3970dca61007b27690e8c9738d1ebc24'
+/** DistanceVKey shared object ID — created by marketplace init(). */
+export const DISTANCE_VKEY_ID = '0xf2618435cf48894b3d73b506c6037246b7121a750197f36bf7725cc7b4c980e7'
 
 /** EVE Frontier world-contracts package ID — Utopia (sandbox). */
 export const WORLD_PACKAGE_UTOPIA = '0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75'
@@ -55,8 +55,8 @@ export const WORLD_PACKAGE_STILLNESS = '0x28b497559d65ab320d9da4613bf2498d5946b2
 /** Active world package for event queries (Stillness has active data in Cycle 5). */
 export const WORLD_PACKAGE_ID = WORLD_PACKAGE_STILLNESS
 
-/** PresenceVKey shared object ID — created by marketplace init() on Phase 5 deploy. */
-export const PRESENCE_VKEY_ID = '0x39bebf31fd6923be13d3662c687f3c07823da059fba0e6f249a70f4121f68c02'
+/** PresenceVKey shared object ID — created by marketplace init(). */
+export const PRESENCE_VKEY_ID = '0x2d3cc33f5a0dca41417153ed7a23d7341ce38020c4bb6e895415fa51fd14cb05'
 
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',
