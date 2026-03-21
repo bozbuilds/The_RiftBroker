@@ -17,8 +17,9 @@ Buyer browses metadata → purchases listing → decrypts client-side
 - **Seal encryption** — SUI-native conditional decryption. Only buyers with a valid PurchaseReceipt can decrypt.
 - **Walrus storage** — Encrypted blobs stored on decentralized storage, retrieved by blob ID.
 - **On-chain presence proofs** — Scouts prove system presence via SUI blockchain events (JumpEvent + LocationRevealedEvent), verified through a unified Groth16 circuit. Earns a "Presence Verified" badge with purple glow.
+- **Stackable event badges** — Multiple verification badges per listing, each backed by a different on-chain event. Combat Verified (red, KillmailCreatedEvent), Activity Verified (green, ItemDepositedEvent), Structure Discovery (blue, LocationRevealedEvent). Trust hierarchy: Combat > Presence > Activity > Discovery > Proximity > ZK-Verified.
 - **ZK proximity** — Distance from scout's entry gate to a target assembly, computed in-circuit and displayed as km / light-seconds / light-years. Uses per-assembly coordinates from on-chain events.
-- **ZK location proofs** (legacy) — Groth16 proof of coordinate knowledge using galaxy.json system centroids. Earns a "ZK-Verified" badge. Retained for backward compatibility.
+- **ZK location proofs** (legacy) — Groth16 proof of coordinate knowledge using galaxy.json system centroids. Shown as a "ZK-Verified" fallback badge when no event badges are present. Retained for backward compatibility.
 - **Timestamp freshness** — Verified intel decays from observation time (JumpEvent block timestamp), not listing time. 24h staleness cap enforced on-chain.
 - **4 intel types** — Resource deposits, fleet movements, base structures, trade routes.
 - **3D nebula heat map** — Three.js canvas nebula visualization with region-based navigation, camera focus, and real-time intel density.
@@ -27,10 +28,10 @@ Buyer browses metadata → purchases listing → decrypts client-side
 
 ## Deployed
 
-- **Contract**: [`0x361aeb5a22f71441800364cd976941e7de302dc0eaad55fbf4de18cf378fbf01`](https://suiscan.xyz/testnet/object/0x361aeb5a22f71441800364cd976941e7de302dc0eaad55fbf4de18cf378fbf01) (SUI testnet)
-- **LocationVKey**: [`0xd4bddf80818eb19fb57c7fbea6e69998e96adbfa6210ceaa60e0b33a86720913`](https://suiscan.xyz/testnet/object/0xd4bddf80818eb19fb57c7fbea6e69998e96adbfa6210ceaa60e0b33a86720913)
-- **DistanceVKey**: [`0xfaf9a8fc17e18253b06d943b00cb7c0f3970dca61007b27690e8c9738d1ebc24`](https://suiscan.xyz/testnet/object/0xfaf9a8fc17e18253b06d943b00cb7c0f3970dca61007b27690e8c9738d1ebc24)
-- **PresenceVKey**: [`0x39bebf31fd6923be13d3662c687f3c07823da059fba0e6f249a70f4121f68c02`](https://suiscan.xyz/testnet/object/0x39bebf31fd6923be13d3662c687f3c07823da059fba0e6f249a70f4121f68c02)
+- **Contract**: `0x6d102eec...2637cd3f74` (SUI testnet)
+- **LocationVKey**: `0xc1c590a0...1ed817534`
+- **DistanceVKey**: `0xf2618435...7b4c980e7`
+- **PresenceVKey**: `0x2d3cc33f...fd14cb05`
 
 ## Tech Stack
 
@@ -54,13 +55,13 @@ Buyer browses metadata → purchases listing → decrypts client-side
 ```bash
 # Move contracts
 sui move build --path contracts
-sui move test --path contracts    # 42 tests
+sui move test --path contracts    # 50 tests
 
 # Frontend
 cd frontend
 pnpm install
 pnpm dev                          # http://localhost:5173
-pnpm test                         # 210 tests
+pnpm test                         # 234 tests
 pnpm build                        # Production build
 ```
 
@@ -79,8 +80,8 @@ Creates 15 demo listings across 12 systems with encrypted payloads on Walrus.
 TheRiftBroker/
 ├── contracts/
 │   ├── Move.toml
-│   ├── sources/marketplace.move        # Core contract + Seal policies + ZK verification (~530 lines)
-│   └── tests/marketplace_tests.move    # 42 tests
+│   ├── sources/marketplace.move        # Core contract + Seal policies + ZK verification + event badges (~600 lines)
+│   └── tests/marketplace_tests.move    # 50 tests
 ├── circuits/
 │   ├── README.md                       # Circuit compilation workflow (PowerShell)
 │   ├── location-attestation/           # Location Groth16 circuit + compiled artifacts
@@ -98,7 +99,7 @@ TheRiftBroker/
 │   │   ├── App.tsx                     # 3D map + panel navigation + purchase flow
 │   │   ├── providers/                  # SUI, wallet, query, galaxy data providers
 │   │   ├── lib/
-│   │   │   ├── constants.ts            # Package ID, VKey IDs, WORLD_PACKAGE_ID
+│   │   │   ├── constants.ts            # Package ID, VKey IDs, WORLD_PACKAGE_UTOPIA/STILLNESS
 │   │   │   ├── types.ts               # On-chain type mirrors (bigint, isVerified)
 │   │   │   ├── transactions.ts         # Pure PTB builders incl. verified listings
 │   │   │   ├── zk-proof.ts            # snarkjs → Arkworks + generatePresenceProof
@@ -111,7 +112,8 @@ TheRiftBroker/
 │   │   │   ├── format.ts              # Shared timeRemaining, truncateAddress
 │   │   │   ├── parse.ts              # On-chain field parsing
 │   │   │   ├── empty-maps.ts         # Empty state constants
-│   │   │   └── events.ts             # SUI event queries (JumpEvent, LocationRevealedEvent)
+│   │   │   ├── events.ts             # SUI event queries (JumpEvent, LocationRevealedEvent, KillmailEvent, InventoryEvent)
+│   │   │   └── badge-verify.ts      # Badge rendering logic (getBadges, trust hierarchy)
 │   │   ├── scripts/
 │   │   │   ├── seed-data.ts           # 15 demo listings (7 tests)
 │   │   │   └── seed.ts               # CLI seed script
@@ -138,9 +140,9 @@ TheRiftBroker/
 
 | Suite | Count |
 |-------|-------|
-| Move contract | 42 |
-| Frontend (Vitest) | 210 |
-| **Total** | **252** |
+| Move contract | 50 |
+| Frontend (Vitest) | 234 |
+| **Total** | **284** |
 
 ## Upcoming Features
 

@@ -12,11 +12,11 @@ The strategic planning document lives at `docs/eve_frontier_hackathon26.md`.
 
 Encrypted intel marketplace using SUI Seal + Walrus for scout-sold intelligence with ZK location verification. Scouts encrypt intel payloads, store on Walrus, list on-chain with optional Groth16 proofs. Buyers browse metadata, pay to unlock Seal decryption. Hero features: 3D nebula heat map + ZK-verified intel badges.
 
-**Status**: Phase 4 complete + ZK Phases 1–3 + ZK Phase 5 complete. Contract (`rift_broker`): 42/42 tests. Frontend: 210/210 tests (16 test files). All core features implemented: marketplace CRUD, Seal encrypt/decrypt, Walrus storage, ZK-verified listings (Groth16 on-chain verification, verified badges, verified-only filters), ZK proximity proofs (AbsDiff hint pattern for signed EVE coords, distance displayed as km/ls/ly), on-chain presence proofs (JumpEvent + LocationRevealedEvent → unified presence-attestation circuit), timestamp freshness (24h staleness cap), 3D nebula visualization, region navigation, purchase history, scout listing management, info/landing modal. Deployed to SUI testnet: Package `0x361aeb5a...`, LocationVKey `0xd4bddf80...`, DistanceVKey `0xfaf9a8fc...`, PresenceVKey `0x39bebf31...`.
+**Status**: Phase 4 complete + ZK Phases 1–3 + ZK Phase 5 complete + Stackable Event Badges complete. Contract (`rift_broker`): 50/50 tests. Frontend: 234/234 tests (17 test files). All core features implemented: marketplace CRUD, Seal encrypt/decrypt, Walrus storage, ZK-verified listings (Groth16 on-chain verification, verified badges, verified-only filters), ZK proximity proofs (AbsDiff hint pattern for signed EVE coords, distance displayed as km/ls/ly), on-chain presence proofs (JumpEvent + LocationRevealedEvent → unified presence-attestation circuit), timestamp freshness (24h staleness cap), stackable event badges (Combat Verified via KillmailCreatedEvent, Activity Verified via ItemDepositedEvent, Structure Discovery via LocationRevealedEvent, with trust hierarchy and `attach_event_badge`), 3D nebula visualization, region navigation, purchase history, scout listing management, info/landing modal. Deployed to SUI testnet: Package `0x6d102eec...2637cd3f74`, LocationVKey `0xc1c590a0...1ed817534`, DistanceVKey `0xf2618435...7b4c980e7`, PresenceVKey `0x2d3cc33f...fd14cb05`.
 
 **Note on proximity proofs**: Presence proofs use per-assembly coordinates from on-chain `LocationRevealedEvent` for gates and structures. Player proximity and resource proximity require CCP Games to emit additional position events on-chain — the circuit supports any coordinate source, only the data availability is missing.
 
-**Upcoming**: ZK Phase 4 (scout reputation), dispute system, zkLogin, sponsored transactions.
+**Upcoming**: ZK Phase 4 (scout reputation), dispute system, zkLogin, sponsored transactions, player/resource proximity (blocked on CCP event availability).
 
 See `docs/plans/2026-02-12-feat-dark-net-encrypted-intel-marketplace-plan.md` for the core implementation plan, `docs/plans/2026-03-13-feat-zk-verified-intel-plan.md` for the ZK roadmap, and `docs/plans/2026-03-20-feat-zk-phase5-onchain-verified-intel-plan.md` for the Phase 5 plan.
 
@@ -86,8 +86,8 @@ TheRiftBroker/
 ├── .gitignore
 ├── contracts/
 │   ├── Move.toml
-│   ├── sources/marketplace.move      # Core contract + Seal policies + ZK verification (~530 lines)
-│   └── tests/marketplace_tests.move  # 42 tests, all passing
+│   ├── sources/marketplace.move      # Core contract + Seal policies + ZK verification + event badges (~600 lines)
+│   └── tests/marketplace_tests.move  # 50 tests, all passing
 ├── circuits/
 │   ├── README.md                     # One-time circuit compilation workflow
 │   ├── location-attestation/         # Location Groth16 circuit source + compiled artifacts
@@ -110,7 +110,7 @@ TheRiftBroker/
 │   │   │   ├── AppProviders.tsx      # SUI + wallet + query providers
 │   │   │   └── GalaxyDataProvider.tsx # Galaxy data context
 │   │   ├── lib/
-│   │   │   ├── constants.ts          # Package ID, VKey IDs, WORLD_PACKAGE_ID
+│   │   │   ├── constants.ts          # Package ID, VKey IDs, WORLD_PACKAGE_UTOPIA/STILLNESS
 │   │   │   ├── types.ts             # On-chain type mirrors (bigint for u64, isVerified)
 │   │   │   ├── intel-schemas.ts     # Zod discriminated union (4 intel types)
 │   │   │   ├── transactions.ts      # Pure PTB builders (incl. presence/verified listing txs)
@@ -122,7 +122,8 @@ TheRiftBroker/
 │   │   │   ├── heat-map-data.ts     # Aggregation + filtering with verifiedOnly
 │   │   │   ├── parse.ts             # On-chain field parsing
 │   │   │   ├── format.ts            # Shared timeRemaining, truncateAddress
-│   │   │   ├── events.ts            # SUI event queries (JumpEvent, LocationRevealedEvent)
+│   │   │   ├── events.ts            # SUI event queries (JumpEvent, LocationRevealedEvent, KillmailEvent, InventoryEvent)
+│   │   │   ├── badge-verify.ts      # Badge rendering logic (getBadges, BADGE_TRUST_ORDER, MAX_INLINE_BADGES)
 │   │   │   └── empty-maps.ts        # Empty state constants
 │   │   ├── scripts/
 │   │   │   ├── seed-data.ts         # 15 demo listing definitions (7 tests)
@@ -163,7 +164,7 @@ TheRiftBroker/
 │   ├── ARCHITECTURE.md               # Technical architecture
 │   ├── seal-spike.md                 # Seal research findings
 │   ├── walrus-spike.md               # Walrus research findings
-│   ├── brainstorms/                  # Design exploration (10 files)
-│   └── plans/                        # Implementation plans (11 files)
+│   ├── brainstorms/                  # Design exploration (11 files)
+│   └── plans/                        # Implementation plans (12 files)
 └── venv/                             # Python environment
 ```

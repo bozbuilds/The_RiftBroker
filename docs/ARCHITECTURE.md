@@ -1,6 +1,6 @@
 # Architecture
 
-**Last Updated**: 2026-03-20
+**Last Updated**: 2026-03-21
 
 ## System Layers
 
@@ -27,9 +27,9 @@
 
 ### Move Contracts (on-chain)
 
-Single module: `rift_broker::marketplace` (~530 lines, 42 tests). Manages:
+Single module: `rift_broker::marketplace` (~600 lines, 50 tests). Manages:
 
-- **IntelListing** (shared object) — Unencrypted metadata + Walrus blob reference + staked `Balance<SUI>` + expiry via `created_at + decay_hours` + optional `location_proof_hash` for ZK location verification + optional `distance_proof_hash` for ZK proximity + `jump_tx_digest` for on-chain presence audit trail
+- **IntelListing** (shared object) — Unencrypted metadata + Walrus blob reference + staked `Balance<SUI>` + expiry via `created_at + decay_hours` + optional `location_proof_hash` for ZK location verification + optional `distance_proof_hash` for ZK proximity + `jump_tx_digest` for on-chain presence audit trail + `event_badges` vector for stackable event verification
 - **PurchaseReceipt** (owned, soulbound) — `key` only (no `store`), non-transferable proof of purchase for Seal decryption policy
 - **LocationVKey** (shared object) — Groth16 verification key for location attestation circuit, created once at package init
 - **DistanceVKey** (shared object) — Groth16 verification key for distance attestation circuit, created once at package init
@@ -44,9 +44,20 @@ Key functions:
 - `delist` — Scout-only, refunds staked balance
 - `set_walrus_blob_id` — One-time blob ID setter for two-step creation
 - `seal_approve` / `seal_approve_scout` — Seal decryption policies
+- `attach_event_badge` — Post-creation function to attach a stackable event badge (badge_type + tx_digest) to an existing listing. Scout-only.
 - `burn_receipt` — Buyer-only receipt cleanup
 
-Input validation: intel type range, decay hours (1–8760), minimum price, minimum stake.
+Input validation: intel type range, decay hours (1–8760), minimum price, minimum stake, badge type range (0–2).
+
+#### Event Badge Types
+
+| Badge Type | Value | Color | Backed By |
+|---|---|---|---|
+| Combat Verified | 0 | Red | `KillmailCreatedEvent` tx digest |
+| Activity Verified | 1 | Green | `ItemDepositedEvent` tx digest |
+| Structure Discovery | 2 | Blue | `LocationRevealedEvent` tx digest |
+
+Badges are stored as `{ badge_type: u8, tx_digest: vector<u8> }` entries in the listing's `event_badges` vector. Multiple badges of different types can be attached to a single listing.
 
 ### ZK Verification (on-chain + client-side)
 
@@ -120,6 +131,26 @@ Unified circuit that replaces both location and distance for on-chain verified l
 
 **Data requirements from CCP Games**: Currently verifies structure proximity (gates, SSUs). Player proximity and resource proximity require CCP to emit additional position events on-chain.
 
+#### Stackable Event Badges (Hybrid Verification)
+
+Not all verification requires ZK proofs. Public on-chain events can serve as trust signals directly via tx digest references, avoiding the overhead of circuit compilation and proof generation.
+
+**Hybrid verification model**: ZK proofs (Groth16) verify private coordinate data that cannot be publicly inspected. Event badges reference public transaction digests that anyone can look up on a block explorer. Together, they form a layered trust system where each badge type adds a different signal.
+
+**Badge trust hierarchy** (highest to lowest):
+1. **Combat Verified** (red) — Scout was involved in a kill near the intel location. Strongest signal because combat events are hard to fake and location-specific.
+2. **Presence Verified** (purple) — ZK proof of gate jump + proximity to target. Cryptographically verified on-chain.
+3. **Activity Verified** (green) — Scout deposited items at a nearby structure. Indicates physical presence.
+4. **Structure Discovery** (blue) — Scout revealed a structure's location. Weakest event badge but still on-chain evidence.
+5. **Proximity** (orange) — ZK distance proof from scout system to target system.
+6. **ZK-Verified** (cyan) — Legacy location knowledge proof. Only shown when no event badges are present.
+
+**Frontend rendering** (`lib/badge-verify.ts`):
+- `getBadges()` collects all applicable badges for a listing, sorted by trust hierarchy
+- `MAX_INLINE_BADGES` controls how many badges render inline before overflow
+- `BADGE_TRUST_ORDER` defines the canonical ordering
+- ZK-Verified acts as a fallback — suppressed when any event badge is present
+
 ### Seal Integration (on-chain + off-chain)
 
 Two entry functions serve as Seal decryption policies:
@@ -139,10 +170,10 @@ Intel payloads are encrypted and stored on Walrus via HTTP API:
 
 ### React Frontend (off-chain)
 
-Dashboard with 210 tests across 16 test files:
+Dashboard with 234 tests across 17 test files:
 
 - **3D Nebula Map**: Three.js + React Three Fiber canvas visualization with additive sprite nebulae, region-based navigation, camera focus on selected systems, dynamic glow based on intel density
-- **Library layer**: PTB builders (`transactions.ts`), Seal wrappers (`seal.ts`), Walrus client (`walrus.ts`), ZK proof generation (`zk-proof.ts`), Zod schemas (`intel-schemas.ts`), galaxy coordinate data (`galaxy-data.ts`), region aggregation (`region-data.ts`), heat map data (`heat-map-data.ts`)
+- **Library layer**: PTB builders (`transactions.ts`), Seal wrappers (`seal.ts`), Walrus client (`walrus.ts`), ZK proof generation (`zk-proof.ts`), Zod schemas (`intel-schemas.ts`), galaxy coordinate data (`galaxy-data.ts`), region aggregation (`region-data.ts`), heat map data (`heat-map-data.ts`), badge rendering (`badge-verify.ts`), event queries (`events.ts` — JumpEvent, LocationRevealedEvent, KillmailEvent, InventoryEvent)
 - **Hooks**: `useListings` (paginated event query → object fetch), `usePurchase` (sign + execute), `useDecrypt` (download → decrypt → validate), `useHeatMapData` (aggregate + 60s refresh), `useReceipts` (owned PurchaseReceipt query + listing join)
 - **Components**: `CreateListing` (two-step form with optional ZK verification toggle), `ListingBrowser` (filter by type/region/price/verified), `MyIntel` (purchase history + decrypt + receipt management), `MyListings` (scout listing management: delist, reclaim), `PurchaseFlow`, `IntelViewer`, `InfoModal` (landing modal with first-visit auto-show), `FloatingPanel`, `RegionPanel`, `SystemPicker`, `HeatMapControls`
 
@@ -226,6 +257,7 @@ erDiagram
         vector distance_proof_hash
         vector jump_tx_digest
         u64 observed_at
+        vector event_badges
     }
 
     PurchaseReceipt {

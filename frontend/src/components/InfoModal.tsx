@@ -91,7 +91,8 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
               <li>Encrypted intel marketplace (4 intel types: Resource, Fleet, Base, Route)</li>
               <li>ZK-verified listings with on-chain Groth16 proof verification</li>
               <li>Proximity-proven intel — ZK distance proof from scout's entry gate to a specific target assembly, with per-object precision from on-chain coordinates</li>
-              <li>On-chain verified intel — Phase 5 presence proofs backed by SUI blockchain events, not self-signed data</li>
+              <li>On-chain verified intel — presence proofs backed by SUI blockchain events, not self-signed data</li>
+              <li>Stackable event badges — Combat Verified (kills), Activity Verified (deposits), Structure Discovery (reveals), each backed by an on-chain tx digest</li>
               <li>Timestamp-bound freshness — verified intel decays from observation time, not listing time</li>
               <li>3D nebula heat map with region navigation</li>
               <li>Seal encryption + Walrus decentralized storage</li>
