@@ -20,6 +20,25 @@ export interface LocationEvent {
   readonly z: bigint
   readonly locationHash: Uint8Array
   readonly typeId: string
+  readonly txDigest: string
+}
+
+export interface KillmailEvent {
+  readonly killerId: string
+  readonly victimId: string
+  readonly solarSystemId: string
+  readonly lossType: string
+  readonly killTimestamp: bigint
+  readonly txDigest: string
+}
+
+export interface InventoryEvent {
+  readonly assemblyId: string
+  readonly characterId: string
+  readonly itemId: string
+  readonly typeId: string
+  readonly quantity: number
+  readonly txDigest: string
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,6 +64,33 @@ export function parseLocationEvent(raw: any): LocationEvent {
     z: BigInt(json.z),
     locationHash: new Uint8Array(json.location_hash),
     typeId: json.type_id,
+    txDigest: raw.txDigest ?? '',
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function parseKillmailEvent(raw: any): KillmailEvent {
+  const json = raw.parsedJson
+  return {
+    killerId: json.killer_id.item_id,
+    victimId: json.victim_id.item_id,
+    solarSystemId: json.solar_system_id.item_id,
+    lossType: json.loss_type['@variant'],
+    killTimestamp: BigInt(json.kill_timestamp),
+    txDigest: raw.txDigest,
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function parseInventoryEvent(raw: any): InventoryEvent {
+  const json = raw.parsedJson
+  return {
+    assemblyId: json.assembly_id,
+    characterId: json.character_id,
+    itemId: json.item_id,
+    typeId: json.type_id,
+    quantity: Number(json.quantity),
+    txDigest: raw.txDigest,
   }
 }
 
@@ -106,6 +152,55 @@ export async function fetchLocationEvents(
   return result
 }
 
+/** Fetch recent killmails, optionally filtered by character (as killer or victim). */
+export async function fetchKillmails(
+  suiClient: SuiClient,
+  characterId?: string,
+  packageId: string = WORLD_PACKAGE_ID,
+): Promise<KillmailEvent[]> {
+  const { data } = await suiClient.queryEvents({
+    query: { MoveEventType: `${packageId}::killmail::KillmailCreatedEvent` },
+    order: 'descending',
+    limit: 50,
+  })
+  const all = data.map(parseKillmailEvent)
+  if (characterId) return all.filter((e: KillmailEvent) =>
+    e.killerId === characterId || e.victimId === characterId
+  )
+  return all
+}
+
+/** Fetch recent inventory deposit events, optionally filtered by character. */
+export async function fetchInventoryEvents(
+  suiClient: SuiClient,
+  characterId?: string,
+  packageId: string = WORLD_PACKAGE_ID,
+): Promise<InventoryEvent[]> {
+  const { data } = await suiClient.queryEvents({
+    query: { MoveEventType: `${packageId}::inventory::ItemDepositedEvent` },
+    order: 'descending',
+    limit: 50,
+  })
+  const all = data.map(parseInventoryEvent)
+  if (characterId) return all.filter((e: InventoryEvent) => e.characterId === characterId)
+  return all
+}
+
+/** Fetch structures in a specific solar system via LocationRevealedEvent. */
+export async function fetchStructuresInSystem(
+  suiClient: SuiClient,
+  solarSystem: string,
+  packageId: string = WORLD_PACKAGE_ID,
+): Promise<LocationEvent[]> {
+  const { data } = await suiClient.queryEvents({
+    query: { MoveEventType: `${packageId}::location::LocationRevealedEvent` },
+    order: 'descending',
+    limit: 200,
+  })
+  const parsed = data.map(parseLocationEvent)
+  return parsed.filter((e: LocationEvent) => e.solarSystem === Number(solarSystem))
+}
+
 /**
  * Extract the character_id from a PlayerProfile's content fields.
  * Handles both bare string and `{ id: string }` shapes.
@@ -123,7 +218,8 @@ export function extractCharacterId(content: any, objectId: string): string {
 /**
  * Resolve a wallet address to an EVE Frontier character ID.
  * Queries PlayerProfile objects owned by the wallet address.
- * Returns null if no PlayerProfile is found.
+ * Falls back to CharacterCreatedEvent lookup (works on Stillness).
+ * Returns null if no character is found.
  */
 export async function resolveCharacterId(
   suiClient: SuiClient,
@@ -136,6 +232,25 @@ export async function resolveCharacterId(
     options: { showContent: true },
     limit: 1,
   })
-  if (data.length === 0 || !data[0]?.data?.content) return null
-  return extractCharacterId(data[0].data.content, data[0].data.objectId)
+  if (data.length > 0 && data[0]?.data?.content)
+    return extractCharacterId(data[0].data.content, data[0].data.objectId)
+
+  // Fallback: CharacterCreatedEvent lookup (works on Stillness)
+  try {
+    const { data: events } = await suiClient.queryEvents({
+      query: { MoveEventType: `${packageId}::character::CharacterCreatedEvent` },
+      order: 'descending',
+      limit: 200,
+    })
+    for (const evt of events) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const json = (evt as any).parsedJson
+      if (json?.character_address === walletAddress)
+        return json.character_id
+    }
+  } catch {
+    // Fallback failed — return null
+  }
+
+  return null
 }
