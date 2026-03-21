@@ -55,6 +55,7 @@ export function CreateListing() {
   const [targetLocation, setTargetLocation] = useState<LocationEvent | null>(null)
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null)
   const [gateSystemNames, setGateSystemNames] = useState<Map<string, string>>(new Map())
+  const [gateSystemIds, setGateSystemIds] = useState<Map<string, number>>(new Map())
   const [isGlobalFeed, setIsGlobalFeed] = useState(false)
   const lastLookedUpWallet = useRef<string | null>(null)
   const [attachCombat, setAttachCombat] = useState(false)
@@ -67,6 +68,13 @@ export function CreateListing() {
   const [selectedDeposit, setSelectedDeposit] = useState<InventoryEvent | null>(null)
   const [selectedStructure, setSelectedStructure] = useState<LocationEvent | null>(null)
   const [badgeSystemId, setBadgeSystemId] = useState<bigint | null>(null)
+
+  // Filter jump events to only those whose gate is in the selected system
+  const filteredJumps = useMemo(() => {
+    if (!systemId || gateSystemIds.size === 0) return jumpEvents
+    const sysNum = Number(systemId)
+    return jumpEvents.filter(j => gateSystemIds.get(j.destinationGateId) === sysNum)
+  }, [jumpEvents, systemId, gateSystemIds])
 
   // Resource fields
   const [resourceType, setResourceType] = useState('')
@@ -370,6 +378,7 @@ export function CreateListing() {
     setTargetAssemblyId('')
     setTargetLocation(null)
     setGateSystemNames(new Map())
+    setGateSystemIds(new Map())
     setIsGlobalFeed(false)
     lastLookedUpWallet.current = null
   }
@@ -384,6 +393,7 @@ export function CreateListing() {
     setTargetAssemblyId('')
     setTargetLocation(null)
     setGateSystemNames(new Map())
+    setGateSystemIds(new Map())
     setIsGlobalFeed(false)
 
     const trimmed = walletAddress.trim()
@@ -454,11 +464,14 @@ export function CreateListing() {
     const gateIds = [...new Set(jumps.map(j => j.destinationGateId))]
     const gateLocations = await fetchLocationEvents(suiClient, gateIds)
     const names = new Map<string, string>()
+    const sysIds = new Map<string, number>()
     for (const [gateId, loc] of gateLocations) {
       const sys = galaxy?.systemMap.get(BigInt(loc.solarSystem))
       names.set(gateId, sys?.name ?? `System ${loc.solarSystem}`)
+      sysIds.set(gateId, loc.solarSystem)
     }
     setGateSystemNames(names)
+    setGateSystemIds(sysIds)
   }
 
   async function handleJumpSelect(jump: JumpEvent) {
@@ -617,19 +630,22 @@ export function CreateListing() {
             {jumpEvents.length === 0 && !presenceStatus && inGameWallet !== '' && (
               <div className="form-hint">No jump events found for this character. Have you jumped through a gate recently?</div>
             )}
-            {jumpEvents.length > 0 && (
+            {jumpEvents.length > 0 && filteredJumps.length === 0 && systemId && (
+              <div className="form-hint">No jump events found for this system. Try selecting a different system or check recent gate activity.</div>
+            )}
+            {filteredJumps.length > 0 && (
               <div className="form-group">
                 <label className="form-label">Select Jump Event</label>
                 <select
                   className="form-select"
                   value={selectedJump?.txDigest ?? ''}
                   onChange={e => {
-                    const jump = jumpEvents.find(j => j.txDigest === e.target.value)
+                    const jump = filteredJumps.find(j => j.txDigest === e.target.value)
                     if (jump) handleJumpSelect(jump)
                   }}
                 >
                   <option value="">— Select a jump —</option>
-                  {jumpEvents.map(j => {
+                  {filteredJumps.map(j => {
                     const sysName = gateSystemNames.get(j.destinationGateId)
                     return (
                       <option key={j.txDigest} value={j.txDigest}>
