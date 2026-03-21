@@ -3,7 +3,7 @@ import { SealClient } from '@mysten/seal'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 
-import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, PRESENCE_VKEY_ID, SEAL_KEY_SERVERS, WORLD_PACKAGE_ID } from '../lib/constants'
+import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, PRESENCE_VKEY_ID, SEAL_KEY_SERVERS, WORLD_PACKAGE_UTOPIA } from '../lib/constants'
 import { fetchJumpEvents, fetchLocationEvent, fetchLocationEvents, resolveCharacterId } from '../lib/events'
 import { mistToSui } from '../lib/format'
 import { intelPayloadSchema } from '../lib/intel-schemas'
@@ -353,10 +353,10 @@ export function CreateListing() {
     try {
       if (trimmed) {
         setPresenceStatus('Resolving character...')
-        const characterId = await resolveCharacterId(suiClient, trimmed, WORLD_PACKAGE_ID)
+        const characterId = await resolveCharacterId(suiClient, trimmed, WORLD_PACKAGE_UTOPIA)
         if (characterId) {
           setPresenceStatus('Fetching your jumps...')
-          const jumps = await fetchJumpEvents(suiClient, characterId, WORLD_PACKAGE_ID)
+          const jumps = await fetchJumpEvents(suiClient, characterId, WORLD_PACKAGE_UTOPIA)
           setJumpEvents(jumps)
           await resolveGateNames(jumps)
           setPresenceStatus(null)
@@ -366,7 +366,7 @@ export function CreateListing() {
       // Fallback: no wallet entered or no character found → global feed
       setIsGlobalFeed(true)
       setPresenceStatus('No character found — fetching global jumps...')
-      const jumps = await fetchJumpEvents(suiClient, undefined, WORLD_PACKAGE_ID)
+      const jumps = await fetchJumpEvents(suiClient, undefined, WORLD_PACKAGE_UTOPIA)
       setJumpEvents(jumps)
       await resolveGateNames(jumps)
       setPresenceStatus(null)
@@ -381,7 +381,7 @@ export function CreateListing() {
     if (jumps.length === 0) return
     setPresenceStatus('Resolving gate locations...')
     const gateIds = [...new Set(jumps.map(j => j.destinationGateId))]
-    const gateLocations = await fetchLocationEvents(suiClient, gateIds, WORLD_PACKAGE_ID)
+    const gateLocations = await fetchLocationEvents(suiClient, gateIds, WORLD_PACKAGE_UTOPIA)
     const names = new Map<string, string>()
     for (const [gateId, loc] of gateLocations) {
       const sys = galaxy?.systemMap.get(BigInt(loc.solarSystem))
@@ -395,7 +395,7 @@ export function CreateListing() {
     setGateLocation(null)
     try {
       setPresenceStatus('Fetching gate coordinates...')
-      const loc = await fetchLocationEvent(suiClient, jump.destinationGateId, WORLD_PACKAGE_ID)
+      const loc = await fetchLocationEvent(suiClient, jump.destinationGateId, WORLD_PACKAGE_UTOPIA)
       setGateLocation(loc)
       setPresenceStatus(null)
     } catch (err) {
@@ -409,7 +409,7 @@ export function CreateListing() {
     setTargetLocation(null)
     if (!assemblyId.trim()) return
     try {
-      const loc = await fetchLocationEvent(suiClient, assemblyId.trim(), WORLD_PACKAGE_ID)
+      const loc = await fetchLocationEvent(suiClient, assemblyId.trim(), WORLD_PACKAGE_UTOPIA)
       setTargetLocation(loc)
     } catch (err) {
       console.error('[fetchLocationEvent for target failed]', err)

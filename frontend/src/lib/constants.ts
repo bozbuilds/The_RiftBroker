@@ -46,8 +46,14 @@ export const LOCATION_VKEY_ID = '0xd4bddf80818eb19fb57c7fbea6e69998e96adbfa6210c
 /** DistanceVKey shared object ID — created by marketplace init() on Phase 5 deploy. */
 export const DISTANCE_VKEY_ID = '0xfaf9a8fc17e18253b06d943b00cb7c0f3970dca61007b27690e8c9738d1ebc24'
 
-/** EVE Frontier world-contracts package ID on Utopia testnet. */
-export const WORLD_PACKAGE_ID = '0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75'
+/** EVE Frontier world-contracts package ID — Utopia (sandbox). */
+export const WORLD_PACKAGE_UTOPIA = '0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75'
+
+/** EVE Frontier world-contracts package ID — Stillness (live production). */
+export const WORLD_PACKAGE_STILLNESS = '0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c'
+
+/** Active world package for event queries (Stillness has active data in Cycle 5). */
+export const WORLD_PACKAGE_ID = WORLD_PACKAGE_STILLNESS
 
 /** PresenceVKey shared object ID — created by marketplace init() on Phase 5 deploy. */
 export const PRESENCE_VKEY_ID = '0x39bebf31fd6923be13d3662c687f3c07823da059fba0e6f249a70f4121f68c02'
