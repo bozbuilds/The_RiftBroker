@@ -9,7 +9,7 @@ export interface Badge {
 /** Trust order: highest first. Used for collapse display. */
 export const BADGE_TRUST_ORDER = ['combat', 'presence', 'activity', 'discovery', 'zk-verified'] as const
 
-const BADGE_DEFS: Record<string, { label: string; className: string }> = {
+const BADGE_DEFS = {
   combat: { label: 'Combat Verified', className: 'listing-combat-badge' },
   presence: { label: 'Presence Verified', className: 'listing-presence-badge' },
   activity: { label: 'Activity Verified', className: 'listing-activity-badge' },

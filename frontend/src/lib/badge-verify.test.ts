@@ -41,7 +41,7 @@ describe('getBadges', () => {
 
   it('returns Combat Verified for killmail digest', () => {
     const badges = getBadges(makeListing({ killmailTxDigest: new Uint8Array([1, 2]) }))
-    expect(badges[0].type).toBe('combat')
+    expect(badges[0]!.type).toBe('combat')
   })
 
   it('returns multiple badges when stacked', () => {
@@ -68,9 +68,9 @@ describe('getBadges', () => {
       killmailTxDigest: new Uint8Array([2]),
       depositTxDigest: new Uint8Array([3]),
     }))
-    expect(badges[0].type).toBe('combat')
-    expect(badges[1].type).toBe('activity')
-    expect(badges[2].type).toBe('discovery')
+    expect(badges[0]!.type).toBe('combat')
+    expect(badges[1]!.type).toBe('activity')
+    expect(badges[2]!.type).toBe('discovery')
   })
 })
 
