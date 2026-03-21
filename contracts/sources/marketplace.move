@@ -52,6 +52,13 @@ const INTEL_TYPE_BASE: u8 = 2;
 #[allow(unused_const)]
 const INTEL_TYPE_ROUTE: u8 = 3;
 
+#[allow(unused_const)]
+const BADGE_TYPE_KILLMAIL: u8 = 0;
+#[allow(unused_const)]
+const BADGE_TYPE_DEPOSIT: u8 = 1;
+#[allow(unused_const)]
+const BADGE_TYPE_REVEAL: u8 = 2;
+
 // === One-Time Witness ===
 
 public struct MARKETPLACE has drop {}
@@ -566,12 +573,12 @@ public fun attach_event_badge(
 ) {
     assert!(listing.scout == ctx.sender(), ENotScout);
     assert!(!listing.delisted, EAlreadyDelisted);
-    assert!(badge_type <= 2, EInvalidBadgeType);
+    assert!(badge_type <= BADGE_TYPE_REVEAL, EInvalidBadgeType);
 
-    if (badge_type == 0) {
+    if (badge_type == BADGE_TYPE_KILLMAIL) {
         assert!(listing.killmail_tx_digest.is_empty(), EBadgeAlreadyAttached);
         listing.killmail_tx_digest = tx_digest;
-    } else if (badge_type == 1) {
+    } else if (badge_type == BADGE_TYPE_DEPOSIT) {
         assert!(listing.deposit_tx_digest.is_empty(), EBadgeAlreadyAttached);
         listing.deposit_tx_digest = tx_digest;
     } else {
