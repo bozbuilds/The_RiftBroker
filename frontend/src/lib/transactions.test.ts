@@ -11,6 +11,7 @@ import {
   buildAttachDistanceProofTx,
   buildBatchPurchaseTx,
   buildCreatePresenceVerifiedListingTx,
+  buildAttachEventBadgeTx,
 } from './transactions'
 
 describe('buildCreateListingTx', () => {
@@ -125,6 +126,17 @@ describe('buildCreatePresenceVerifiedListingTx', () => {
       proofPointsBytes: new Uint8Array(128),
       publicInputsBytes: new Uint8Array(160),
       jumpTxDigest: new Uint8Array([65, 66, 67]),
+    })
+    expect(tx).toBeInstanceOf(Transaction)
+  })
+})
+
+describe('buildAttachEventBadgeTx', () => {
+  it('returns a Transaction', () => {
+    const tx = buildAttachEventBadgeTx({
+      listingId: '0xLISTING',
+      badgeType: 0,
+      txDigest: new Uint8Array([65, 66, 67]),
     })
     expect(tx).toBeInstanceOf(Transaction)
   })

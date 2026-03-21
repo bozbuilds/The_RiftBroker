@@ -169,6 +169,23 @@ export function buildCreatePresenceVerifiedListingTx(params: {
   return tx
 }
 
+export function buildAttachEventBadgeTx(params: {
+  listingId: string
+  badgeType: number
+  txDigest: Uint8Array
+}): Transaction {
+  const tx = new Transaction()
+  tx.moveCall({
+    target: `${PACKAGE_ID}::marketplace::attach_event_badge`,
+    arguments: [
+      tx.object(params.listingId),
+      tx.pure.u8(params.badgeType),
+      tx.pure.vector('u8', Array.from(params.txDigest)),
+    ],
+  })
+  return tx
+}
+
 export function buildBatchPurchaseTx(
   purchases: ReadonlyArray<{ listingId: string; price: bigint }>,
 ): Transaction {
