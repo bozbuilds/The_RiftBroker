@@ -1155,3 +1155,172 @@ fun test_attach_distance_proof_invalid_proof_aborts() {
     };
     scenario.end();
 }
+
+// === Event badges (stackable) ===
+
+#[test]
+fun test_new_listing_empty_badge_digests() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let listing = scenario.take_shared<IntelListing>();
+        assert!(marketplace::killmail_tx_digest(&listing).is_empty());
+        assert!(marketplace::deposit_tx_digest(&listing).is_empty());
+        assert!(marketplace::reveal_tx_digest(&listing).is_empty());
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test]
+fun test_attach_killmail_badge() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::attach_event_badge(&mut listing, 0, b"killmail_digest_abc", scenario.ctx());
+        assert!(*marketplace::killmail_tx_digest(&listing) == b"killmail_digest_abc");
+        assert!(marketplace::deposit_tx_digest(&listing).is_empty());
+        assert!(marketplace::reveal_tx_digest(&listing).is_empty());
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test]
+fun test_attach_deposit_badge() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::attach_event_badge(&mut listing, 1, b"deposit_digest_xyz", scenario.ctx());
+        assert!(marketplace::killmail_tx_digest(&listing).is_empty());
+        assert!(*marketplace::deposit_tx_digest(&listing) == b"deposit_digest_xyz");
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test]
+fun test_attach_reveal_badge() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::attach_event_badge(&mut listing, 2, b"reveal_digest_123", scenario.ctx());
+        assert!(*marketplace::reveal_tx_digest(&listing) == b"reveal_digest_123");
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EInvalidBadgeType)]
+fun test_attach_badge_invalid_type() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::attach_event_badge(&mut listing, 3, b"bad", scenario.ctx());
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EBadgeAlreadyAttached)]
+fun test_attach_badge_double_attach() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::attach_event_badge(&mut listing, 0, b"first", scenario.ctx());
+        marketplace::attach_event_badge(&mut listing, 0, b"second", scenario.ctx());
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::ENotScout)]
+fun test_attach_badge_not_scout() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(BUYER);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::attach_event_badge(&mut listing, 0, b"nope", scenario.ctx());
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EAlreadyDelisted)]
+fun test_attach_badge_on_delisted() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::delist(&mut listing, scenario.ctx());
+        test_scenario::return_shared(listing);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut listing = scenario.take_shared<IntelListing>();
+        marketplace::attach_event_badge(&mut listing, 0, b"too_late", scenario.ctx());
+        test_scenario::return_shared(listing);
+    };
+    scenario.end();
+}

@@ -704,3 +704,8 @@ public fun init_presence_vkey_for_testing(ctx: &mut TxContext) {
 public fun set_jump_tx_digest_for_testing(listing: &mut IntelListing, digest: vector<u8>) {
     listing.jump_tx_digest = digest;
 }
+
+#[test_only]
+public fun set_killmail_tx_digest_for_testing(listing: &mut IntelListing, digest: vector<u8>) {
+    listing.killmail_tx_digest = digest;
+}
