@@ -1,5 +1,17 @@
 import { WORLD_PACKAGE_ID } from './constants'
 
+/**
+ * SUI event query functions for EVE Frontier on-chain data.
+ *
+ * All queries use a fixed limit (250) and client-side filtering because
+ * SUI's queryEvents API cannot filter by inner event fields. For higher
+ * coverage, implement cursor-based pagination:
+ *   - Use `hasNextPage` + `nextCursor` from queryEvents response
+ *   - Paginate until target events are found or no more pages
+ *   - Consider a max page cap to avoid runaway queries
+ * See SUI SDK Event Pagination in project memory for cursor type details.
+ */
+
 /** SUI client type — inferred from dapp-kit's useSuiClient(). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SuiClient = any
@@ -103,7 +115,7 @@ export async function fetchJumpEvents(
   const { data } = await suiClient.queryEvents({
     query: { MoveEventType: `${packageId}::gate::JumpEvent` },
     order: 'descending',
-    limit: 50,
+    limit: 250,
   })
   const all = data.map(parseJumpEvent)
   // SUI queryEvents can't filter by inner fields — filter client-side
@@ -122,7 +134,7 @@ export async function fetchLocationEvent(
   const { data } = await suiClient.queryEvents({
     query: { MoveEventType: `${packageId}::location::LocationRevealedEvent` },
     order: 'descending',
-    limit: 200,
+    limit: 250,
   })
   const parsed = data.map(parseLocationEvent)
   return parsed.find((e: LocationEvent) => e.assemblyId === assemblyId) ?? null
@@ -141,7 +153,7 @@ export async function fetchLocationEvents(
   const { data } = await suiClient.queryEvents({
     query: { MoveEventType: `${packageId}::location::LocationRevealedEvent` },
     order: 'descending',
-    limit: 200,
+    limit: 250,
   })
   const parsed = data.map(parseLocationEvent)
   const idSet = new Set(assemblyIds)
@@ -161,7 +173,7 @@ export async function fetchKillmails(
   const { data } = await suiClient.queryEvents({
     query: { MoveEventType: `${packageId}::killmail::KillmailCreatedEvent` },
     order: 'descending',
-    limit: 50,
+    limit: 250,
   })
   const all = data.map(parseKillmailEvent)
   if (characterId) return all.filter((e: KillmailEvent) =>
@@ -179,7 +191,7 @@ export async function fetchInventoryEvents(
   const { data } = await suiClient.queryEvents({
     query: { MoveEventType: `${packageId}::inventory::ItemDepositedEvent` },
     order: 'descending',
-    limit: 50,
+    limit: 250,
   })
   const all = data.map(parseInventoryEvent)
   if (characterId) return all.filter((e: InventoryEvent) => e.characterId === characterId)
@@ -195,7 +207,7 @@ export async function fetchStructuresInSystem(
   const { data } = await suiClient.queryEvents({
     query: { MoveEventType: `${packageId}::location::LocationRevealedEvent` },
     order: 'descending',
-    limit: 200,
+    limit: 250,
   })
   const parsed = data.map(parseLocationEvent)
   return parsed.filter((e: LocationEvent) => e.solarSystem === Number(solarSystem))
@@ -244,7 +256,7 @@ export async function resolveCharacterId(
     const { data: events } = await suiClient.queryEvents({
       query: { MoveEventType: `${packageId}::character::CharacterCreatedEvent` },
       order: 'descending',
-      limit: 200,
+      limit: 250,
     })
     for (const evt of events) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
