@@ -4,17 +4,17 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 
 import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, PRESENCE_VKEY_ID, SEAL_KEY_SERVERS, WORLD_PACKAGE_UTOPIA } from '../lib/constants'
-import { fetchJumpEvents, fetchLocationEvent, fetchLocationEvents, resolveCharacterId } from '../lib/events'
+import { fetchJumpEvents, fetchKillmails, fetchInventoryEvents, fetchLocationEvent, fetchLocationEvents, fetchStructuresInSystem, resolveCharacterId } from '../lib/events'
 import { mistToSui } from '../lib/format'
 import { intelPayloadSchema } from '../lib/intel-schemas'
 import { encryptIntel } from '../lib/seal'
-import { buildAttachDistanceProofTx, buildCreateListingTx, buildCreatePresenceVerifiedListingTx, buildCreateVerifiedListingTx, buildSetBlobIdTx } from '../lib/transactions'
+import { buildAttachDistanceProofTx, buildAttachEventBadgeTx, buildCreateListingTx, buildCreatePresenceVerifiedListingTx, buildCreateVerifiedListingTx, buildSetBlobIdTx } from '../lib/transactions'
 import { uploadBlob } from '../lib/walrus'
 import { generateDistanceProof, generateLocationProof, generatePresenceProof, generateSalt } from '../lib/zk-proof'
 
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
 import { SystemPicker } from './SystemPicker'
-import type { JumpEvent, LocationEvent } from '../lib/events'
+import type { JumpEvent, KillmailEvent, InventoryEvent, LocationEvent } from '../lib/events'
 
 function MistHint({ mist }: { mist: string }) {
   const sui = mistToSui(mist)
@@ -56,6 +56,16 @@ export function CreateListing() {
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null)
   const [gateSystemNames, setGateSystemNames] = useState<Map<string, string>>(new Map())
   const [isGlobalFeed, setIsGlobalFeed] = useState(false)
+  const [attachCombat, setAttachCombat] = useState(false)
+  const [attachActivity, setAttachActivity] = useState(false)
+  const [attachStructure, setAttachStructure] = useState(false)
+  const [killmails, setKillmails] = useState<KillmailEvent[]>([])
+  const [inventoryEvents, setInventoryEvents] = useState<InventoryEvent[]>([])
+  const [structuresInSystem, setStructuresInSystem] = useState<LocationEvent[]>([])
+  const [selectedKillmail, setSelectedKillmail] = useState<KillmailEvent | null>(null)
+  const [selectedDeposit, setSelectedDeposit] = useState<InventoryEvent | null>(null)
+  const [selectedStructure, setSelectedStructure] = useState<LocationEvent | null>(null)
+  const [badgeSystemId, setBadgeSystemId] = useState<bigint | null>(null)
 
   // Resource fields
   const [resourceType, setResourceType] = useState('')
@@ -312,6 +322,28 @@ export function CreateListing() {
         }
       }
 
+      // Attach event badges
+      const badgesToAttach: { type: number; digest: Uint8Array }[] = []
+      if (selectedKillmail)
+        badgesToAttach.push({ type: 0, digest: new TextEncoder().encode(selectedKillmail.txDigest) })
+      if (selectedDeposit)
+        badgesToAttach.push({ type: 1, digest: new TextEncoder().encode(selectedDeposit.txDigest) })
+      if (selectedStructure)
+        badgesToAttach.push({ type: 2, digest: new TextEncoder().encode(selectedStructure.txDigest) })
+
+      if (badgesToAttach.length > 0) {
+        setStatus('Attaching evidence badges...')
+        for (const badge of badgesToAttach) {
+          const badgeTx = buildAttachEventBadgeTx({
+            listingId,
+            badgeType: badge.type,
+            txDigest: badge.digest,
+          })
+          const badgeResult = await signAndExecute({ transaction: badgeTx })
+          await suiClient.waitForTransaction({ digest: badgeResult.digest })
+        }
+      }
+
       await queryClient.invalidateQueries({ queryKey: ['listings'] })
       setStatus('Listing created successfully!')
     } catch (err) {
@@ -351,14 +383,23 @@ export function CreateListing() {
 
     const trimmed = walletAddress.trim()
     try {
+      let resolvedCharacterId: string | undefined
       if (trimmed) {
         setPresenceStatus('Resolving character...')
         const characterId = await resolveCharacterId(suiClient, trimmed, WORLD_PACKAGE_UTOPIA)
         if (characterId) {
+          resolvedCharacterId = characterId
           setPresenceStatus('Fetching your jumps...')
           const jumps = await fetchJumpEvents(suiClient, characterId, WORLD_PACKAGE_UTOPIA)
           setJumpEvents(jumps)
           await resolveGateNames(jumps)
+          // Fetch badge events in parallel with jump lookup
+          const [kms, invs] = await Promise.all([
+            fetchKillmails(suiClient, characterId ?? undefined),
+            fetchInventoryEvents(suiClient, characterId ?? undefined),
+          ])
+          setKillmails(kms)
+          setInventoryEvents(invs)
           setPresenceStatus(null)
           return
         }
@@ -369,11 +410,31 @@ export function CreateListing() {
       const jumps = await fetchJumpEvents(suiClient, undefined, WORLD_PACKAGE_UTOPIA)
       setJumpEvents(jumps)
       await resolveGateNames(jumps)
+      // Fetch badge events in parallel with jump lookup
+      const [kms, invs] = await Promise.all([
+        fetchKillmails(suiClient, resolvedCharacterId),
+        fetchInventoryEvents(suiClient, resolvedCharacterId),
+      ])
+      setKillmails(kms)
+      setInventoryEvents(invs)
       setPresenceStatus(null)
     } catch (err) {
       console.error('[fetchJumpEvents failed]', err)
       setPresenceStatus(null)
       setError('Failed to fetch jump events. Check your connection and try again.')
+    }
+  }
+
+  async function handleBadgeSystemSelect(sysId: bigint | null) {
+    setBadgeSystemId(sysId)
+    setStructuresInSystem([])
+    setSelectedStructure(null)
+    if (!sysId) return
+    try {
+      const structures = await fetchStructuresInSystem(suiClient, sysId.toString())
+      setStructuresInSystem(structures)
+    } catch (err) {
+      console.error('[fetchStructuresInSystem failed]', err)
     }
   }
 
@@ -594,6 +655,115 @@ export function CreateListing() {
               </div>
             )}
           </>
+        )}
+
+        {/* Attach Evidence section — visible when badge events are loaded */}
+        {(killmails.length > 0 || inventoryEvents.length > 0) && (
+          <div className="form-section">
+            <label className="form-label">Attach Evidence (optional)</label>
+
+            {killmails.length > 0 && (
+              <div className="form-group">
+                <label className="verify-toggle">
+                  <input
+                    type="checkbox"
+                    checked={attachCombat}
+                    onChange={e => { setAttachCombat(e.target.checked); if (!e.target.checked) setSelectedKillmail(null) }}
+                  />
+                  {' Combat Verified'}
+                </label>
+                {attachCombat && (
+                  <select
+                    className="form-select"
+                    value={selectedKillmail?.txDigest ?? ''}
+                    onChange={e => {
+                      const km = killmails.find(k => k.txDigest === e.target.value)
+                      setSelectedKillmail(km ?? null)
+                    }}
+                  >
+                    <option value="">— Select a killmail —</option>
+                    {killmails.map(km => (
+                      <option key={km.txDigest} value={km.txDigest}>
+                        {new Date(Number(km.killTimestamp) * 1000).toLocaleDateString()} — System {km.solarSystemId} — {km.lossType.toLowerCase()}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {inventoryEvents.length > 0 && (
+              <div className="form-group">
+                <label className="verify-toggle">
+                  <input
+                    type="checkbox"
+                    checked={attachActivity}
+                    onChange={e => { setAttachActivity(e.target.checked); if (!e.target.checked) setSelectedDeposit(null) }}
+                  />
+                  {' Activity Verified'}
+                </label>
+                {attachActivity && (
+                  <select
+                    className="form-select"
+                    value={selectedDeposit?.txDigest ?? ''}
+                    onChange={e => {
+                      const dep = inventoryEvents.find(d => d.txDigest === e.target.value)
+                      setSelectedDeposit(dep ?? null)
+                    }}
+                  >
+                    <option value="">— Select a deposit —</option>
+                    {inventoryEvents.map(dep => (
+                      <option key={dep.txDigest} value={dep.txDigest}>
+                        SSU {dep.assemblyId.slice(0, 10)}... — {dep.quantity}x item {dep.typeId}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            <div className="form-group">
+              <label className="verify-toggle">
+                <input
+                  type="checkbox"
+                  checked={attachStructure}
+                  onChange={e => { setAttachStructure(e.target.checked); if (!e.target.checked) { setSelectedStructure(null); setBadgeSystemId(null) } }}
+                />
+                {' Structure Discovery'}
+              </label>
+              {attachStructure && (
+                <>
+                  <SystemPicker
+                    systems={galaxy?.systems ?? []}
+                    value={badgeSystemId}
+                    onChange={handleBadgeSystemSelect}
+                    label="Structure System"
+                    required={false}
+                  />
+                  {structuresInSystem.length > 0 && (
+                    <select
+                      className="form-select"
+                      value={selectedStructure?.assemblyId ?? ''}
+                      onChange={e => {
+                        const s = structuresInSystem.find(s => s.assemblyId === e.target.value)
+                        setSelectedStructure(s ?? null)
+                      }}
+                    >
+                      <option value="">— Select a structure —</option>
+                      {structuresInSystem.map(s => (
+                        <option key={s.assemblyId} value={s.assemblyId}>
+                          {s.assemblyId.slice(0, 14)}... — type {s.typeId} — system {s.solarSystem}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {badgeSystemId && structuresInSystem.length === 0 && (
+                    <div className="form-hint">No revealed structures found in this system.</div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
         )}
 
         <div className="form-group">
