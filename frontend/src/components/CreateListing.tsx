@@ -369,7 +369,7 @@ export function CreateListing() {
     setTargetSystemId(null)
   }
 
-  function handleVerifyPresenceToggle(enabled: boolean) {
+  async function handleVerifyPresenceToggle(enabled: boolean) {
     setVerifyPresence(enabled)
     setInGameWallet('')
     setJumpEvents([])
@@ -381,6 +381,28 @@ export function CreateListing() {
     setGateSystemIds(new Map())
     setIsGlobalFeed(false)
     lastLookedUpWallet.current = null
+    // Fetch badge events immediately when toggled on (no wallet needed)
+    if (enabled) {
+      try {
+        const [kms, invs] = await Promise.all([
+          fetchKillmails(suiClient),
+          fetchInventoryEvents(suiClient),
+        ])
+        setKillmails(kms)
+        setInventoryEvents(invs)
+      } catch {
+        // Non-critical — badge events are optional
+      }
+    } else {
+      setKillmails([])
+      setInventoryEvents([])
+      setAttachCombat(false)
+      setAttachActivity(false)
+      setAttachStructure(false)
+      setSelectedKillmail(null)
+      setSelectedDeposit(null)
+      setSelectedStructure(null)
+    }
   }
 
   async function handleLookupJumps(walletAddress: string) {
@@ -708,9 +730,9 @@ export function CreateListing() {
                     }}
                   >
                     <option value="">— Select a killmail —</option>
-                    {killmails.map(km => (
-                      <option key={km.txDigest} value={km.txDigest}>
-                        {new Date(Number(km.killTimestamp) * 1000).toLocaleDateString()} — System {km.solarSystemId} — {km.lossType.toLowerCase()}
+                    {killmails.map((km, idx) => (
+                      <option key={`${km.txDigest}-${idx}`} value={km.txDigest}>
+                        {new Date(Number(km.killTimestamp) * 1000).toLocaleDateString()} — System {km.solarSystemId} — {km.lossType?.toLowerCase() ?? 'unknown'}
                       </option>
                     ))}
                   </select>
@@ -738,8 +760,8 @@ export function CreateListing() {
                     }}
                   >
                     <option value="">— Select a deposit —</option>
-                    {inventoryEvents.map(dep => (
-                      <option key={dep.txDigest} value={dep.txDigest}>
+                    {inventoryEvents.map((dep, idx) => (
+                      <option key={`${dep.txDigest}-${idx}`} value={dep.txDigest}>
                         SSU {dep.assemblyId.slice(0, 10)}... — {dep.quantity}x item {dep.typeId}
                       </option>
                     ))}

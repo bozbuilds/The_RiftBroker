@@ -75,7 +75,7 @@ export function parseKillmailEvent(raw: any): KillmailEvent {
     killerId: json.killer_id.item_id,
     victimId: json.victim_id.item_id,
     solarSystemId: json.solar_system_id.item_id,
-    lossType: json.loss_type['@variant'],
+    lossType: json.loss_type?.['@variant'] ?? 'unknown',
     killTimestamp: BigInt(json.kill_timestamp),
     txDigest: raw.txDigest,
   }
