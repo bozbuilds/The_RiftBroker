@@ -553,6 +553,39 @@ public fun attach_distance_proof(
     });
 }
 
+/// Attach an on-chain event badge to an existing listing.
+/// badge_type: 0 = killmail, 1 = deposit, 2 = structure discovery
+/// tx_digest: the SUI transaction digest containing the relevant event.
+/// No on-chain event verification — the contract stores the digest as an audit trail.
+/// The frontend verifies the digest against the actual transaction.
+public fun attach_event_badge(
+    listing: &mut IntelListing,
+    badge_type: u8,
+    tx_digest: vector<u8>,
+    ctx: &TxContext,
+) {
+    assert!(listing.scout == ctx.sender(), ENotScout);
+    assert!(!listing.delisted, EAlreadyDelisted);
+    assert!(badge_type <= 2, EInvalidBadgeType);
+
+    if (badge_type == 0) {
+        assert!(listing.killmail_tx_digest.is_empty(), EBadgeAlreadyAttached);
+        listing.killmail_tx_digest = tx_digest;
+    } else if (badge_type == 1) {
+        assert!(listing.deposit_tx_digest.is_empty(), EBadgeAlreadyAttached);
+        listing.deposit_tx_digest = tx_digest;
+    } else {
+        assert!(listing.reveal_tx_digest.is_empty(), EBadgeAlreadyAttached);
+        listing.reveal_tx_digest = tx_digest;
+    };
+
+    event::emit(BadgeAttached {
+        listing_id: object::id(listing),
+        scout: listing.scout,
+        badge_type,
+    });
+}
+
 public fun location_proof_hash(listing: &IntelListing): vector<u8> {
     listing.location_proof_hash
 }
