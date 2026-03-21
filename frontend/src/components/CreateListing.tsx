@@ -645,10 +645,10 @@ export function CreateListing() {
                   }}
                 >
                   <option value="">— Select a jump —</option>
-                  {filteredJumps.map(j => {
+                  {filteredJumps.map((j, idx) => {
                     const sysName = gateSystemNames.get(j.destinationGateId)
                     return (
-                      <option key={j.txDigest} value={j.txDigest}>
+                      <option key={`${j.txDigest}-${idx}`} value={j.txDigest}>
                         {new Date(Number(j.timestamp)).toLocaleString()} — {sysName ?? `gate ${j.destinationGateId.slice(0, 10)}...`}
                       </option>
                     )

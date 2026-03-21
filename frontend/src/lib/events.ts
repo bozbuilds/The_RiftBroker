@@ -226,14 +226,18 @@ export async function resolveCharacterId(
   walletAddress: string,
   packageId: string = WORLD_PACKAGE_ID,
 ): Promise<string | null> {
-  const { data } = await suiClient.getOwnedObjects({
-    owner: walletAddress,
-    filter: { StructType: `${packageId}::smart_character::PlayerProfile` },
-    options: { showContent: true },
-    limit: 1,
-  })
-  if (data.length > 0 && data[0]?.data?.content)
-    return extractCharacterId(data[0].data.content, data[0].data.objectId)
+  try {
+    const { data } = await suiClient.getOwnedObjects({
+      owner: walletAddress,
+      filter: { StructType: `${packageId}::smart_character::PlayerProfile` },
+      options: { showContent: true },
+      limit: 1,
+    })
+    if (data.length > 0 && data[0]?.data?.content)
+      return extractCharacterId(data[0].data.content, data[0].data.objectId)
+  } catch {
+    // PlayerProfile lookup failed (type may not exist on this network) — try fallback
+  }
 
   // Fallback: CharacterCreatedEvent lookup (works on Stillness)
   try {
