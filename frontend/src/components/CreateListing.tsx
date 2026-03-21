@@ -1,7 +1,7 @@
 import { useSignAndExecuteTransaction, useSuiClient, useCurrentAccount } from '@mysten/dapp-kit'
 import { SealClient } from '@mysten/seal'
 import { useQueryClient } from '@tanstack/react-query'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 
 import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, PRESENCE_VKEY_ID, SEAL_KEY_SERVERS, WORLD_PACKAGE_UTOPIA } from '../lib/constants'
 import { fetchJumpEvents, fetchKillmails, fetchInventoryEvents, fetchLocationEvent, fetchLocationEvents, fetchStructuresInSystem, resolveCharacterId } from '../lib/events'
@@ -56,6 +56,7 @@ export function CreateListing() {
   const [presenceStatus, setPresenceStatus] = useState<string | null>(null)
   const [gateSystemNames, setGateSystemNames] = useState<Map<string, string>>(new Map())
   const [isGlobalFeed, setIsGlobalFeed] = useState(false)
+  const lastLookedUpWallet = useRef<string | null>(null)
   const [attachCombat, setAttachCombat] = useState(false)
   const [attachActivity, setAttachActivity] = useState(false)
   const [attachStructure, setAttachStructure] = useState(false)
@@ -370,9 +371,13 @@ export function CreateListing() {
     setTargetLocation(null)
     setGateSystemNames(new Map())
     setIsGlobalFeed(false)
+    lastLookedUpWallet.current = null
   }
 
   async function handleLookupJumps(walletAddress: string) {
+    const trimmedInput = walletAddress.trim()
+    if (lastLookedUpWallet.current !== null && lastLookedUpWallet.current === trimmedInput) return
+
     setJumpEvents([])
     setSelectedJump(null)
     setGateLocation(null)
@@ -401,6 +406,7 @@ export function CreateListing() {
           setKillmails(kms)
           setInventoryEvents(invs)
           setPresenceStatus(null)
+          lastLookedUpWallet.current = trimmedInput
           return
         }
       }
@@ -420,6 +426,7 @@ export function CreateListing() {
       setKillmails(kms)
       setInventoryEvents(invs)
       setPresenceStatus(null)
+      lastLookedUpWallet.current = trimmedInput
     } catch (err) {
       console.error('[fetchJumpEvents failed]', err)
       setPresenceStatus(null)
