@@ -32,6 +32,8 @@ const EObservationTooStale: u64 = 18;
 const ETimestampInFuture: u64 = 19;
 // Codes 20-21 reserved: future EInvalidLocationHash and EJumpTooOld if granular errors needed
 const EInvalidPresenceProof: u64 = 22;
+const EInvalidBadgeType: u64 = 23;
+const EBadgeAlreadyAttached: u64 = 24;
 
 // === Regular constants (ALL_CAPS) ===
 
@@ -74,6 +76,9 @@ public struct IntelListing has key {
     location_proof_hash: vector<u8>,  // empty = unverified; non-empty = valid proof was verified at creation
     distance_proof_hash: vector<u8>,  // empty = no distance proof; non-empty = valid proof was verified
     jump_tx_digest: vector<u8>,     // SUI tx digest of JumpEvent (audit trail, empty for unverified)
+    killmail_tx_digest: vector<u8>,  // KillmailCreatedEvent tx digest (empty for none)
+    deposit_tx_digest: vector<u8>,   // ItemDepositedEvent tx digest (empty for none)
+    reveal_tx_digest: vector<u8>,    // LocationRevealedEvent tx digest (empty for none)
 }
 
 /// Shared object holding the Groth16 verification key for the location attestation circuit.
@@ -140,6 +145,12 @@ public struct VerifiedIntelListed has copy, drop {
 public struct DistanceProofAttached has copy, drop {
     listing_id: ID,
     scout: address,
+}
+
+public struct BadgeAttached has copy, drop {
+    listing_id: ID,
+    scout: address,
+    badge_type: u8,
 }
 
 // === Init ===
@@ -213,6 +224,9 @@ public fun create_listing(
         location_proof_hash: vector::empty(),
         distance_proof_hash: vector::empty(),
         jump_tx_digest: vector::empty(),
+        killmail_tx_digest: vector::empty(),
+        deposit_tx_digest: vector::empty(),
+        reveal_tx_digest: vector::empty(),
     };
 
     event::emit(IntelListed {
@@ -332,6 +346,9 @@ public fun is_expired(listing: &IntelListing, clock: &Clock): bool {
 
 public fun observed_at(listing: &IntelListing): u64 { listing.observed_at }
 public fun jump_tx_digest(listing: &IntelListing): &vector<u8> { &listing.jump_tx_digest }
+public fun killmail_tx_digest(listing: &IntelListing): &vector<u8> { &listing.killmail_tx_digest }
+public fun deposit_tx_digest(listing: &IntelListing): &vector<u8> { &listing.deposit_tx_digest }
+public fun reveal_tx_digest(listing: &IntelListing): &vector<u8> { &listing.reveal_tx_digest }
 
 // Receipt getters
 
@@ -405,6 +422,9 @@ public fun create_verified_listing(
         location_proof_hash: public_inputs_bytes,
         distance_proof_hash: vector::empty(),
         jump_tx_digest: vector::empty(),
+        killmail_tx_digest: vector::empty(),
+        deposit_tx_digest: vector::empty(),
+        reveal_tx_digest: vector::empty(),
     };
     let listing_id_val = object::id(&listing);
     event::emit(IntelListed {
@@ -486,6 +506,9 @@ public fun create_presence_verified_listing(
         location_proof_hash: public_inputs_bytes,
         distance_proof_hash: vector::empty(),
         jump_tx_digest,
+        killmail_tx_digest: vector::empty(),
+        deposit_tx_digest: vector::empty(),
+        reveal_tx_digest: vector::empty(),
     };
     let listing_id_val = object::id(&listing);
     event::emit(IntelListed {
