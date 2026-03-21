@@ -192,6 +192,44 @@ describe('parseListingFields — presence listing distance', () => {
   })
 })
 
+describe('parseListingFields — event badge digests', () => {
+  const baseFields = {
+    scout: '0xABC',
+    intel_type: 1,
+    system_id: '42',
+    created_at: '1000',
+    observed_at: '900',
+    decay_hours: '24',
+    walrus_blob_id: [],
+    individual_price: '500000',
+    stake: { value: '1000000' },
+    delisted: false,
+    location_proof_hash: [],
+  }
+
+  it('parses killmail_tx_digest when present', () => {
+    const result = parseListingFields('0x1', { ...baseFields, killmail_tx_digest: [65, 66] })
+    expect(result.killmailTxDigest).toEqual(new Uint8Array([65, 66]))
+  })
+
+  it('parses deposit_tx_digest when present', () => {
+    const result = parseListingFields('0x1', { ...baseFields, deposit_tx_digest: [67, 68] })
+    expect(result.depositTxDigest).toEqual(new Uint8Array([67, 68]))
+  })
+
+  it('parses reveal_tx_digest when present', () => {
+    const result = parseListingFields('0x1', { ...baseFields, reveal_tx_digest: [69, 70] })
+    expect(result.revealTxDigest).toEqual(new Uint8Array([69, 70]))
+  })
+
+  it('returns empty Uint8Arrays when badge digests missing', () => {
+    const result = parseListingFields('0x1', { ...baseFields })
+    expect(result.killmailTxDigest).toEqual(new Uint8Array([]))
+    expect(result.depositTxDigest).toEqual(new Uint8Array([]))
+    expect(result.revealTxDigest).toEqual(new Uint8Array([]))
+  })
+})
+
 describe('parseReceiptFields', () => {
   const objectId = '0xreceipt01'
 

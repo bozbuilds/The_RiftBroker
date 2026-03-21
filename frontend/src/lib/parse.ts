@@ -65,6 +65,9 @@ export function parseListingFields(
     hasDistanceProof: distanceProofHash.length > 0 || (jumpTxDigest.length > 0 && locationProofHash.length >= 32),
     distanceMeters: parseDistanceMeters(distanceProofHash) ?? presenceDistance,
     jumpTxDigest,
+    killmailTxDigest: new Uint8Array((fields.killmail_tx_digest as number[] | undefined) ?? []),
+    depositTxDigest: new Uint8Array((fields.deposit_tx_digest as number[] | undefined) ?? []),
+    revealTxDigest: new Uint8Array((fields.reveal_tx_digest as number[] | undefined) ?? []),
   }
 }
 
