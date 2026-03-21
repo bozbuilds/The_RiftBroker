@@ -721,70 +721,74 @@ export function CreateListing() {
           </>
         )}
 
-        {/* Attach Evidence section — visible when system-relevant badge events exist */}
-        {(filteredKillmails.length > 0 || filteredDeposits.length > 0) && (
+        {/* Attach Evidence section — visible when badge events have been fetched */}
+        {(killmails.length > 0 || inventoryEvents.length > 0) && (
           <div className="form-section">
             <label className="form-label">Attach Evidence (optional)</label>
 
-            {filteredKillmails.length > 0 && (
-              <div className="form-group">
-                <label className="verify-toggle">
-                  <input
-                    type="checkbox"
-                    checked={attachCombat}
-                    onChange={e => { setAttachCombat(e.target.checked); if (!e.target.checked) setSelectedKillmail(null) }}
-                  />
-                  {' Combat Verified'}
-                </label>
-                {attachCombat && (
-                  <select
-                    className="form-select"
-                    value={selectedKillmail?.txDigest ?? ''}
-                    onChange={e => {
-                      const km = filteredKillmails.find(k => k.txDigest === e.target.value)
-                      setSelectedKillmail(km ?? null)
-                    }}
-                  >
-                    <option value="">— Select a killmail —</option>
-                    {filteredKillmails.map((km, idx) => (
-                      <option key={`${km.txDigest}-${idx}`} value={km.txDigest}>
-                        {new Date(Number(km.killTimestamp) * 1000).toLocaleDateString()} — {km.lossType?.toLowerCase() ?? 'unknown'}
-                      </option>
-                    ))}
-                  </select>
+            <div className="form-group">
+              <label className="verify-toggle">
+                <input
+                  type="checkbox"
+                  checked={attachCombat}
+                  onChange={e => { setAttachCombat(e.target.checked); if (!e.target.checked) setSelectedKillmail(null) }}
+                  disabled={filteredKillmails.length === 0}
+                />
+                {' Combat Verified'}
+                {killmails.length > 0 && filteredKillmails.length === 0 && (
+                  <span className="form-hint" style={{ marginLeft: '0.5rem', display: 'inline' }}>— no killmails in this system</span>
                 )}
-              </div>
-            )}
+              </label>
+              {attachCombat && filteredKillmails.length > 0 && (
+                <select
+                  className="form-select"
+                  value={selectedKillmail?.txDigest ?? ''}
+                  onChange={e => {
+                    const km = filteredKillmails.find(k => k.txDigest === e.target.value)
+                    setSelectedKillmail(km ?? null)
+                  }}
+                >
+                  <option value="">— Select a killmail —</option>
+                  {filteredKillmails.map((km, idx) => (
+                    <option key={`${km.txDigest}-${idx}`} value={km.txDigest}>
+                      {new Date(Number(km.killTimestamp) * 1000).toLocaleDateString()} — {km.lossType?.toLowerCase() ?? 'unknown'}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
 
-            {filteredDeposits.length > 0 && (
-              <div className="form-group">
-                <label className="verify-toggle">
-                  <input
-                    type="checkbox"
-                    checked={attachActivity}
-                    onChange={e => { setAttachActivity(e.target.checked); if (!e.target.checked) setSelectedDeposit(null) }}
-                  />
-                  {' Activity Verified'}
-                </label>
-                {attachActivity && (
-                  <select
-                    className="form-select"
-                    value={selectedDeposit?.txDigest ?? ''}
-                    onChange={e => {
-                      const dep = filteredDeposits.find(d => d.txDigest === e.target.value)
-                      setSelectedDeposit(dep ?? null)
-                    }}
-                  >
-                    <option value="">— Select a deposit —</option>
-                    {filteredDeposits.map((dep, idx) => (
-                      <option key={`${dep.txDigest}-${idx}`} value={dep.txDigest}>
-                        SSU {dep.assemblyId.slice(0, 10)}... — {dep.quantity}x item {dep.typeId}
-                      </option>
-                    ))}
-                  </select>
+            <div className="form-group">
+              <label className="verify-toggle">
+                <input
+                  type="checkbox"
+                  checked={attachActivity}
+                  onChange={e => { setAttachActivity(e.target.checked); if (!e.target.checked) setSelectedDeposit(null) }}
+                  disabled={filteredDeposits.length === 0}
+                />
+                {' Activity Verified'}
+                {inventoryEvents.length > 0 && filteredDeposits.length === 0 && (
+                  <span className="form-hint" style={{ marginLeft: '0.5rem', display: 'inline' }}>— no deposits in this system</span>
                 )}
-              </div>
-            )}
+              </label>
+              {attachActivity && filteredDeposits.length > 0 && (
+                <select
+                  className="form-select"
+                  value={selectedDeposit?.txDigest ?? ''}
+                  onChange={e => {
+                    const dep = filteredDeposits.find(d => d.txDigest === e.target.value)
+                    setSelectedDeposit(dep ?? null)
+                  }}
+                >
+                  <option value="">— Select a deposit —</option>
+                  {filteredDeposits.map((dep, idx) => (
+                    <option key={`${dep.txDigest}-${idx}`} value={dep.txDigest}>
+                      SSU {dep.assemblyId.slice(0, 10)}... — {dep.quantity}x item {dep.typeId}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
 
             <div className="form-group">
               <label className="verify-toggle">
