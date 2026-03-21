@@ -2,7 +2,7 @@
 export const GALAXY_JSON_URL = '/galaxy.json'
 
 // Deployed on SUI testnet (2026-03-21) — Stackable event badges deploy
-export const PACKAGE_ID = '0x9f5938a5d9b95c86fa56deafebd8b8d8e0694367e59509952e8a4fac781fdb7c'
+export const PACKAGE_ID = '0x01b41b06eb493c65575ac7a504a2923cdde4fb54859b1a8f7a9cfe3e720e2c67'
 
 // SUI shared Clock object
 export const CLOCK_ID = '0x6'
@@ -41,10 +41,10 @@ export const INTEL_TYPE_COLORS_NEON: Record<number, string> = {
 }
 
 /** LocationVKey shared object ID — created by marketplace init(). */
-export const LOCATION_VKEY_ID = '0xca8feaa1987ce688e23e1aef7b38eae0d1e106d072bf4a18cb067c3c0578faa8'
+export const LOCATION_VKEY_ID = '0xb4f326a5dd8592e7d6b901d7a5ca38366f951240f94f2ad4e80605892bf6fe2d'
 
 /** DistanceVKey shared object ID — created by marketplace init(). */
-export const DISTANCE_VKEY_ID = '0x0e1b6157eb8ffee45e2859cc116b9b4fc0539e34acfdc87ff0fd24984089c4cb'
+export const DISTANCE_VKEY_ID = '0xd1aa6cdd538f3c714ca799500d33a6c1d7f42d42826aa821b0fb7af54465130d'
 
 /** EVE Frontier world-contracts package ID — Utopia (sandbox). */
 export const WORLD_PACKAGE_UTOPIA = '0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75'
@@ -56,7 +56,7 @@ export const WORLD_PACKAGE_STILLNESS = '0x28b497559d65ab320d9da4613bf2498d5946b2
 export const WORLD_PACKAGE_ID = WORLD_PACKAGE_STILLNESS
 
 /** PresenceVKey shared object ID — created by marketplace init(). */
-export const PRESENCE_VKEY_ID = '0xc9ec72c9e842fc63af0547882806b75d5b1e2aa9129c665ef07438b650ee3131'
+export const PRESENCE_VKEY_ID = '0x8f7fc8d6f07fbb9415683f65765a692dcb628f3d983063a0dc21c2452f5cdff0'
 
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',
