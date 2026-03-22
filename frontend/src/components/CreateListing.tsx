@@ -355,6 +355,8 @@ export function CreateListing() {
       if (selectedStructure)
         badgesToAttach.push({ type: 2, digest: new TextEncoder().encode(selectedStructure.txDigest) })
 
+      console.log('[badge attach]', { listingId, badgesToAttach: badgesToAttach.map(b => ({ type: b.type, digestLen: b.digest.length })), selectedStructure: selectedStructure?.txDigest })
+
       if (badgesToAttach.length > 0) {
         setStatus('Attaching evidence badges...')
         for (const badge of badgesToAttach) {
@@ -363,8 +365,11 @@ export function CreateListing() {
             badgeType: badge.type,
             txDigest: badge.digest,
           })
+          console.log('[badge attach tx]', { badgeType: badge.type, digestLen: badge.digest.length, listingId })
           const badgeResult = await signAndExecute({ transaction: badgeTx })
+          console.log('[badge attach result]', badgeResult.digest)
           await suiClient.waitForTransaction({ digest: badgeResult.digest })
+          console.log('[badge attach confirmed]', badgeResult.digest)
         }
       }
 
