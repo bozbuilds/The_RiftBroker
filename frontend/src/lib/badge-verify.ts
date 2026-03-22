@@ -14,7 +14,7 @@ const BADGE_DEFS = {
   combat: { label: 'Combat Verified', className: 'listing-combat-badge' },
   presence: { label: 'Presence Verified', className: 'listing-presence-badge' },
   activity: { label: 'Activity Verified', className: 'listing-activity-badge' },
-  discovery: { label: 'Structure Discovery', className: 'listing-discovery-badge' },
+  discovery: { label: 'Structure Verified', className: 'listing-discovery-badge' },
   'zk-verified': { label: 'ZK-Verified', className: 'listing-verified-badge' },
 }
 
