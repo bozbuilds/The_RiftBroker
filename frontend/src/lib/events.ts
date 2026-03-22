@@ -61,7 +61,7 @@ export function parseJumpEvent(raw: any): JumpEvent {
     sourceGateId: json.source_gate_id,
     destinationGateId: json.destination_gate_id,
     timestamp: BigInt(raw.timestampMs),
-    txDigest: raw.txDigest,
+    txDigest: raw.id?.txDigest ?? raw.txDigest ?? '',
   }
 }
 
@@ -76,7 +76,7 @@ export function parseLocationEvent(raw: any): LocationEvent {
     z: BigInt(json.z),
     locationHash: new Uint8Array(json.location_hash),
     typeId: json.type_id,
-    txDigest: raw.txDigest ?? '',
+    txDigest: raw.id?.txDigest ?? raw.txDigest ?? '',
   }
 }
 
@@ -89,7 +89,7 @@ export function parseKillmailEvent(raw: any): KillmailEvent {
     solarSystemId: json.solar_system_id.item_id,
     lossType: json.loss_type?.['@variant'] ?? 'unknown',
     killTimestamp: BigInt(json.kill_timestamp),
-    txDigest: raw.txDigest,
+    txDigest: raw.id?.txDigest ?? raw.txDigest ?? '',
   }
 }
 
@@ -102,7 +102,7 @@ export function parseInventoryEvent(raw: any): InventoryEvent {
     itemId: json.item_id,
     typeId: json.type_id,
     quantity: Number(json.quantity),
-    txDigest: raw.txDigest,
+    txDigest: raw.id?.txDigest ?? raw.txDigest ?? '',
   }
 }
 

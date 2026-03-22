@@ -28,8 +28,13 @@ describe('parseJumpEvent', () => {
     expect(parseJumpEvent(rawEvent).timestamp).toBe(1773701456372n)
   })
 
-  it('parses txDigest', () => {
+  it('parses txDigest from top-level', () => {
     expect(parseJumpEvent(rawEvent).txDigest).toBe('ABC123')
+  })
+
+  it('parses txDigest from id.txDigest (real SUI shape)', () => {
+    const realShape = { ...rawEvent, txDigest: undefined, id: { txDigest: 'REAL_DIGEST', eventSeq: '0' } }
+    expect(parseJumpEvent(realShape).txDigest).toBe('REAL_DIGEST')
   })
 })
 
