@@ -33,6 +33,7 @@ Replace the current cold cyan point-sprite star map with a polished warm amber v
 - Slightly larger point size (~0.05) for better visibility
 - Keep additive blending + depth write disabled
 - Keep size attenuation (parallax at distance)
+- **Ambient flicker:** Subtle per-system brightness variation via a time-varying uniform on the points shader. Random phase offset per system, ~0.02 amplitude, slow period (~3-5s). Makes the star field feel alive without being distracting. Implemented as a custom `ShaderMaterial` with a `uTime` uniform — each vertex gets a brightness multiplier of `1.0 + sin(uTime * rate + systemIndex * 0.37) * 0.02`.
 
 ### Intel Region Clouds (replaces IntelNebula)
 
@@ -47,33 +48,45 @@ Replace the current cold cyan point-sprite star map with a polished warm amber v
   - Fleet: #ff1744 (red)
   - Base: #76ff03 (green)
   - Route: #ffea00 (yellow)
-- **Opacity scaling:** `baseOpacity + (listingCount / maxListings) * opacityRange`
+- **Opacity scaling:** `baseOpacity + Math.min(listingCount / MIN_FLOOR, 1) * opacityRange`
   - Base center opacity: 0.18 (locked baseline for 1-2 listings)
   - Max center opacity: ~0.45 (high-density hotspots)
+  - MIN_FLOOR: 10 (prevents single-listing saturation)
   - Edge always fades to 0
 - Additive blending, depth write disabled, transparent
 - Non-interactive (clicks pass through to RegionZone below)
+- **Noise distortion:** Clouds use Perlin noise to break the uniform elliptical shape into organic nebula forms. Applied as a texture-space distortion on the cloud's alpha channel:
+  - Generate a 256x256 Perlin noise texture (computed once per region, not per-frame)
+  - Noise scale: ~3.0 octaves for coarse structure, ~0.5 amplitude for aggressive shape variation
+  - The noise modulates the radial gradient alpha: `finalAlpha = baseGradientAlpha * (0.5 + noise * 0.8)`
+  - At 0.8 amplitude, some areas of the cloud will nearly vanish while others intensify — creating tendrils and gaps rather than smooth ellipses
+  - Each region gets a unique noise seed (derived from region name hash) so no two clouds look alike
+  - Can be tuned down by reducing the 0.8 multiplier if the effect is too aggressive
 
 ### Hover Effect
 
 **On mouseover (any system):**
-- Large warm radial bloom appears (radius ~6x system dot size)
-- Gradient: center #ffcc66 → #ffaa33 → #ff8800 → transparent
-- Bordered name label floats above system:
-  - Background: rgba(0,0,0,0.75)
-  - Border: 1px solid #ff8c00
-  - Text: #ffcc88, monospace, bold
-  - Border radius: 3px
+- **Two-layer cinematic bloom:**
+  - **Inner glow** (fast): sharp bright halo, fades in ~100ms, radius ~3x system dot, color #ffcc66 at center
+  - **Outer halo** (delayed): soft wide bloom, fades in ~150ms after inner, radius ~8x system dot, color #ff8800 with low opacity
+  - This staged reveal creates a "lighting up" moment — the system ignites from within rather than just appearing
+- **HUD-style scanner label** floats above system:
+  - Thin uppercase text, letter-spacing 0.1em, font-size 0.7rem
+  - Color: #ffcc88 on rgba(0,0,0,0.8) background
+  - Faint horizontal rule extends left and right from the text (~20px each side, 1px solid #ff8c0040)
+  - Subtle vertical connector line from label down to system dot (1px solid #ff8c0030, dashed)
   - Positioned via R3F `Html` component (camera-facing)
+  - Feels like an in-universe scanner readout, not a generic tooltip
 
 **On mouseout:**
-- Bloom and label fade out (CSS transition or spring animation, ~200ms)
+- Outer halo fades first (~150ms), then inner glow (~100ms) — reverse of the reveal order
+- Label fades with the outer halo
 
 ### Click / Selection
 
 **On click (system):**
-- Selection locks: persistent bloom stays visible
-- Animated pulse: bloom radius oscillates slightly (sine wave, subtle)
+- Selection locks: persistent bloom stays visible (both inner + outer layers)
+- **Breathing pulse:** bloom *opacity* oscillates between 0.6–1.0 at ~1.5s period (sine wave). Pulsing opacity rather than radius avoids jitter and looks like a calm breathing rhythm.
 - RegionPanel sidebar opens for the system's region
 - Camera smooth-pans to region centroid (existing CameraFocus behavior)
 
@@ -90,6 +103,14 @@ Replace the current cold cyan point-sprite star map with a polished warm amber v
 - **HoloGrid** — removed entirely. Pure black background.
 - **IntelNebula** — replaced by region clouds (different component, different rendering approach)
 
+### Background Vignette (new)
+
+- Fullscreen quad behind everything with a subtle radial vignette
+- Corners darken to ~#000000, center stays at scene background (#050505)
+- Very faint — just enough to add depth and frame the galaxy without being noticeable
+- Single `PlaneGeometry` with a custom shader or a `<sprite>` with a radial gradient texture
+- No performance cost (one extra draw call)
+
 ### Kept Components (no changes)
 
 - **StarField** — ambient parallax star particles (drei Stars helper)
@@ -105,9 +126,9 @@ All components live under `frontend/src/components/star-map/`.
 
 | Component | Action | Notes |
 |-----------|--------|-------|
-| `GalaxyParticles.tsx` | Modify | Warm amber color, larger point size, add hover/click raycasting |
-| `IntelNebula.tsx` | Replace | New `RegionClouds.tsx` component with diffuse fog |
-| `StarMapScene.tsx` | Modify | Wire up hover/click state, remove HoloGrid, clean up unused hooks |
+| `GalaxyParticles.tsx` | Modify | Warm amber, custom ShaderMaterial with flicker, hover/click raycasting |
+| `IntelNebula.tsx` | Replace | New `RegionClouds.tsx` — noise-distorted diffuse fog per region |
+| `StarMapScene.tsx` | Modify | Wire up hover/click state, add vignette, remove HoloGrid, clean up unused hooks |
 | `HoloGrid.tsx` | Remove | No longer rendered |
 | `RegionZone.tsx` | Keep | Invisible click targets unchanged |
 | `StarField.tsx` | Keep | No changes |
@@ -142,11 +163,13 @@ This uses a linear clamp rather than relative-to-max, so opacity is stable regar
 
 ## Performance Considerations
 
-- Region clouds: one sprite/mesh per region (~10-50 total) — negligible vs 24K particles
+- Region clouds: one mesh per region (~10-50 total) with pre-computed noise textures — negligible vs 24K particles
+- Noise textures: 256x256 per region, generated once on mount (not per-frame). ~10-50 small textures in GPU memory.
 - Hover detection: raycasting on `<points>` with 50ms throttle to limit CPU cost
+- Ambient flicker: single `uTime` uniform update per frame via `useFrame` — no per-vertex CPU work, GPU handles the sine computation
 - Selection state: single `useState<bigint | null>` for selected system ID
 - Label rendering: single `Html` component, only mounted when hovering/selected
-- No new textures needed — procedural radial gradient (existing pattern)
+- Vignette: single fullscreen quad — one extra draw call
 - **Cleanup:** `useHeatMap` and `useActiveSystems` hooks in StarMapScene may become dead code after IntelNebula is replaced. Evaluate during implementation — region centroids can be computed from `RegionHeatData.hull` points instead.
 
 ## Data Flow
