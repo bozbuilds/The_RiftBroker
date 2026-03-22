@@ -77,11 +77,12 @@ export function CreateListing() {
     return jumpEvents.filter(j => gateSystemIds.get(j.destinationGateId) === sysNum)
   }, [jumpEvents, systemId, gateSystemIds])
 
-  // Filter killmails to only those in the selected system
+  // Filter killmails to only those in the selected system, sorted newest first
   const filteredKillmails = useMemo(() => {
-    if (!systemId) return killmails
-    const sysStr = systemId.toString()
-    return killmails.filter(km => km.solarSystemId === sysStr)
+    const filtered = systemId
+      ? killmails.filter(km => km.solarSystemId === systemId.toString())
+      : killmails
+    return [...filtered].sort((a, b) => Number(b.killTimestamp - a.killTimestamp))
   }, [killmails, systemId])
 
   // Filter deposits to only those whose SSU is in the selected system
@@ -756,7 +757,7 @@ export function CreateListing() {
                   <option value="">— Select a killmail —</option>
                   {filteredKillmails.map((km, idx) => (
                     <option key={`${km.txDigest}-${idx}`} value={km.txDigest}>
-                      {new Date(Number(km.killTimestamp) * 1000).toLocaleDateString()} — {km.lossType?.toLowerCase() ?? 'unknown'}
+                      {new Date(Number(km.killTimestamp) * 1000).toLocaleString()} — {km.lossType?.toLowerCase() ?? 'unknown'}
                     </option>
                   ))}
                 </select>
