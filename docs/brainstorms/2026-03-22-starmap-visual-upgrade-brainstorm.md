@@ -161,6 +161,57 @@ Formula: `baseOpacity + Math.min(listingCount / MIN_FLOOR, 1) * opacityRange`
 
 This uses a linear clamp rather than relative-to-max, so opacity is stable regardless of how many listings exist globally.
 
+## UI Palette Warm-Shift
+
+The current UI palette is built around a cold cyan axis (`--hud-cyan: #0ea5e9`, 47 references in index.css). Against warm amber systems, every panel border, button highlight, and heading glow will feel like a different app. The palette needs a coherent warm-shift.
+
+### Approach
+
+**Warm-shift the existing palette** — not a full rebrand, but a temperature adjustment so the HUD harmonizes with the amber star field while keeping its sci-fi character.
+
+### Current → New Variable Map
+
+| Variable | Current | New | Rationale |
+|----------|---------|-----|-----------|
+| `--bg-primary` | `#0a0e17` (blue-black) | `#0a0a0d` (warm near-black) | Subtle shift, removes blue undertone |
+| `--bg-secondary` | `rgba(10, 14, 23, 0.85)` | `rgba(12, 10, 8, 0.85)` | Warm undertone |
+| `--bg-tertiary` | `rgba(15, 20, 30, 0.9)` | `rgba(16, 14, 12, 0.9)` | Warm undertone |
+| `--bg-elevated` | `rgba(20, 28, 40, 0.9)` | `rgba(22, 18, 14, 0.9)` | Warm undertone |
+| `--text-primary` | `#e0ecff` (blue-white) | `#ede6db` (warm white) | Warmer, less clinical |
+| `--text-secondary` | `#8ecae6` (cyan) | `#c4a87a` (muted gold) | Matches amber palette |
+| `--text-muted` | `#4a6a7a` (cold gray) | `#6a5a48` (warm gray) | Harmonizes with amber |
+| `--hud-cyan` | `#0ea5e9` (cyan) | `#d4a853` (warm gold) | Primary accent shift — gold replaces cyan |
+| `--hud-cyan-dim` | `rgba(14, 116, 144, 0.3)` | `rgba(212, 168, 83, 0.3)` | Dim version of gold |
+| `--hud-glow` | cyan box-shadow | `0 0 8px rgba(212, 168, 83, 0.4), 0 0 20px rgba(212, 168, 83, 0.1)` | Gold glow |
+| `--hud-glow-strong` | cyan box-shadow | `0 0 12px rgba(212, 168, 83, 0.6), 0 0 30px rgba(212, 168, 83, 0.2)` | Strong gold glow |
+| `--border` | `rgba(14, 116, 144, 0.2)` | `rgba(212, 168, 83, 0.15)` | Subtle gold border |
+| `--border-bright` | `rgba(14, 165, 233, 0.3)` | `rgba(212, 168, 83, 0.3)` | Bright gold border |
+| `--panel-bg` | `rgba(10, 14, 23, 0.92)` | `rgba(10, 9, 7, 0.92)` | Warm panel background |
+
+### Variables That Stay Unchanged
+
+| Variable | Value | Rationale |
+|----------|-------|-----------|
+| `--accent-green` / `--success` | `#10b981` | Functional: success/verified states |
+| `--accent-red` / `--error` | `#ef4444` | Functional: errors, combat badge |
+| `--accent-orange` / `--warning` | `#f59e0b` | Functional: warnings |
+| `--accent-blue` | `#3b82f6` | Functional: route intel type |
+| `--accent-purple` | `#8b5cf6` | Functional: presence badge |
+| `--font-display` | `'Orbitron'` | Keep — fits sci-fi aesthetic |
+| `--font-mono` / `--font-sans` | `'JetBrains Mono'` | Keep — technical readability |
+| Badge CSS classes | Various | Keep — each has its own distinct color |
+
+### Rename Consideration
+
+Since `--hud-cyan` will no longer be cyan, consider renaming to `--hud-accent` during implementation for semantic clarity. This is optional — the variable swap works either way since all 47 references use `var(--hud-cyan)`.
+
+### Scope
+
+- **index.css**: 47 `hud-cyan` references + ~15 variable declarations = all in `:root`
+- **Components**: No hardcoded colors to change — everything uses CSS variables
+- **3D scene**: Already being overhauled — no conflict
+- **Intel type neon colors** (`INTEL_TYPE_COLORS_NEON` in constants.ts): Keep as-is — those are for region cloud coloring, not HUD
+
 ## Performance Considerations
 
 - Region clouds: one mesh per region (~10-50 total) with pre-computed noise textures — negligible vs 24K particles
