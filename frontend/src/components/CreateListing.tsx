@@ -803,7 +803,7 @@ export function CreateListing() {
                   checked={attachStructure}
                   onChange={e => { setAttachStructure(e.target.checked); if (!e.target.checked) { setSelectedStructure(null); setBadgeSystemId(null) } }}
                 />
-                {' Structure Discovery'}
+                {' Structure Verified'}
               </label>
               {attachStructure && (
                 <>

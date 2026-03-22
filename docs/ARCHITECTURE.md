@@ -55,7 +55,7 @@ Input validation: intel type range, decay hours (1–8760), minimum price, minim
 |---|---|---|---|
 | Combat Verified | 0 | Red | `KillmailCreatedEvent` tx digest |
 | Activity Verified | 1 | Green | `ItemDepositedEvent` tx digest |
-| Structure Discovery | 2 | Blue | `LocationRevealedEvent` tx digest |
+| Structure Verified | 2 | Blue | `LocationRevealedEvent` tx digest |
 
 Badges are stored as `{ badge_type: u8, tx_digest: vector<u8> }` entries in the listing's `event_badges` vector. Multiple badges of different types can be attached to a single listing.
 
@@ -141,7 +141,7 @@ Not all verification requires ZK proofs. Public on-chain events can serve as tru
 1. **Combat Verified** (red) — Scout was involved in a kill near the intel location. Strongest signal because combat events are hard to fake and location-specific.
 2. **Presence Verified** (purple) — ZK proof of gate jump + proximity to target. Cryptographically verified on-chain.
 3. **Activity Verified** (green) — Scout deposited items at a nearby structure. Indicates physical presence.
-4. **Structure Discovery** (blue) — Scout revealed a structure's location. Weakest event badge but still on-chain evidence.
+4. **Structure Verified** (blue) — Scout revealed a structure's location. Weakest event badge but still on-chain evidence.
 5. **Proximity** (orange) — ZK distance proof from scout system to target system.
 6. **ZK-Verified** (cyan) — Legacy location knowledge proof. Only shown when no event badges are present.
 
@@ -170,7 +170,7 @@ Intel payloads are encrypted and stored on Walrus via HTTP API:
 
 ### React Frontend (off-chain)
 
-Dashboard with 234 tests across 17 test files:
+Dashboard with 235 tests across 17 test files:
 
 - **3D Nebula Map**: Three.js + React Three Fiber canvas visualization with additive sprite nebulae, region-based navigation, camera focus on selected systems, dynamic glow based on intel density
 - **Library layer**: PTB builders (`transactions.ts`), Seal wrappers (`seal.ts`), Walrus client (`walrus.ts`), ZK proof generation (`zk-proof.ts`), Zod schemas (`intel-schemas.ts`), galaxy coordinate data (`galaxy-data.ts`), region aggregation (`region-data.ts`), heat map data (`heat-map-data.ts`), badge rendering (`badge-verify.ts`), event queries (`events.ts` — JumpEvent, LocationRevealedEvent, KillmailEvent, InventoryEvent)

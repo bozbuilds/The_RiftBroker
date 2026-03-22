@@ -17,7 +17,7 @@ Buyer browses metadata → purchases listing → decrypts client-side
 - **Seal encryption** — SUI-native conditional decryption. Only buyers with a valid PurchaseReceipt can decrypt.
 - **Walrus storage** — Encrypted blobs stored on decentralized storage, retrieved by blob ID.
 - **On-chain presence proofs** — Scouts prove system presence via SUI blockchain events (JumpEvent + LocationRevealedEvent), verified through a unified Groth16 circuit. Earns a "Presence Verified" badge with purple glow.
-- **Stackable event badges** — Multiple verification badges per listing, each backed by a different on-chain event. Combat Verified (red, KillmailCreatedEvent), Activity Verified (green, ItemDepositedEvent), Structure Discovery (blue, LocationRevealedEvent). Trust hierarchy: Combat > Presence > Activity > Discovery > Proximity > ZK-Verified.
+- **Stackable event badges** — Multiple verification badges per listing, each backed by a different on-chain event. Combat Verified (red, KillmailCreatedEvent), Activity Verified (green, ItemDepositedEvent), Structure Verified (blue, LocationRevealedEvent). Trust hierarchy: Combat > Presence > Activity > Structure > Proximity > ZK-Verified.
 - **ZK proximity** — Distance from scout's entry gate to a target assembly, computed in-circuit and displayed as km / light-seconds / light-years. Uses per-assembly coordinates from on-chain events.
 - **ZK location proofs** (legacy) — Groth16 proof of coordinate knowledge using galaxy.json system centroids. Shown as a "ZK-Verified" fallback badge when no event badges are present. Retained for backward compatibility.
 - **Timestamp freshness** — Verified intel decays from observation time (JumpEvent block timestamp), not listing time. 24h staleness cap enforced on-chain.
@@ -28,10 +28,10 @@ Buyer browses metadata → purchases listing → decrypts client-side
 
 ## Deployed
 
-- **Contract**: `0x6d102eec...2637cd3f74` (SUI testnet)
-- **LocationVKey**: `0xc1c590a0...1ed817534`
-- **DistanceVKey**: `0xf2618435...7b4c980e7`
-- **PresenceVKey**: `0x2d3cc33f...fd14cb05`
+- **Contract**: `0x01b41b06...720e2c67` (SUI testnet)
+- **LocationVKey**: `0xb4f326a5...bf6fe2d`
+- **DistanceVKey**: `0xd1aa6cdd...4465130d`
+- **PresenceVKey**: `0x8f7fc8d6...5cdff0`
 
 ## Tech Stack
 
@@ -61,7 +61,7 @@ sui move test --path contracts    # 50 tests
 cd frontend
 pnpm install
 pnpm dev                          # http://localhost:5173
-pnpm test                         # 234 tests
+pnpm test                         # 235 tests
 pnpm build                        # Production build
 ```
 
