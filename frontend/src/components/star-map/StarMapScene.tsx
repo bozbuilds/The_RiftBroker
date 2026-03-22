@@ -6,46 +6,24 @@ import * as THREE from 'three'
 
 import type { GalaxySystem } from '../../lib/galaxy-data'
 import type { RegionHeatData } from '../../lib/region-data'
-import type { SystemHeatData } from '../../lib/heat-map-data'
+import { hullCentroid } from '../../lib/hull'
 import { GalaxyParticles } from './GalaxyParticles'
 import { StarField } from './StarField'
-import { HoloGrid } from './HoloGrid'
-import { IntelNebula } from './IntelNebula'
+import { RegionClouds } from './RegionClouds'
 import { RegionZone } from './RegionZone'
+import { Vignette } from './Vignette'
+import { SystemLabel } from './SystemLabel'
+import { SystemBloom } from './SystemBloom'
 
 interface StarMapSceneProps {
-  /** All galaxy systems — rendered as background particles. */
   readonly systems: readonly GalaxySystem[]
   readonly filteredRegions: RegionHeatData[]
-  readonly systemHeats: SystemHeatData[]
   readonly panelOpen: boolean
   readonly onRegionClick: (regionName: string) => void
 }
 
-/** O(1) heat lookup by system ID. */
-function useHeatMap(systemHeats: SystemHeatData[]) {
-  return useMemo(
-    () => new Map(systemHeats.map((h) => [h.systemId, h])),
-    [systemHeats],
-  )
-}
-
-/** Build O(1) system lookup and filter to intel-active systems only. */
-function useActiveSystems(systems: readonly GalaxySystem[], heatMap: Map<bigint, SystemHeatData>) {
-  return useMemo(() => {
-    const sysMap = new Map(systems.map((s) => [s.id, s]))
-    return Array.from(heatMap.values())
-      .map((heat) => ({ heat, system: sysMap.get(heat.systemId) }))
-      .filter((x): x is { heat: SystemHeatData; system: GalaxySystem } => x.system != null)
-  }, [systems, heatMap])
-}
-
 // ─── Pure utilities (exported for testing) ───────────────────────────────────
 
-/**
- * Compute the XZ centroid of a set of scene-space positions.
- * Returns null for an empty array (no intel activity to orient toward).
- */
 export function computeCentroid(
   systems: readonly { x: number; z: number }[],
 ): { cx: number; cz: number } | null {
@@ -57,10 +35,6 @@ export function computeCentroid(
 
 // ─── Camera controllers (inside Canvas) ─────────────────────────────────────
 
-/**
- * Orients the camera toward the centroid of intel-active systems on first load.
- * Runs once after OrbitControls registers as default; does nothing thereafter.
- */
 function CameraAutoOrient({ centroid }: { centroid: { cx: number; cz: number } | null }) {
   const { camera, controls } = useThree()
   const oriented = useRef(false)
@@ -79,10 +53,6 @@ function CameraAutoOrient({ centroid }: { centroid: { cx: number; cz: number } |
 const LERP_SPEED = 0.07
 const ARRIVE_THRESHOLD_SQ = 0.01
 
-/**
- * Smoothly pans the camera + orbit target to a focus point when a region is clicked.
- * Preserves the current viewing angle and distance — only translates the focus.
- */
 function CameraFocus({ target }: { target: { cx: number; cz: number } | null }) {
   const { camera, controls } = useThree()
   const focusRef = useRef<{ cx: number; cz: number } | null>(null)
@@ -96,20 +66,16 @@ function CameraFocus({ target }: { target: { cx: number; cz: number } | null }) 
     const ctrl = controls as any
     if (!focus || !ctrl?.target) return
 
-    // Current offset from orbit target to camera (preserves viewing angle)
     const offX = camera.position.x - ctrl.target.x
     const offY = camera.position.y - ctrl.target.y
     const offZ = camera.position.z - ctrl.target.z
 
-    // Lerp orbit target toward focus centroid
     ctrl.target.x += (focus.cx - ctrl.target.x) * LERP_SPEED
     ctrl.target.z += (focus.cz - ctrl.target.z) * LERP_SPEED
 
-    // Move camera to maintain same offset
     camera.position.set(ctrl.target.x + offX, ctrl.target.y + offY, ctrl.target.z + offZ)
     ctrl.update()
 
-    // Stop when close enough
     const dx = focus.cx - ctrl.target.x
     const dz = focus.cz - ctrl.target.z
     if (dx * dx + dz * dz < ARRIVE_THRESHOLD_SQ) {
@@ -126,51 +92,63 @@ function CameraFocus({ target }: { target: { cx: number; cz: number } | null }) 
 
 const IS_MOBILE = typeof window !== 'undefined' && window.innerWidth < 768
 
-/**
- * Full 3D star map scene.
- * Background: instanced GalaxyParticles (all ~24K systems, blue-navy).
- * Foreground: IntelNebula glow clouds for intel-active systems.
- */
 export function StarMapScene({
   systems,
   filteredRegions,
-  systemHeats,
   panelOpen,
   onRegionClick,
 }: StarMapSceneProps) {
-  const heatMap = useHeatMap(systemHeats)
-  const activeSystems = useActiveSystems(systems, heatMap)
   const [focusTarget, setFocusTarget] = useState<{ cx: number; cz: number } | null>(null)
+  const [hoveredSystem, setHoveredSystem] = useState<GalaxySystem | null>(null)
+  const [selectedSystem, setSelectedSystem] = useState<GalaxySystem | null>(null)
 
-  const centroid = useMemo(
-    () => computeCentroid(activeSystems.map(({ system }) => system)),
-    [activeSystems],
-  )
+  // Centroid from regions with intel (for initial camera orientation)
+  const centroid = useMemo(() => {
+    const allHullPoints = filteredRegions.flatMap(r => r.hull.map(([x, z]) => ({ x, z })))
+    return computeCentroid(allHullPoints)
+  }, [filteredRegions])
 
   // Region centroids for camera focus on click
   const regionCentroids = useMemo(() => {
-    const sums = new Map<string, { sx: number; sz: number; n: number }>()
-    for (const { system } of activeSystems) {
-      const s = sums.get(system.region)
-      if (s) {
-        s.sx += system.x
-        s.sz += system.z
-        s.n++
-      } else {
-        sums.set(system.region, { sx: system.x, sz: system.z, n: 1 })
-      }
-    }
     const result = new Map<string, { cx: number; cz: number }>()
-    for (const [region, s] of sums)
-      result.set(region, { cx: s.sx / s.n, cz: s.sz / s.n })
+    for (const r of filteredRegions) {
+      const c = hullCentroid(r.hull)
+      if (c) result.set(r.regionName, c)
+    }
     return result
-  }, [activeSystems])
+  }, [filteredRegions])
 
   const handleRegionClick = useCallback((regionName: string) => {
     const c = regionCentroids.get(regionName)
     if (c) setFocusTarget(c)
     onRegionClick(regionName)
   }, [regionCentroids, onRegionClick])
+
+  const handleSystemClick = useCallback((system: GalaxySystem) => {
+    setSelectedSystem(prev => prev?.id === system.id ? null : system)
+    // If region has no intel centroid, use the clicked system's position as fallback focus
+    if (!regionCentroids.has(system.region))
+      setFocusTarget({ cx: system.x, cz: system.z })
+    handleRegionClick(system.region)
+  }, [handleRegionClick, regionCentroids])
+
+  const handleSystemHover = useCallback((system: GalaxySystem | null) => {
+    setHoveredSystem(system)
+  }, [])
+
+  // Escape key deselects
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSelectedSystem(null)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [])
+
+  // Hover shows region name by default; individual system names only within selected region
+  const hoverInSelectedRegion = selectedSystem && hoveredSystem
+    && hoveredSystem.region === selectedSystem.region
+    && hoveredSystem.id !== selectedSystem.id
 
   return (
     <Canvas
@@ -185,13 +163,10 @@ export function StarMapScene({
       <CameraAutoOrient centroid={centroid} />
       <CameraFocus target={focusTarget} />
 
+      <Vignette />
       <StarField />
-      <HoloGrid />
 
-      {/* Background star field — all real systems, no interactivity */}
-      {!IS_MOBILE && systems.length > 0 && (
-        <GalaxyParticles systems={systems} />
-      )}
+      <RegionClouds regions={filteredRegions} />
 
       {filteredRegions.map((r) => (
         <RegionZone
@@ -201,7 +176,53 @@ export function StarMapScene({
         />
       ))}
 
-      <IntelNebula systems={activeSystems} onRegionClick={handleRegionClick} />
+      {!IS_MOBILE && systems.length > 0 && (
+        <GalaxyParticles
+          systems={systems}
+          highlightRegion={selectedSystem?.region ?? null}
+          onSystemHover={handleSystemHover}
+          onSystemClick={handleSystemClick}
+        />
+      )}
+
+      {/* Selected system — persistent bloom + label */}
+      {selectedSystem && (
+        <>
+          <SystemBloom
+            position={[selectedSystem.x, selectedSystem.y, selectedSystem.z]}
+            mode="selected"
+          />
+          <SystemLabel
+            name={selectedSystem.name}
+            subtitle={selectedSystem.region}
+            position={[selectedSystem.x, selectedSystem.y, selectedSystem.z]}
+            selected
+          />
+        </>
+      )}
+
+      {/* Hover within selected region — system name + hover bloom */}
+      {hoverInSelectedRegion && hoveredSystem && (
+        <>
+          <SystemBloom
+            position={[hoveredSystem.x, hoveredSystem.y, hoveredSystem.z]}
+            mode="hover"
+          />
+          <SystemLabel
+            name={hoveredSystem.name}
+            subtitle={hoveredSystem.region}
+            position={[hoveredSystem.x, hoveredSystem.y, hoveredSystem.z]}
+          />
+        </>
+      )}
+
+      {/* Hover outside selected region — region name, no bloom */}
+      {hoveredSystem && !hoverInSelectedRegion && hoveredSystem.id !== selectedSystem?.id && (
+        <SystemLabel
+          name={hoveredSystem.region}
+          position={[hoveredSystem.x, hoveredSystem.y, hoveredSystem.z]}
+        />
+      )}
 
       <OrbitControls
         makeDefault

@@ -189,7 +189,6 @@ export function App() {
         <StarMapScene
           systems={galaxy?.systems ?? []}
           filteredRegions={filteredRegionData}
-          systemHeats={heatMap.systems}
           panelOpen={panel.kind !== 'none'}
           onRegionClick={(name) => {
             clearSelection()
@@ -260,6 +259,12 @@ export function App() {
               onSelectListing={selectListing}
               onClose={closePanel}
             />
+          )}
+
+          {panel.kind === 'region' && !activeRegion && (
+            <FloatingPanel title={panel.regionName} onClose={closePanel}>
+              <p className="empty-state">No intel available in this region.</p>
+            </FloatingPanel>
           )}
 
           {panel.kind === 'browse' && (

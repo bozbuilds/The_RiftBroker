@@ -10,7 +10,7 @@ interface RegionZoneProps {
 
 /**
  * Invisible click target for a region.
- * No visual, no hover — IntelNebula sprites handle glow + tooltip.
+ * No visual, no hover — RegionClouds handles the diffuse fog overlay.
  * This provides a catch-all click area so the user can click
  * anywhere inside the region hull to open the region panel.
  */
