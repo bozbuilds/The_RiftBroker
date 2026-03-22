@@ -144,7 +144,7 @@ TheRiftBroker/
 | Frontend (Vitest) | 234 |
 | **Total** | **284** |
 
-## Upcoming Features
+## Future Features
 
 - **Player proximity** — Prove distance to another player's ship. The ZK circuit supports any coordinate source; only the data availability is missing. Requires CCP Games to emit player position events on-chain.
 - **Resource proximity** — Prove distance to rifts, asteroids, or other resources. Requires CCP to publish resource locations on-chain or via PODs.

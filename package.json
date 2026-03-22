@@ -1,0 +1,8 @@
+{
+	"dependencies": {
+		"gh": "^2.8.9",
+		"poseidon": "^0.3.2",
+		"rustup": "^1.0.10",
+		"switcher": "^1.0.1"
+	}
+}
