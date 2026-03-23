@@ -94,7 +94,7 @@ export function InfoModal({ open, onClose }: InfoModalProps) {
               <li>On-chain verified intel — presence proofs backed by SUI blockchain events, not self-signed data</li>
               <li>Stackable event badges — Combat Verified (kills), Activity Verified (deposits), Structure Verified (reveals), each backed by an on-chain tx digest</li>
               <li>Timestamp-bound freshness — verified intel decays from observation time, not listing time</li>
-              <li>3D nebula heat map with region navigation</li>
+              <li>Interactive 3D star map — all 24K systems, per-type nebula clouds, system hover and region selection</li>
               <li>Seal encryption + Walrus decentralized storage</li>
               <li>Purchase history with decrypt-on-demand</li>
             </ul>
