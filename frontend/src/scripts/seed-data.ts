@@ -7,248 +7,247 @@ export interface SeedListing {
   readonly decayHours: bigint
   readonly stakeAmount: bigint
   readonly payload: IntelPayload
+  /** badge_type values to attach after creation: 0=combat, 1=activity, 2=structure */
+  readonly badges?: readonly (0 | 1 | 2)[]
 }
 
 export const SEED_LISTINGS: readonly SeedListing[] = [
-  // ── Dense cluster — 869-Y-51 region ──────────────────────────────────────
 
-  // Resource: OJG-K03
+  // ── 869-Y-51 region ──────────────────────────────────────────────────────
+
+  // Resource — no badge. Cheap tip, unverified.
   {
     intelType: 0,
     systemId: 30006118n,
-    price: 100_000_000n,
+    price: 8_000_000n,
     decayHours: 168n,
-    stakeAmount: 30_000_000n,
+    stakeAmount: 2_000_000n,
     payload: {
       type: 0,
-      systemId: '30006118',
+      systemId: 'OJG-K03',
       nearbyBody: 'Planet 3 Moon 1',
       resourceType: 'Feldspar Crystals',
       yieldTier: 'mid',
-      notes: 'Stable deposit, low traffic area',
+      notes: '[SEED] Stable deposit, low traffic',
     },
   },
-  // Resource: IHK-745
+
+  // Resource — Activity Verified. Scout deposited extracted material into a
+  // nearby SSU, confirming operational presence in the system.
   {
     intelType: 0,
     systemId: 30006094n,
-    price: 150_000_000n,
+    price: 14_000_000n,
     decayHours: 336n,
-    stakeAmount: 40_000_000n,
+    stakeAmount: 3_500_000n,
+    badges: [1],
     payload: {
       type: 0,
-      systemId: '30006094',
+      systemId: 'IHK-745',
       nearbyBody: 'P2-M1',
       resourceType: 'Hydrated Sulfide Matrix',
       yieldTier: 'high',
+      notes: '[SEED] Confirmed via on-chain deposit event',
     },
   },
-  // Fleet: ABT-MT2
-  {
-    intelType: 1,
-    systemId: 30006070n,
-    price: 120_000_000n,
-    decayHours: 168n,
-    stakeAmount: 35_000_000n,
-    payload: {
-      type: 1,
-      systemId: '30006070',
-      fleetSize: 12,
-      shipTypes: ['Frigate', 'Destroyer'],
-      heading: 'NW toward Core',
-      observedAt: '2026-03-12T10:30:00Z',
-    },
-  },
-  // Fleet: ILG-F13
-  {
-    intelType: 1,
-    systemId: 30006045n,
-    price: 200_000_000n,
-    decayHours: 504n,
-    stakeAmount: 50_000_000n,
-    payload: {
-      type: 1,
-      systemId: '30006045',
-      fleetSize: 25,
-      shipTypes: ['Frigate', 'Cruiser', 'Battleship', 'Destroyer'],
-      heading: 'Stationary — gate camp',
-      observedAt: '2026-03-12T08:00:00Z',
-    },
-  },
-  // Base: OB1-7J3
+
+  // Base — Structure Verified. Discovered via LocationRevealedEvent when the
+  // scout triggered a Smart Gate in system.
   {
     intelType: 2,
     systemId: 30006021n,
-    price: 150_000_000n,
-    decayHours: 720n,
-    stakeAmount: 40_000_000n,
+    price: 17_000_000n,
+    decayHours: 504n,
+    stakeAmount: 4_000_000n,
+    badges: [2],
     payload: {
       type: 2,
-      systemId: '30006021',
+      systemId: 'OB1-7J3',
       structureType: 'Smart Storage Unit',
       defenseLevel: 7,
       ownerTribe: 'Iron Guard',
+      notes: '[SEED] Location binding from on-chain gate traversal',
     },
   },
-  // Base: I53-P81
+
+  // ── K4T-Y region ──────────────────────────────────────────────────────────
+
+  // Fleet — Combat Verified. Scout confirmed this camp after engaging — the
+  // killmail binds the intel to the on-chain kill event.
+  {
+    intelType: 1,
+    systemId: 30021737n,
+    price: 18_000_000n,
+    decayHours: 168n,
+    stakeAmount: 4_500_000n,
+    badges: [0],
+    payload: {
+      type: 1,
+      systemId: 'EQ6-V9N',
+      fleetSize: 18,
+      shipTypes: ['Frigate', 'Cruiser', 'Interceptor'],
+      heading: 'Stationary — gate camp on O5K-KCN',
+      observedAt: '2026-03-21T04:10:00Z',
+      notes: '[SEED] Scout was engaged. Combat Verified via killmail.',
+    },
+  },
+
+  // Base — Combat + Activity + Structure. Full attestation stack — premium listing.
+  // Scout triggered a gate (Structure), deposited resources (Activity),
+  // and survived a skirmish (Combat) all in the same operation.
   {
     intelType: 2,
-    systemId: 30005997n,
-    price: 180_000_000n,
-    decayHours: 504n,
-    stakeAmount: 45_000_000n,
+    systemId: 30021734n,
+    price: 35_000_000n,
+    decayHours: 720n,
+    stakeAmount: 8_000_000n,
+    badges: [0, 1, 2],
     payload: {
       type: 2,
-      systemId: '30005997',
+      systemId: 'O5K-KCN',
       structureType: 'Smart Turret',
       defenseLevel: 9,
+      ownerTribe: 'Dusk Covenant',
+      notes: '[SEED] Triple-verified. Scout engaged hostiles, deposited via SSU, gate traversal recorded. Highest confidence rating.',
     },
   },
 
-  // ── Scattered singles — 6 distinct regions ────────────────────────────────
+  // ── PJ1-Y-33 region ───────────────────────────────────────────────────────
 
-  // Resource: EQ6-V9N (K4T-Y)
-  {
-    intelType: 0,
-    systemId: 30021737n,
-    price: 200_000_000n,
-    decayHours: 720n,
-    stakeAmount: 50_000_000n,
-    payload: {
-      type: 0,
-      systemId: '30021737',
-      nearbyBody: 'P4-M2',
-      resourceType: 'Deep-Core Carbon',
-      yieldTier: 'high',
-    },
-  },
-  // Resource: I75-7RC (PJ1-Y-33)
+  // Resource — no badge.
   {
     intelType: 0,
     systemId: 30018133n,
-    price: 80_000_000n,
+    price: 7_000_000n,
     decayHours: 240n,
-    stakeAmount: 20_000_000n,
+    stakeAmount: 1_800_000n,
     payload: {
       type: 0,
-      systemId: '30018133',
+      systemId: 'I75-7RC',
       nearbyBody: 'Planet 1',
       resourceType: 'Ice Shards',
       yieldTier: 'low',
-      notes: 'Contested — hostiles seen in system',
+      notes: '[SEED] Contested — hostiles seen nearby',
     },
   },
-  // Fleet: ETT-73N (877-Y-L1)
+
+  // Route — no badge. Raw tip, buyer beware.
+  {
+    intelType: 3,
+    systemId: 30018130n,
+    price: 9_000_000n,
+    decayHours: 240n,
+    stakeAmount: 2_200_000n,
+    payload: {
+      type: 3,
+      originSystemId: 'O3C-8LF',
+      destSystemId: 'ETT-73N',
+      threatLevel: 4,
+      gateCamps: [],
+      notes: '[SEED] Clear run observed during off-peak hours',
+    },
+  },
+
+  // ── 877-Y-L1 region ───────────────────────────────────────────────────────
+
+  // Fleet — Activity + Structure Verified. Scout activity at nearby SSU and
+  // gate traversal both visible on-chain.
   {
     intelType: 1,
     systemId: 30017833n,
-    price: 90_000_000n,
-    decayHours: 168n,
-    stakeAmount: 25_000_000n,
+    price: 22_000_000n,
+    decayHours: 336n,
+    stakeAmount: 5_500_000n,
+    badges: [1, 2],
     payload: {
       type: 1,
-      systemId: '30017833',
-      fleetSize: 8,
-      shipTypes: ['Frigate', 'Interceptor'],
+      systemId: 'ETT-73N',
+      fleetSize: 11,
+      shipTypes: ['Destroyer', 'Cruiser'],
       heading: 'S toward Southern Expanse',
-      observedAt: '2026-03-12T14:15:00Z',
+      observedAt: '2026-03-21T11:45:00Z',
+      notes: '[SEED] Confirmed via deposit + gate events. Moving south, likely raiding.',
     },
   },
-  // Base: E71-QGJ (L74-Y-21)
-  {
-    intelType: 2,
-    systemId: 30009437n,
-    price: 130_000_000n,
-    decayHours: 720n,
-    stakeAmount: 35_000_000n,
-    payload: {
-      type: 2,
-      systemId: '30009437',
-      structureType: 'Smart Storage Unit',
-      defenseLevel: 6,
-      ownerTribe: 'Void Runners',
-    },
-  },
-  // Fleet: OS7-VMC (398-6Y-J)
+
+  // ── 398-6Y-J region ───────────────────────────────────────────────────────
+
+  // Fleet — Combat + Structure Verified. Scout triggered a gate and got jumped.
   {
     intelType: 1,
     systemId: 30001167n,
-    price: 180_000_000n,
-    decayHours: 336n,
-    stakeAmount: 45_000_000n,
+    price: 25_000_000n,
+    decayHours: 168n,
+    stakeAmount: 6_000_000n,
+    badges: [0, 2],
     payload: {
       type: 1,
-      systemId: '30001167',
-      fleetSize: 5,
+      systemId: 'OS7-VMC',
+      fleetSize: 6,
       shipTypes: ['Cruiser', 'Battleship'],
-      observedAt: '2026-03-11T18:00:00Z',
+      heading: 'Holding on gate — ambush formation',
+      observedAt: '2026-03-21T15:00:00Z',
+      notes: '[SEED] Scout was ambushed here. Combat Verified. Structure event confirms position.',
     },
   },
-  // Resource: IG1-NV6 (R62-Y-04)
+
+  // ── R62-Y-04 region ───────────────────────────────────────────────────────
+
+  // Resource — Structure Verified. Gate traversal confirmed scout was in system.
   {
     intelType: 0,
     systemId: 30014670n,
-    price: 70_000_000n,
+    price: 13_000_000n,
     decayHours: 336n,
-    stakeAmount: 20_000_000n,
+    stakeAmount: 3_200_000n,
+    badges: [2],
     payload: {
       type: 0,
-      systemId: '30014670',
+      systemId: 'IG1-NV6',
       nearbyBody: 'P1-M3',
       resourceType: 'Compressed Regolith',
       yieldTier: 'mid',
+      notes: '[SEED] Gate traversal on record — scout was here.',
     },
   },
 
-  // ── Route intel — cross-region ────────────────────────────────────────────
-
-  // Route: K4T-Y → PJ1-Y-33
-  {
-    intelType: 3,
-    systemId: 30021734n,
-    price: 160_000_000n,
-    decayHours: 504n,
-    stakeAmount: 40_000_000n,
-    payload: {
-      type: 3,
-      originSystemId: '30021734',
-      destSystemId: '30018130',
-      threatLevel: 8,
-      gateCamps: [
-        { systemId: '30021735', description: 'Bubble camp on O5K-KCN gate' },
-      ],
-    },
-  },
-  // Route: 877-Y-L1 → 398-6Y-J
-  {
-    intelType: 3,
-    systemId: 30017830n,
-    price: 50_000_000n,
-    decayHours: 240n,
-    stakeAmount: 20_000_000n,
-    payload: {
-      type: 3,
-      originSystemId: '30017830',
-      destSystemId: '30001164',
-      threatLevel: 3,
-      gateCamps: [],
-    },
-  },
-  // Route: R62-Y-04 → L74-Y-21
+  // Route — no badge. Cross-region route with a known camp.
   {
     intelType: 3,
     systemId: 30014667n,
-    price: 110_000_000n,
+    price: 11_000_000n,
     decayHours: 336n,
-    stakeAmount: 30_000_000n,
+    stakeAmount: 2_800_000n,
     payload: {
       type: 3,
-      originSystemId: '30014667',
-      destSystemId: '30009434',
+      originSystemId: 'I55-6J7',
+      destSystemId: 'E71-QGJ',
       threatLevel: 6,
       gateCamps: [
-        { systemId: '30014668', description: 'Gate camp at I55-6J7 Smart Gate' },
+        { systemId: 'I55-6J7', description: '[SEED] Gate camp at I55-6J7 Smart Gate' },
       ],
+      notes: '[SEED]',
+    },
+  },
+
+  // ── L74-Y-21 region ───────────────────────────────────────────────────────
+
+  // Fleet — Combat Verified. Scout confirmed kill, badge is the receipt.
+  {
+    intelType: 1,
+    systemId: 30009437n,
+    price: 16_000_000n,
+    decayHours: 168n,
+    stakeAmount: 4_000_000n,
+    badges: [0],
+    payload: {
+      type: 1,
+      systemId: 'E71-QGJ',
+      fleetSize: 4,
+      shipTypes: ['Battleship', 'Cruiser'],
+      heading: 'NE — suspected hunting patrol',
+      observedAt: '2026-03-21T22:30:00Z',
+      notes: '[SEED] Combat Verified — killmail on-chain. Small but dangerous.',
     },
   },
 ]

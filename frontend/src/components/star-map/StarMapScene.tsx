@@ -166,7 +166,7 @@ export function StarMapScene({
       <Vignette />
       <StarField />
 
-      <RegionClouds regions={filteredRegions} />
+      <RegionClouds regions={filteredRegions} systems={systems} />
 
       {filteredRegions.map((r) => (
         <RegionZone

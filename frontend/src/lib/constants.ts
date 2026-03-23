@@ -7,6 +7,9 @@ export const PACKAGE_ID = '0x01b41b06eb493c65575ac7a504a2923cdde4fb54859b1a8f7a9
 // SUI shared Clock object
 export const CLOCK_ID = '0x6'
 
+// Seed wallet — listings from this address show a "Demo" badge in the UI
+export const SEED_SCOUT_ADDRESS = '0x42a0c3adb1991438134869f0df7dbfc81a1b9911091516b8a2684d240083769b'
+
 // Seal testnet key servers (open mode)
 // Source: https://seal-docs.wal.app/Pricing/
 export const SEAL_KEY_SERVERS = [

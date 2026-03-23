@@ -1225,6 +1225,20 @@ button {
   margin-top: 8px;
 }
 
+.listing-demo-badge {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #8a8a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border: 1px solid #8a8a8a;
+  border-radius: var(--radius);
+  align-self: center;
+  margin-left: 8px;
+}
+
 .listing-owned-badge {
   font-family: var(--font-display);
   font-size: 0.6rem;

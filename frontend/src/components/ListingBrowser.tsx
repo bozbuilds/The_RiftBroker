@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP } from '../lib/constants'
+import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP, SEED_SCOUT_ADDRESS } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
 import { isExpired, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
@@ -156,6 +156,9 @@ export function ListingBrowser({
                 <span className="listing-item-type">
                   {INTEL_TYPE_LABEL_MAP[listing.intelType] ?? 'Unknown'}
                 </span>
+                {listing.scout.toLowerCase() === SEED_SCOUT_ADDRESS.toLowerCase() && (
+                  <span className="listing-demo-badge">Demo</span>
+                )}
                 {owned && <span className="listing-owned-badge">Owned</span>}
                 {(() => {
                   const badges = getBadges(listing)

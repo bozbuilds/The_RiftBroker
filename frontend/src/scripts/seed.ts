@@ -16,6 +16,14 @@ import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc'
 import { SealClient } from '@mysten/seal'
 
 import { PACKAGE_ID, CLOCK_ID, SEAL_KEY_SERVERS } from '../lib/constants'
+
+/** Deterministic fake tx digest for demo badge attachment. */
+function fakeTxDigest(listingIndex: number, badgeIndex: number): number[] {
+  const bytes: number[] = []
+  for (let i = 0; i < 32; i++)
+    bytes.push((listingIndex * 1327 + badgeIndex * 233 + i * 97 + 41) & 0xff)
+  return bytes
+}
 import { encryptIntel } from '../lib/seal'
 import { uploadBlob } from '../lib/walrus'
 import { SEED_LISTINGS } from './seed-data'
@@ -125,6 +133,25 @@ async function main() {
         signer: keypair,
         transaction: setBlobTx,
       })
+
+      // Step 5: Attach event badges
+      const { Transaction: BadgeTx } = await import('@mysten/sui/transactions')
+      for (let b = 0; b < (listing.badges?.length ?? 0); b++) {
+        const badgeType = listing.badges![b]
+        const badgeNames = ['Combat', 'Activity', 'Structure']
+        console.log(`  Attaching ${badgeNames[badgeType]} badge...`)
+        await sleep(DELAY_MS)
+        const badgeTx = new BadgeTx()
+        badgeTx.moveCall({
+          target: `${PACKAGE_ID}::marketplace::attach_event_badge`,
+          arguments: [
+            badgeTx.object(listingId),
+            badgeTx.pure.u8(badgeType),
+            badgeTx.pure.vector('u8', fakeTxDigest(i, b)),
+          ],
+        })
+        await suiClient.signAndExecuteTransaction({ signer: keypair, transaction: badgeTx })
+      }
 
       created++
       console.log(`  Done.\n`)
