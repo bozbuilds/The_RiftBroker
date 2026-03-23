@@ -1,5 +1,6 @@
 import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 
 import { HeatMap } from './components/heat-map/HeatMap'
 import { HeatMapControls } from './components/heat-map/HeatMapControls'
@@ -293,6 +294,7 @@ export function App() {
         </>
       )}
       <InfoModal open={showInfo} onClose={() => setShowInfo(false)} />
+      <Analytics />
     </div>
   )
 }
