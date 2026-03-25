@@ -1,3 +1,4 @@
+import { getBadges } from './badge-verify'
 import type { IntelListingFields, IntelType } from './types'
 
 export interface SystemHeatData {
@@ -99,7 +100,7 @@ export function filterHeatMapData(
     if (filters.maxPrice !== undefined && system.avgPrice > filters.maxPrice)
       return false
     if (filters.verifiedOnly) {
-      const hasVerified = system.listings.some((l) => l.isVerified)
+      const hasVerified = system.listings.some((l) => l.isVerified || getBadges(l).length > 0)
       if (!hasVerified) return false
     }
     return true
