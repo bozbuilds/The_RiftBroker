@@ -15,7 +15,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc'
 import { SealClient } from '@mysten/seal'
 
-import { PACKAGE_ID, CLOCK_ID, SEAL_KEY_SERVERS } from '../lib/constants'
+import { PACKAGE_ID, CLOCK_ID, SCOUT_REGISTRY_ID, SEAL_KEY_SERVERS } from '../lib/constants'
 
 /** Deterministic fake tx digest for demo badge attachment. */
 function fakeTxDigest(listingIndex: number, badgeIndex: number): number[] {
@@ -48,6 +48,8 @@ async function main() {
   const address = keypair.getPublicKey().toSuiAddress()
   console.log(`Seeding with address: ${address}`)
   console.log(`Package ID: ${PACKAGE_ID}`)
+  if (!SCOUT_REGISTRY_ID)
+    throw new Error('SCOUT_REGISTRY_ID is empty — set it in constants.ts after Phase 4a deploy')
   console.log(`Listings to create: ${SEED_LISTINGS.length}\n`)
 
   const suiClient = new SuiJsonRpcClient({ url: RPC_URL })
@@ -74,6 +76,7 @@ async function main() {
       createTx.moveCall({
         target: `${PACKAGE_ID}::marketplace::create_listing`,
         arguments: [
+          createTx.object(SCOUT_REGISTRY_ID),
           createTx.pure.u8(listing.intelType),
           createTx.pure.u64(listing.systemId),
           createTx.pure.u64(listing.price),
@@ -145,9 +148,11 @@ async function main() {
         badgeTx.moveCall({
           target: `${PACKAGE_ID}::marketplace::attach_event_badge`,
           arguments: [
+            badgeTx.object(SCOUT_REGISTRY_ID),
             badgeTx.object(listingId),
             badgeTx.pure.u8(badgeType),
             badgeTx.pure.vector('u8', fakeTxDigest(i, b)),
+            badgeTx.object(CLOCK_ID),
           ],
         })
         await suiClient.signAndExecuteTransaction({ signer: keypair, transaction: badgeTx })

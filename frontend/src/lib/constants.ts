@@ -1,8 +1,8 @@
 // Galaxy data JSON (served from /public — relative URL works in dev and production)
 export const GALAXY_JSON_URL = '/galaxy.json'
 
-// Deployed on SUI testnet (2026-03-21) — Stackable event badges deploy
-export const PACKAGE_ID = '0x01b41b06eb493c65575ac7a504a2923cdde4fb54859b1a8f7a9cfe3e720e2c67'
+// Deployed on SUI testnet (2026-03-25) — Phase 4 scout reputation deploy
+export const PACKAGE_ID = '0xdb94b50f1dc1652d8a7a4299b6367c33a66ab2005fffd0f3815c325ab84d6f11'
 
 // SUI shared Clock object
 export const CLOCK_ID = '0x6'
@@ -44,10 +44,10 @@ export const INTEL_TYPE_COLORS_NEON: Record<number, string> = {
 }
 
 /** LocationVKey shared object ID — created by marketplace init(). */
-export const LOCATION_VKEY_ID = '0xb4f326a5dd8592e7d6b901d7a5ca38366f951240f94f2ad4e80605892bf6fe2d'
+export const LOCATION_VKEY_ID = '0x29f32b3394a9550176299f28d5d406cab8129f86524a61a15e0a66c0a60e42e4'
 
 /** DistanceVKey shared object ID — created by marketplace init(). */
-export const DISTANCE_VKEY_ID = '0xd1aa6cdd538f3c714ca799500d33a6c1d7f42d42826aa821b0fb7af54465130d'
+export const DISTANCE_VKEY_ID = '0x5087b225470a37ca587a6f73d7d17908500cb43df1e0ac8816eee962f4cdd477'
 
 /** EVE Frontier world-contracts package ID — Utopia (sandbox). */
 export const WORLD_PACKAGE_UTOPIA = '0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75'
@@ -59,13 +59,13 @@ export const WORLD_PACKAGE_STILLNESS = '0x28b497559d65ab320d9da4613bf2498d5946b2
 export const WORLD_PACKAGE_ID = WORLD_PACKAGE_STILLNESS
 
 /** PresenceVKey shared object ID — created by marketplace init(). */
-export const PRESENCE_VKEY_ID = '0x8f7fc8d6f07fbb9415683f65765a692dcb628f3d983063a0dc21c2452f5cdff0'
+export const PRESENCE_VKEY_ID = '0x671d42311c5fa43c690e112e1c41bdd86cd294fb35c8c0198c8a3ed535abed9a'
 
-/** ReputationVKey shared object ID — created by marketplace init() when Phase 4b package is deployed. */
-export const REPUTATION_VKEY_ID = ''
+/** ReputationVKey shared object ID — created by marketplace init(). */
+export const REPUTATION_VKEY_ID = '0xcb9a8de361a9d9b795ad4eef975339918c768b5d9dfdcf6efd9f5d3a9693bb41'
 
-/** ScoutRegistry shared object ID — created by marketplace init(). Set after deploy that includes Phase 4a. */
-export const SCOUT_REGISTRY_ID = ''
+/** ScoutRegistry shared object ID — created by marketplace init(). */
+export const SCOUT_REGISTRY_ID = '0xfcfdc4d5b07a9173b13f912541b3c50ffb2491058be6345709fae03b0148d778'
 
 /** Minimum total verified listings for a scout to pass the "Trusted Scouts" filter. */
 export const TRUSTED_SCOUT_MIN_VERIFIED = 5n

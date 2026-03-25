@@ -1,6 +1,6 @@
 # Architecture
 
-**Last Updated**: 2026-03-21
+**Last Updated**: 2026-03-25
 
 ## System Layers
 
@@ -27,24 +27,28 @@
 
 ### Move Contracts (on-chain)
 
-Single module: `rift_broker::marketplace` (~600 lines, 50 tests). Manages:
+Single module: `rift_broker::marketplace` (~900 lines, 63 tests). Manages:
 
 - **IntelListing** (shared object) — Unencrypted metadata + Walrus blob reference + staked `Balance<SUI>` + expiry via `created_at + decay_hours` + optional `location_proof_hash` for ZK location verification + optional `distance_proof_hash` for ZK proximity + `jump_tx_digest` for on-chain presence audit trail + `event_badges` vector for stackable event verification
 - **PurchaseReceipt** (owned, soulbound) — `key` only (no `store`), non-transferable proof of purchase for Seal decryption policy
 - **LocationVKey** (shared object) — Groth16 verification key for location attestation circuit, created once at package init
 - **DistanceVKey** (shared object) — Groth16 verification key for distance attestation circuit, created once at package init
 - **PresenceVKey** (shared object) — Groth16 verification key for unified presence-attestation circuit (Phase 5), created once at package init
+- **ReputationVKey** (shared object) — Groth16 verification key for reputation-attestation circuit (Phase 4b), created once at package init
+- **ScoutRegistry** (shared object) — Global registry that stores `ScoutProfileData` as dynamic fields keyed by scout address. Created once at package init; profiles are auto-created on first verified listing or badge attachment.
+- **ScoutProfileData** (dynamic field on ScoutRegistry) — Per-scout reputation state: per-badge-type counters (`total_zk_verified`, `total_presence_verified`, `total_combat_verified`, `total_activity_verified`, `total_structure_verified`, `total_unverified`), `first_verified_at` / `last_verified_at` timestamps, and an incremental Poseidon Merkle tree (depth 10, frontier-based: `merkle_root: u256`, `leaf_count: u64`, `frontier: vector<u256>`). ZK-proven reputation claims stored as parallel vectors.
 
 Key functions:
-- `create_listing` — Standard listing with optional empty blob (for two-step creation)
-- `create_verified_listing` — Listing with on-chain Groth16 location proof verification (128-byte proof points + public inputs)
+- `create_listing` — Standard listing with optional empty blob (for two-step creation). Increments `total_unverified` on scout profile.
+- `create_verified_listing` — Listing with on-chain Groth16 location proof verification (128-byte proof points + public inputs). Increments `total_zk_verified` + inserts Merkle leaf.
 - `attach_distance_proof` — Post-creation function to attach a ZK proximity proof to an existing listing
-- `create_presence_verified_listing` — Listing with unified presence proof: distance + timestamp + coordinate hashes + location_hash binding. Takes PresenceVKey, 160-byte public inputs (5×32), and JumpEvent tx digest for audit trail.
+- `create_presence_verified_listing` — Listing with unified presence proof: distance + timestamp + coordinate hashes + location_hash binding. Takes PresenceVKey, 160-byte public inputs (5×32), and JumpEvent tx digest for audit trail. Increments `total_presence_verified` + inserts Merkle leaf.
+- `attach_event_badge` — Post-creation function to attach a stackable event badge (badge_type + tx_digest) to an existing listing. Increments the corresponding badge counter + inserts Merkle leaf.
+- `attach_reputation_proof` — Verifies a Groth16 proof that the scout has N+ verified listings of a given badge type (via Merkle inclusion). Stores the proven claim in the profile's parallel vectors.
 - `purchase` — Payment to scout, overpayment refund, receipt minting
 - `delist` — Scout-only, refunds staked balance
 - `set_walrus_blob_id` — One-time blob ID setter for two-step creation
 - `seal_approve` / `seal_approve_scout` — Seal decryption policies
-- `attach_event_badge` — Post-creation function to attach a stackable event badge (badge_type + tx_digest) to an existing listing. Scout-only.
 - `burn_receipt` — Buyer-only receipt cleanup
 
 Input validation: intel type range, decay hours (1–8760), minimum price, minimum stake, badge type range (0–2).
@@ -131,6 +135,29 @@ Unified circuit that replaces both location and distance for on-chain verified l
 
 **Data requirements from CCP Games**: Currently verifies structure proximity (gates, SSUs). Player proximity and resource proximity require CCP to emit additional position events on-chain.
 
+#### Reputation Attestation (ZK Phase 4b)
+
+Proves a scout has N+ verified listings of a specific badge type using Merkle inclusion proofs over their personal history tree — without revealing the full tree or which specific listings were selected.
+
+**Circuit design** (`circuits/reputation-attestation/reputation-attestation.circom`):
+- Template: `ReputationAttestation(MAX_CLAIM=10, DEPTH=10)`
+- Public inputs: `merkleRoot` (current on-chain root), `claimBadgeType` (u8), `claimCount` (N)
+- Private inputs: `leaves[MAX_CLAIM]`, `pathElements[MAX_CLAIM][DEPTH]`, `pathIndices[MAX_CLAIM][DEPTH]`, `active[MAX_CLAIM]` (binary selector flags)
+- Constraints: binary flags enforced (`active[i] * (1-active[i]) === 0`), active count constrained via signal chain (not var), each active leaf verified against the Merkle root via MerkleProof, badge type match enforced per active leaf
+- Soundness: the signal chain for active count prevents a prover from claiming a higher count than the number of valid inclusions
+
+**On-chain** (`attach_reputation_proof`):
+1. Verify Groth16 proof with `ReputationVKey`
+2. Extract `merkle_root`, `claim_badge_type`, `claim_count` from public inputs
+3. Check extracted root matches the scout's current on-chain `merkle_root`
+4. Upsert the proven claim into `reputation_claim_types` / `reputation_claim_counts` parallel vectors
+
+**Merkle tree** (incremental, frontier-based):
+- Depth 10 → 1,024 max leaves per scout
+- Each verified event hashes `(system_id, intel_type, badge_type, timestamp)` via `poseidon::poseidon_bn254`
+- Frontier stores O(10) intermediate hashes — O(log n) gas per insert
+- Zero hashes precomputed off-chain via `circuits/scripts/compute-zero-hashes.mjs`
+
 #### Stackable Event Badges (Hybrid Verification)
 
 Not all verification requires ZK proofs. Public on-chain events can serve as trust signals directly via tx digest references, avoiding the overhead of circuit compilation and proof generation.
@@ -170,12 +197,12 @@ Intel payloads are encrypted and stored on Walrus via HTTP API:
 
 ### React Frontend (off-chain)
 
-Dashboard with 235 tests across 17 test files:
+Dashboard with 258 tests across 18 test files:
 
 - **3D Nebula Map**: Three.js + React Three Fiber canvas visualization with additive sprite nebulae, region-based navigation, camera focus on selected systems, dynamic glow based on intel density
-- **Library layer**: PTB builders (`transactions.ts`), Seal wrappers (`seal.ts`), Walrus client (`walrus.ts`), ZK proof generation (`zk-proof.ts`), Zod schemas (`intel-schemas.ts`), galaxy coordinate data (`galaxy-data.ts`), region aggregation (`region-data.ts`), heat map data (`heat-map-data.ts`), badge rendering (`badge-verify.ts`), event queries (`events.ts` — JumpEvent, LocationRevealedEvent, KillmailEvent, InventoryEvent)
-- **Hooks**: `useListings` (paginated event query → object fetch), `usePurchase` (sign + execute), `useDecrypt` (download → decrypt → validate), `useHeatMapData` (aggregate + 60s refresh), `useReceipts` (owned PurchaseReceipt query + listing join)
-- **Components**: `CreateListing` (two-step form with optional ZK verification toggle), `ListingBrowser` (filter by type/region/price/verified), `MyIntel` (purchase history + decrypt + receipt management), `MyListings` (scout listing management: delist, reclaim), `PurchaseFlow`, `IntelViewer`, `InfoModal` (landing modal with first-visit auto-show), `FloatingPanel`, `RegionPanel`, `SystemPicker`, `HeatMapControls`
+- **Library layer**: PTB builders (`transactions.ts`), Seal wrappers (`seal.ts`), Walrus client (`walrus.ts`), ZK proof generation (`zk-proof.ts` — location, distance, presence, reputation), Zod schemas (`intel-schemas.ts`), galaxy coordinate data (`galaxy-data.ts`), region aggregation (`region-data.ts`), heat map data (`heat-map-data.ts`), badge rendering (`badge-verify.ts`), event queries (`events.ts` — JumpEvent, LocationRevealedEvent, KillmailEvent, InventoryEvent), scout reputation (`scout-profile.ts` — parsing, rate, tier, summary), Merkle tree reconstruction (`reputation-merkle.ts` — rebuilds tree from events for proof generation)
+- **Hooks**: `useListings` (paginated event query → object fetch), `usePurchase` (sign + execute), `useDecrypt` (download → decrypt → validate), `useHeatMapData` (aggregate + 60s refresh), `useReceipts` (owned PurchaseReceipt query + listing join), `useScoutProfile` / `useScoutProfiles` (batch dynamic field fetch from ScoutRegistry)
+- **Components**: `CreateListing` (two-step form with optional ZK verification toggle), `ListingBrowser` (filter by type/region/price/verified/trusted scouts), `ScoutProfilePanel` (per-badge breakdown, verification rate, tier badge), `MyIntel` (purchase history + decrypt + receipt management), `MyListings` (scout listing management: delist, reclaim), `PurchaseFlow`, `IntelViewer`, `InfoModal` (landing modal with first-visit auto-show), `FloatingPanel`, `RegionPanel`, `SystemPicker`, `HeatMapControls`
 
 ### Data Flow
 
@@ -242,6 +269,32 @@ erDiagram
         vector vkey_bytes
     }
 
+    ReputationVKey {
+        UID id
+        vector vkey_bytes
+    }
+
+    ScoutRegistry {
+        UID id
+    }
+
+    ScoutProfileData {
+        address scout
+        u64 total_zk_verified
+        u64 total_presence_verified
+        u64 total_combat_verified
+        u64 total_activity_verified
+        u64 total_structure_verified
+        u64 total_unverified
+        u64 first_verified_at
+        u64 last_verified_at
+        u256 merkle_root
+        u64 leaf_count
+        vector frontier
+        vector reputation_claim_types
+        vector reputation_claim_counts
+    }
+
     IntelListing {
         UID id
         address scout
@@ -271,6 +324,8 @@ erDiagram
     DistanceVKey ||--o{ IntelListing : "proximity-verifies"
     PresenceVKey ||--o{ IntelListing : "presence-verifies"
     IntelListing ||--o{ PurchaseReceipt : "generates"
+    ScoutRegistry ||--o{ ScoutProfileData : "stores (dynamic field)"
+    IntelListing }o--|| ScoutProfileData : "auto-updates"
 ```
 
 ## Key Design Decisions

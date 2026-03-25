@@ -9,6 +9,7 @@ One-time offline workflow to compile Groth16 circuits and generate artifacts for
 | `location-attestation` | CCP's [eve-frontier-proximity-zk-poc](https://github.com/evefrontier/eve-frontier-proximity-zk-poc) | ~4465 | 3 inputs + 1 output | Prove coordinate knowledge via Poseidon Merkle tree + timestamp freshness |
 | `distance-attestation` | Custom (TheRiftBroker) | ~1200 | 2 inputs + 1 output | Prove Manhattan distance between two coordinate sets |
 | `presence-attestation` | Custom (TheRiftBroker) | ~1063 | 3 inputs + 2 outputs | Unified presence + proximity: on-chain event binding + Manhattan distance + timestamp |
+| `reputation-attestation` | Custom (TheRiftBroker) | ~varies | 3 inputs | Prove N+ verified listings of badge type X via Merkle inclusion (MAX_CLAIM=10, DEPTH=10) |
 
 ## Prerequisites
 
@@ -89,6 +90,7 @@ IC array has `N+1` elements where `N` = number of public signals (inputs + outpu
 | location-attestation | 4 | 5 | 392 bytes |
 | distance-attestation | 3 | 4 | 360 bytes |
 | presence-attestation | 5 | 6 | 424 bytes |
+| reputation-attestation | 3 | 4 | 360 bytes |
 
 ### Step 5: Copy browser artifacts
 

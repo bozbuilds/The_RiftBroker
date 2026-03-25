@@ -18,6 +18,7 @@ Buyer browses metadata → purchases listing → decrypts client-side
 - **Walrus storage** — Encrypted blobs stored on decentralized storage, retrieved by blob ID.
 - **On-chain presence proofs** — Scouts prove system presence via SUI blockchain events (JumpEvent + LocationRevealedEvent), verified through a unified Groth16 circuit. Earns a "Presence Verified" badge with purple glow.
 - **Stackable event badges** — Multiple verification badges per listing, each backed by a different on-chain event. Combat Verified (red, KillmailCreatedEvent), Activity Verified (green, ItemDepositedEvent), Structure Verified (blue, LocationRevealedEvent). Trust hierarchy: Combat > Presence > Activity > Structure > Proximity > ZK-Verified.
+- **Scout reputation** — On-chain profiles (ScoutRegistry + ScoutProfileData) auto-updated on every verified listing and badge attachment. Per-badge-type counters + Poseidon Merkle tree (depth 10, frontier-based). Buyers view scout profiles by clicking addresses: verification rates, badge breakdowns, tier badges (bronze/silver/gold). Trusted Scouts filter shows only scouts with 5+ verified actions. Phase 4b ZK reputation claims circuit compiled and ready.
 - **ZK proximity** — Distance from scout's entry gate to a target assembly, computed in-circuit and displayed as km / light-seconds / light-years. Uses per-assembly coordinates from on-chain events.
 - **ZK location proofs** (legacy) — Groth16 proof of coordinate knowledge using galaxy.json system centroids. Shown as a "ZK-Verified" fallback badge when no event badges are present. Retained for backward compatibility.
 - **Timestamp freshness** — Verified intel decays from observation time (JumpEvent block timestamp), not listing time. 24h staleness cap enforced on-chain.
@@ -28,10 +29,12 @@ Buyer browses metadata → purchases listing → decrypts client-side
 
 ## Deployed
 
-- **Contract**: `0x01b41b06...720e2c67` (SUI testnet)
-- **LocationVKey**: `0xb4f326a5...bf6fe2d`
-- **DistanceVKey**: `0xd1aa6cdd...4465130d`
-- **PresenceVKey**: `0x8f7fc8d6...5cdff0`
+- **Contract**: `0xdb94b50f1dc1652d8a7a4299b6367c33a66ab2005fffd0f3815c325ab84d6f11` (SUI testnet)
+- **LocationVKey**: `0x29f32b3394a9550176299f28d5d406cab8129f86524a61a15e0a66c0a60e42e4`
+- **DistanceVKey**: `0x5087b225470a37ca587a6f73d7d17908500cb43df1e0ac8816eee962f4cdd477`
+- **PresenceVKey**: `0x671d42311c5fa43c690e112e1c41bdd86cd294fb35c8c0198c8a3ed535abed9a`
+- **ReputationVKey**: `0xcb9a8de361a9d9b795ad4eef975339918c768b5d9dfdcf6efd9f5d3a9693bb41`
+- **ScoutRegistry**: `0xfcfdc4d5b07a9173b13f912541b3c50ffb2491058be6345709fae03b0148d778`
 
 ## Tech Stack
 
@@ -55,13 +58,13 @@ Buyer browses metadata → purchases listing → decrypts client-side
 ```bash
 # Move contracts
 sui move build --path contracts
-sui move test --path contracts    # 50 tests
+sui move test --path contracts    # 63 tests
 
 # Frontend
 cd frontend
 pnpm install
 pnpm dev                          # http://localhost:5173
-pnpm test                         # 235 tests
+pnpm test                         # 258 tests
 pnpm build                        # Production build
 ```
 
@@ -72,7 +75,7 @@ cd frontend
 SUI_PRIVATE_KEY=<suiprivkey1...> pnpm seed
 ```
 
-Creates 15 demo listings across 12 systems with encrypted payloads on Walrus.
+Creates 12 demo listings across 6 regions with encrypted payloads on Walrus.
 
 ## Project Structure
 
@@ -81,20 +84,23 @@ TheRiftBroker/
 ├── contracts/
 │   ├── Move.toml
 │   ├── sources/marketplace.move        # Core contract + Seal policies + ZK verification + event badges (~600 lines)
-│   └── tests/marketplace_tests.move    # 50 tests
+│   └── tests/marketplace_tests.move    # 63 tests
 ├── circuits/
 │   ├── README.md                       # Circuit compilation workflow (PowerShell)
 │   ├── location-attestation/           # Location Groth16 circuit + compiled artifacts
 │   ├── distance-attestation/           # Proximity Groth16 circuit + compiled artifacts
-│   └── presence-attestation/           # Unified presence + proximity Groth16 circuit
+│   ├── presence-attestation/           # Unified presence + proximity Groth16 circuit
+│   └── reputation-attestation/         # Reputation Groth16 circuit + compiled artifacts
 ├── frontend/
 │   ├── public/
 │   │   ├── galaxy.json                 # Real EVE Frontier star data
 │   │   └── zk/
 │   │       ├── location-attestation.wasm          # Browser proof WASM (location)
 │   │       ├── location-attestation_final.zkey    # Browser proving key (location)
-│   │       ├── presence-attestation.wasm        # Browser proof WASM (presence)
-│   │       └── presence-attestation_final.zkey  # Browser proving key (presence)
+│   │       ├── presence-attestation.wasm          # Browser proof WASM (presence)
+│   │       ├── presence-attestation_final.zkey    # Browser proving key (presence)
+│   │       ├── reputation-attestation.wasm        # Browser proof WASM (reputation)
+│   │       └── reputation-attestation_final.zkey  # Browser proving key (reputation)
 │   ├── src/
 │   │   ├── App.tsx                     # 3D map + panel navigation + purchase flow
 │   │   ├── providers/                  # SUI, wallet, query, galaxy data providers
@@ -113,11 +119,19 @@ TheRiftBroker/
 │   │   │   ├── parse.ts              # On-chain field parsing
 │   │   │   ├── empty-maps.ts         # Empty state constants
 │   │   │   ├── events.ts             # SUI event queries (JumpEvent, LocationRevealedEvent, KillmailEvent, InventoryEvent)
-│   │   │   └── badge-verify.ts      # Badge rendering logic (getBadges, trust hierarchy)
+│   │   │   ├── badge-verify.ts      # Badge rendering logic (getBadges, trust hierarchy)
+│   │   │   ├── scout-profile.ts      # Scout profile fetch + parse
+│   │   │   └── reputation-merkle.ts  # Poseidon Merkle tree for reputation
 │   │   ├── scripts/
-│   │   │   ├── seed-data.ts           # 15 demo listings (7 tests)
+│   │   │   ├── seed-data.ts           # Demo listing definitions (7 tests)
 │   │   │   └── seed.ts               # CLI seed script
-│   │   ├── hooks/                     # useListings, usePurchase, useDecrypt, useHeatMapData, useReceipts
+│   │   ├── hooks/
+│   │   │   ├── useListings.ts         # Event query → object fetch → parse
+│   │   │   ├── usePurchase.ts         # Sign + execute purchase tx
+│   │   │   ├── useDecrypt.ts          # Download → seal_approve → decrypt → validate
+│   │   │   ├── useHeatMapData.ts      # Aggregate listings for heat map
+│   │   │   ├── useReceipts.ts         # Purchase receipt tracking
+│   │   │   └── useScoutProfile.ts     # Fetch + cache scout profile data
 │   │   └── components/
 │   │       ├── CreateListing.tsx       # Two-step form + optional ZK verification
 │   │       ├── ListingBrowser.tsx      # Filterable list + verified-only toggle
@@ -130,6 +144,7 @@ TheRiftBroker/
 │   │       ├── RegionPanel.tsx        # Region details sidebar
 │   │       ├── SystemPicker.tsx       # System selector component
 │   │       ├── ErrorBoundary.tsx      # Error boundary with reset
+│   │       ├── ScoutProfilePanel.tsx  # Scout profile viewer (reputation, badges, tier)
 │   │       └── heat-map/             # 3D nebula + SVG fallback + controls
 │   └── vite.config.ts
 └── docs/
@@ -140,15 +155,14 @@ TheRiftBroker/
 
 | Suite | Count |
 |-------|-------|
-| Move contract | 50 |
-| Frontend (Vitest) | 234 |
-| **Total** | **284** |
+| Move contract | 63 |
+| Frontend (Vitest) | 258 |
+| **Total** | **321** |
 
 ## Future Features
 
 - **Player proximity** — Prove distance to another player's ship. The ZK circuit supports any coordinate source; only the data availability is missing. Requires CCP Games to emit player position events on-chain.
 - **Resource proximity** — Prove distance to rifts, asteroids, or other resources. Requires CCP to publish resource locations on-chain or via PODs.
-- **Scout reputation** — On-chain profiles tracking verified observations. Consistent accuracy builds trust; bad intel burns your record.
 - **Dispute system** — Stake-backed challenges with community voting
 - **zkLogin** — Google/Twitch sign-in without requiring a crypto wallet
 - **Sponsored transactions** — Gasless UX for new players

@@ -1,5 +1,9 @@
+import { useMemo } from 'react'
+
 import { useScoutProfile } from '../hooks/useScoutProfile'
-import { getVerifiedClaims, reputationTier, totalVerified, verificationRate } from '../lib/scout-profile'
+import { useListings } from '../hooks/useListings'
+import { getBadges } from '../lib/badge-verify'
+import { getVerifiedClaims, reputationTier, totalVerified } from '../lib/scout-profile'
 import { truncateAddress } from '../lib/format'
 
 interface ScoutProfilePanelProps {
@@ -9,6 +13,16 @@ interface ScoutProfilePanelProps {
 
 export function ScoutProfilePanel({ scoutAddress, onClose }: ScoutProfilePanelProps) {
   const { data: profile, isLoading } = useScoutProfile(scoutAddress)
+  const { data: listings } = useListings()
+
+  // Compute verification rate from actual listing data (not counters)
+  const listingRate = useMemo(() => {
+    if (!listings) return 0
+    const scoutListings = listings.filter(l => l.scout === scoutAddress)
+    if (scoutListings.length === 0) return 0
+    const verified = scoutListings.filter(l => l.isVerified || getBadges(l).length > 0).length
+    return verified / scoutListings.length
+  }, [listings, scoutAddress])
 
   if (isLoading) {
     return (
@@ -31,7 +45,6 @@ export function ScoutProfilePanel({ scoutAddress, onClose }: ScoutProfilePanelPr
   }
 
   const verified = totalVerified(profile)
-  const rate = verificationRate(profile)
   const tier = reputationTier(profile)
 
   const rows = [
@@ -40,7 +53,6 @@ export function ScoutProfilePanel({ scoutAddress, onClose }: ScoutProfilePanelPr
     { label: 'Activity Verified', count: profile.totalActivityVerified },
     { label: 'Structure Verified', count: profile.totalStructureVerified },
     { label: 'ZK-Verified', count: profile.totalZkVerified },
-    { label: 'Unverified', count: profile.totalUnverified },
   ]
 
   return (
@@ -51,7 +63,7 @@ export function ScoutProfilePanel({ scoutAddress, onClose }: ScoutProfilePanelPr
       </div>
       <div className="scout-stats">
         <span>{verified.toString()} verified</span>
-        <span>{(rate * 100).toFixed(0)}% rate</span>
+        <span>{(listingRate * 100).toFixed(0)}% rate</span>
       </div>
       <ul className="scout-badge-breakdown">
         {rows.filter(r => r.count > 0n).map(({ label, count }) => (

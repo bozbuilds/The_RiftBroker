@@ -21,7 +21,8 @@ export function useScoutProfile(scoutAddress: string | null) {
         if (!result.data?.content || result.data.content.dataType !== 'moveObject')
           return null
         const wrapper = result.data.content.fields as Record<string, unknown>
-        const fields = (wrapper.value ?? wrapper) as Record<string, unknown>
+        const valueObj = (wrapper.value ?? wrapper) as Record<string, unknown>
+        const fields = (valueObj.fields ?? valueObj) as Record<string, unknown>
         return parseScoutProfile(scoutAddress, fields)
       } catch {
         return null
@@ -50,7 +51,8 @@ export function useScoutProfiles(scoutAddresses: string[]) {
           })
           if (result.data?.content?.dataType === 'moveObject') {
             const wrapper = result.data.content.fields as Record<string, unknown>
-            const fields = (wrapper.value ?? wrapper) as Record<string, unknown>
+            const valueObj = (wrapper.value ?? wrapper) as Record<string, unknown>
+            const fields = (valueObj.fields ?? valueObj) as Record<string, unknown>
             map.set(addr, parseScoutProfile(addr, fields))
           }
         }),

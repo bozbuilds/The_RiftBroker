@@ -5,7 +5,7 @@ import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
 import { isExpired, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import { getBadges, MAX_INLINE_BADGES } from '../lib/badge-verify'
-import { reputationSummary, totalVerified } from '../lib/scout-profile'
+import { totalVerified } from '../lib/scout-profile'
 import type { IntelListingFields } from '../lib/types'
 import { useListings } from '../hooks/useListings'
 import { useScoutProfiles } from '../hooks/useScoutProfile'
@@ -82,7 +82,7 @@ export function ListingBrowser({
       })
     }
     if (verifiedOnly) {
-      result = result.filter((l) => l.isVerified)
+      result = result.filter((l) => l.isVerified || getBadges(l).length > 0)
     }
     if (verifiedScoutsOnly && scoutProfiles) {
       result = result.filter((l) => {
@@ -207,13 +207,6 @@ export function ListingBrowser({
                 {ago && (
                   <span className="listing-observed-badge">{ago}</span>
                 )}
-                {(() => {
-                  const profile = scoutProfiles?.get(listing.scout)
-                  if (!profile) return null
-                  const summary = reputationSummary(profile)
-                  if (!summary) return null
-                  return <span className="listing-scout-rep">{summary}</span>
-                })()}
                 <span className="listing-item-meta">
                   {' '}&mdash; {obfuscatedLocation(listing.systemId, systemMap, regionCounts)} |{' '}
                   {onOpenScoutProfile && SCOUT_REGISTRY_ID

@@ -47,3 +47,6 @@ circom/
 circuits/location-attestation/build/
 circuits/location-attestation/*.ptau
 circuits/location-attestation/*.zkey
+circuits/*ptau
+circuits/*zkey
+.claude/settings.local.json
