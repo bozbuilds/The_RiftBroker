@@ -3,10 +3,12 @@ module rift_broker::marketplace;
 use sui::balance::Balance;
 use sui::coin::{Self, Coin};
 use sui::clock::Clock;
+use sui::dynamic_field;
 use sui::event;
 use sui::sui::SUI;
 use sui::bcs;
 use sui::groth16;
+use sui::poseidon;
 
 // === Error constants (EPascalCase) ===
 
@@ -34,6 +36,12 @@ const ETimestampInFuture: u64 = 19;
 const EInvalidPresenceProof: u64 = 22;
 const EInvalidBadgeType: u64 = 23;
 const EBadgeAlreadyAttached: u64 = 24;
+const EProfileNotFound: u64 = 25;
+const EInvalidMerkleLevel: u64 = 26;
+const EMerkleTreeFull: u64 = 27;
+const EInvalidReputationProof: u64 = 28;
+const EMerkleRootMismatch: u64 = 29;
+const EInvalidReputationPublicInput: u64 = 30;
 
 // === Regular constants (ALL_CAPS) ===
 
@@ -42,6 +50,24 @@ const MIN_DECAY_HOURS: u64 = 1;
 const MIN_PRICE: u64 = 1;
 const MIN_STAKE: u64 = 1;
 const MAX_OBSERVATION_AGE_MS: u64 = 86_400_000; // 24 hours
+
+/// Incremental Merkle tree depth (2^10 = 1024 leaves per scout).
+const MERKLE_DEPTH: u64 = 10;
+const MERKLE_MAX_LEAVES: u64 = 1024;
+
+// Precomputed Poseidon BN254 hashes of empty subtrees (circomlibjs — circuits/scripts/compute-zero-hashes.mjs).
+// ZERO_HASH[i] = root of empty perfect tree of height i; ZERO_HASH[0] = 0.
+const ZERO_HASH_0: u256 = 0;
+const ZERO_HASH_1: u256 = 14744269619966411208579211824598458697587494354926760081771325075741142829156;
+const ZERO_HASH_2: u256 = 7423237065226347324353380772367382631490014989348495481811164164159255474657;
+const ZERO_HASH_3: u256 = 11286972368698509976183087595462810875513684078608517520839298933882497716792;
+const ZERO_HASH_4: u256 = 3607627140608796879659380071776844901612302623152076817094415224584923813162;
+const ZERO_HASH_5: u256 = 19712377064642672829441595136074946683621277828620209496774504837737984048981;
+const ZERO_HASH_6: u256 = 20775607673010627194014556968476266066927294572720319469184847051418138353016;
+const ZERO_HASH_7: u256 = 3396914609616007258851405644437304192397291162432396347162513310381425243293;
+const ZERO_HASH_8: u256 = 21551820661461729022865262380882070649935529853313286572328683688269863701601;
+const ZERO_HASH_9: u256 = 6573136701248752079028194407151022595060682063033565181951145966236778420039;
+const ZERO_HASH_10: u256 = 12413880268183407374852357075976609371175688755676981206018884971008854919922;
 
 #[allow(unused_const)]
 const INTEL_TYPE_RESOURCE: u8 = 0;
@@ -109,6 +135,12 @@ public struct PresenceVKey has key {
     vkey_bytes: vector<u8>,
 }
 
+/// Verification key for the reputation-attestation Groth16 circuit (Phase 4b).
+public struct ReputationVKey has key {
+    id: UID,
+    vkey_bytes: vector<u8>,
+}
+
 /// Proof of purchase. `key` only (NOT `store`) — non-transferable.
 /// Seal policy checks receipt.buyer == requester.
 public struct PurchaseReceipt has key {
@@ -116,6 +148,31 @@ public struct PurchaseReceipt has key {
     listing_id: ID,
     buyer: address,
     paid_at: u64,
+}
+
+/// Per-scout reputation counters, stored as dynamic field on ScoutRegistry.
+/// Keyed by scout address. Only updated by listing creation / badge functions.
+public struct ScoutProfileData has store, drop {
+    total_zk_verified: u64,
+    total_presence_verified: u64,
+    total_combat_verified: u64,
+    total_activity_verified: u64,
+    total_structure_verified: u64,
+    total_unverified: u64,
+    first_verified_at: u64,
+    last_verified_at: u64,
+    merkle_root: u256,
+    leaf_count: u64,
+    frontier: vector<u256>,
+    /// ZK-proven minimum counts per badge_type (parallel vectors).
+    reputation_claim_types: vector<u8>,
+    reputation_claim_counts: vector<u64>,
+}
+
+/// Global registry holding all scout profiles as dynamic fields.
+/// Created once in init(), shared for concurrent access.
+public struct ScoutRegistry has key {
+    id: UID,
 }
 
 // === Events (past tense) ===
@@ -160,6 +217,26 @@ public struct BadgeAttached has copy, drop {
     badge_type: u8,
 }
 
+public struct ScoutProfileCreated has copy, drop {
+    scout: address,
+    registry_id: ID,
+}
+
+public struct ScoutReputationUpdated has copy, drop {
+    scout: address,
+    badge_type: u8,
+    new_total: u64,
+    system_id: u64,
+    intel_type: u8,
+    timestamp: u64,
+}
+
+public struct ReputationClaimVerified has copy, drop {
+    scout: address,
+    badge_type: u8,
+    proven_count: u64,
+}
+
 // === Init ===
 
 fun init(_otw: MARKETPLACE, ctx: &mut TxContext) {
@@ -180,9 +257,94 @@ fun init(_otw: MARKETPLACE, ctx: &mut TxContext) {
         vkey_bytes: x"c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19d1879380c865b9f6f598a728228405733098af0a4681fb74ee467ba2db1dc4201e34cde94d7289dd2c03f1edbbe59540d66e8e49ae9657df55d7799a9503b41f0600000000000000d80ad3de93b4a2f7e127c4f197ea601c1d03a27867fc154f99fc12024c6c36a8ce423b2c395c7faa9c3f710b35c2e3e1bd3ebfd67ffd514de6d10840761ab02eb81fc88cf2e4fb815f0a085eec5e68afecb68a78de47e1f51e944cf7d7c4e4a5721dc2b6c197f32542d06500296ed2571fb0feb018ff51dbdba1a5b16aed30a8e0da57c4a89e049135f8aae6655b8f0454d6f5bcc8a38af061cf535b5ce2a111ff8a8ab1c087f4d01a10aed8464f03b8df8d87e2500341eb38a32936655a259b",
     };
     transfer::share_object(presence_vkey);
+
+    let reputation_vkey = ReputationVKey {
+        id: object::new(ctx),
+        vkey_bytes: x"c7e253d6dbb0b365b15775ae9f8aa0ffcc1c8cde0bd7a4e8c0b376b0d92952a444d2615ebda233e141f4ca0a1270e1269680b20507d55f6872540af6c1bc2424dba1298a9727ff392b6f7f48b3e88e20cf925b7024be9992d3bbfae8820a0907edf692d95cbdde46ddda5ef7d422436779445c5e66006a42761e1f12efde0018c212f3aeb785e49712e7a9353349aaf1255dfb31b7bf60723a480d9293938e19a2f63275e605132714970371fec906fa9b32c1318d50f7ae10dfd581327e25178e7d0b0479942ff71213b8ec72efdfa4eaf5812fb759e6bd3d69f5f923552f00040000000000000092f2cfb450d44d9d36eada58897b3d566ce6f7ba4a79e60a351de585385dc48f5bd1bacb0a30f3a63f10bdcfc98525c287eda702884e7063c303efdd7991a21eda84a56bf54fb2b8e01e12acb522ac669a70c4504a2add5265e0159d9b710ca1dc118b86bc9aeedc3ba05f76840598d0df25c260514de886acb4340b0351cd18",
+    };
+    transfer::share_object(reputation_vkey);
+
+    let registry = ScoutRegistry { id: object::new(ctx) };
+    transfer::share_object(registry);
 }
 
 // === Private helpers ===
+
+/// Look up or create a scout's profile in the registry.
+/// Returns a mutable reference to the profile data.
+fun get_or_create_profile(
+    registry: &mut ScoutRegistry,
+    scout: address,
+): &mut ScoutProfileData {
+    if (!dynamic_field::exists_with_type<address, ScoutProfileData>(&registry.id, scout)) {
+        dynamic_field::add<address, ScoutProfileData>(
+            &mut registry.id,
+            scout,
+            ScoutProfileData {
+                total_zk_verified: 0,
+                total_presence_verified: 0,
+                total_combat_verified: 0,
+                total_activity_verified: 0,
+                total_structure_verified: 0,
+                total_unverified: 0,
+                first_verified_at: 0,
+                last_verified_at: 0,
+                merkle_root: ZERO_HASH_10,
+                leaf_count: 0,
+                frontier: vector[
+                    0u256, 0u256, 0u256, 0u256, 0u256,
+                    0u256, 0u256, 0u256, 0u256, 0u256,
+                ],
+                reputation_claim_types: vector::empty(),
+                reputation_claim_counts: vector::empty(),
+            },
+        );
+        event::emit(ScoutProfileCreated {
+            scout,
+            registry_id: object::id(registry),
+        });
+    };
+    dynamic_field::borrow_mut<address, ScoutProfileData>(&mut registry.id, scout)
+}
+
+// ── ScoutProfileData getters ─────────────────────────────────────────
+
+public fun total_zk_verified(profile: &ScoutProfileData): u64 { profile.total_zk_verified }
+public fun total_presence_verified(profile: &ScoutProfileData): u64 { profile.total_presence_verified }
+public fun total_combat_verified(profile: &ScoutProfileData): u64 { profile.total_combat_verified }
+public fun total_activity_verified(profile: &ScoutProfileData): u64 { profile.total_activity_verified }
+public fun total_structure_verified(profile: &ScoutProfileData): u64 { profile.total_structure_verified }
+public fun total_unverified(profile: &ScoutProfileData): u64 { profile.total_unverified }
+public fun first_verified_at(profile: &ScoutProfileData): u64 { profile.first_verified_at }
+public fun last_verified_at(profile: &ScoutProfileData): u64 { profile.last_verified_at }
+
+public fun merkle_root(profile: &ScoutProfileData): u256 { profile.merkle_root }
+
+public fun leaf_count(profile: &ScoutProfileData): u64 { profile.leaf_count }
+
+public fun reputation_claims(profile: &ScoutProfileData): (&vector<u8>, &vector<u64>) {
+    (&profile.reputation_claim_types, &profile.reputation_claim_counts)
+}
+
+/// Total verified listings across all badge-type counters (excludes unverified-only).
+public fun total_verified(profile: &ScoutProfileData): u64 {
+    profile.total_zk_verified
+        + profile.total_presence_verified
+        + profile.total_combat_verified
+        + profile.total_activity_verified
+        + profile.total_structure_verified
+}
+
+/// Look up a scout's profile from the registry. Aborts if not found.
+public fun borrow_profile(registry: &ScoutRegistry, scout: address): &ScoutProfileData {
+    assert!(dynamic_field::exists_with_type<address, ScoutProfileData>(&registry.id, scout), EProfileNotFound);
+    dynamic_field::borrow<address, ScoutProfileData>(&registry.id, scout)
+}
+
+/// Check whether a scout has a profile in the registry.
+public fun has_profile(registry: &ScoutRegistry, scout: address): bool {
+    dynamic_field::exists_with_type<address, ScoutProfileData>(&registry.id, scout)
+}
 
 /// Read 8 bytes starting at `offset` as a little-endian u64.
 /// Used to extract the timestamp field element from proof public signals.
@@ -197,9 +359,89 @@ fun bytes_to_u64_le(bytes: &vector<u8>, offset: u64): u64 {
         | ((*bytes.borrow(offset + 7) as u64) << 56)
 }
 
+/// Read 32 bytes at `offset` as little-endian u256 (Groth16 public signal encoding).
+fun bytes_to_u256_le(bytes: &vector<u8>, offset: u64): u256 {
+    let mut val: u256 = 0;
+    let mut i: u64 = 31;
+    loop {
+        val = (val << 8) | (*bytes.borrow(offset + i) as u256);
+        if (i == 0) {
+            break
+        };
+        i = i - 1;
+    };
+    val
+}
+
+/// Hash a verified event into a Merkle leaf (Phase 4a+).
+fun compute_leaf_hash(
+    system_id: u64,
+    intel_type: u8,
+    badge_type: u8,
+    timestamp: u64,
+): u256 {
+    let inputs = vector[
+        (system_id as u256),
+        (intel_type as u256),
+        (badge_type as u256),
+        (timestamp as u256),
+    ];
+    poseidon::poseidon_bn254(&inputs)
+}
+
+fun zero_hash_at(level: u64): u256 {
+    if (level == 0) {
+        ZERO_HASH_0
+    } else if (level == 1) {
+        ZERO_HASH_1
+    } else if (level == 2) {
+        ZERO_HASH_2
+    } else if (level == 3) {
+        ZERO_HASH_3
+    } else if (level == 4) {
+        ZERO_HASH_4
+    } else if (level == 5) {
+        ZERO_HASH_5
+    } else if (level == 6) {
+        ZERO_HASH_6
+    } else if (level == 7) {
+        ZERO_HASH_7
+    } else if (level == 8) {
+        ZERO_HASH_8
+    } else if (level == 9) {
+        ZERO_HASH_9
+    } else {
+        abort EInvalidMerkleLevel
+    }
+}
+
+/// Append a leaf to the scout's incremental Merkle tree (O(depth) Poseidon hashes).
+fun insert_leaf(profile: &mut ScoutProfileData, leaf: u256) {
+    assert!(profile.leaf_count < MERKLE_MAX_LEAVES, EMerkleTreeFull);
+
+    let index = profile.leaf_count;
+    let mut current = leaf;
+    let mut level: u64 = 0;
+
+    while (level < MERKLE_DEPTH) {
+        if (((index >> (level as u8)) & 1) == 0) {
+            *vector::borrow_mut(&mut profile.frontier, level) = current;
+            current = poseidon::poseidon_bn254(&vector[current, zero_hash_at(level)]);
+        } else {
+            let left = *vector::borrow(&profile.frontier, level);
+            current = poseidon::poseidon_bn254(&vector[left, current]);
+        };
+        level = level + 1;
+    };
+
+    profile.merkle_root = current;
+    profile.leaf_count = profile.leaf_count + 1;
+}
+
 // === Public functions ===
 
 public fun create_listing(
+    registry: &mut ScoutRegistry,
     intel_type: u8,
     system_id: u64,
     individual_price: u64,
@@ -241,6 +483,17 @@ public fun create_listing(
         scout: ctx.sender(),
         intel_type,
         system_id,
+    });
+
+    let profile = get_or_create_profile(registry, ctx.sender());
+    profile.total_unverified = profile.total_unverified + 1;
+    event::emit(ScoutReputationUpdated {
+        scout: ctx.sender(),
+        badge_type: 0xFF,
+        new_total: profile.total_unverified,
+        system_id,
+        intel_type,
+        timestamp: clock.timestamp_ms(),
     });
 
     transfer::share_object(listing);
@@ -374,6 +627,7 @@ public fun set_walrus_blob_id(
 }
 
 public fun create_verified_listing(
+    registry: &mut ScoutRegistry,
     intel_type: u8,
     system_id: u64,
     individual_price: u64,
@@ -444,6 +698,24 @@ public fun create_verified_listing(
         listing_id: listing_id_val,
         scout: ctx.sender(),
     });
+
+    let profile = get_or_create_profile(registry, ctx.sender());
+    profile.total_zk_verified = profile.total_zk_verified + 1;
+    if (profile.first_verified_at == 0) {
+        profile.first_verified_at = observed_at;
+    };
+    profile.last_verified_at = observed_at;
+    let leaf = compute_leaf_hash(system_id, intel_type, 0xFE, observed_at);
+    insert_leaf(profile, leaf);
+    event::emit(ScoutReputationUpdated {
+        scout: ctx.sender(),
+        badge_type: 0xFE,
+        new_total: profile.total_zk_verified,
+        system_id,
+        intel_type,
+        timestamp: observed_at,
+    });
+
     transfer::share_object(listing);
 }
 
@@ -456,6 +728,7 @@ public fun create_verified_listing(
 ///   [3]: targetHash (32 bytes LE) — input
 ///   [4]: locationHash (32 bytes LE) — input
 public fun create_presence_verified_listing(
+    registry: &mut ScoutRegistry,
     intel_type: u8,
     system_id: u64,
     individual_price: u64,
@@ -528,6 +801,24 @@ public fun create_presence_verified_listing(
         listing_id: listing_id_val,
         scout: ctx.sender(),
     });
+
+    let profile = get_or_create_profile(registry, ctx.sender());
+    profile.total_presence_verified = profile.total_presence_verified + 1;
+    if (profile.first_verified_at == 0) {
+        profile.first_verified_at = observed_at;
+    };
+    profile.last_verified_at = observed_at;
+    let leaf = compute_leaf_hash(system_id, intel_type, 0xFD, observed_at);
+    insert_leaf(profile, leaf);
+    event::emit(ScoutReputationUpdated {
+        scout: ctx.sender(),
+        badge_type: 0xFD,
+        new_total: profile.total_presence_verified,
+        system_id,
+        intel_type,
+        timestamp: observed_at,
+    });
+
     transfer::share_object(listing);
 }
 
@@ -566,9 +857,11 @@ public fun attach_distance_proof(
 /// No on-chain event verification — the contract stores the digest as an audit trail.
 /// The frontend verifies the digest against the actual transaction.
 public fun attach_event_badge(
+    registry: &mut ScoutRegistry,
     listing: &mut IntelListing,
     badge_type: u8,
     tx_digest: vector<u8>,
+    clock: &Clock,
     ctx: &TxContext,
 ) {
     assert!(listing.scout == ctx.sender(), ENotScout);
@@ -586,10 +879,95 @@ public fun attach_event_badge(
         listing.reveal_tx_digest = tx_digest;
     };
 
+    let ts = clock.timestamp_ms();
+    let profile = get_or_create_profile(registry, ctx.sender());
+    let new_total = if (badge_type == BADGE_TYPE_KILLMAIL) {
+        profile.total_combat_verified = profile.total_combat_verified + 1;
+        profile.total_combat_verified
+    } else if (badge_type == BADGE_TYPE_DEPOSIT) {
+        profile.total_activity_verified = profile.total_activity_verified + 1;
+        profile.total_activity_verified
+    } else {
+        profile.total_structure_verified = profile.total_structure_verified + 1;
+        profile.total_structure_verified
+    };
+    if (profile.first_verified_at == 0) {
+        profile.first_verified_at = ts;
+    };
+    profile.last_verified_at = ts;
+    let leaf = compute_leaf_hash(listing.system_id, listing.intel_type, badge_type, ts);
+    insert_leaf(profile, leaf);
+    event::emit(ScoutReputationUpdated {
+        scout: ctx.sender(),
+        badge_type,
+        new_total,
+        system_id: listing.system_id,
+        intel_type: listing.intel_type,
+        timestamp: ts,
+    });
+
     event::emit(BadgeAttached {
         listing_id: object::id(listing),
         scout: listing.scout,
         badge_type,
+    });
+}
+
+/// Verify a Groth16 reputation claim: at least `claimCount` Merkle leaves of `claimBadgeType`
+/// under the scout's current `merkle_root`. Public inputs: 3×32 bytes LE (root, badge type, count).
+public fun attach_reputation_proof(
+    registry: &mut ScoutRegistry,
+    vkey: &ReputationVKey,
+    proof_points_bytes: vector<u8>,
+    public_inputs_bytes: vector<u8>,
+    ctx: &TxContext,
+) {
+    let scout = ctx.sender();
+    assert!(has_profile(registry, scout), EProfileNotFound);
+
+    assert!(vector::length(&public_inputs_bytes) == 96, EInvalidReputationPublicInput);
+    let proof_root = bytes_to_u256_le(&public_inputs_bytes, 0);
+    let badge_u64 = bytes_to_u64_le(&public_inputs_bytes, 32);
+    let proven_count = bytes_to_u64_le(&public_inputs_bytes, 64);
+    assert!(badge_u64 <= 255, EInvalidReputationPublicInput);
+    assert!(proven_count > 0 && proven_count <= MERKLE_MAX_LEAVES, EInvalidReputationPublicInput);
+    let badge_type = badge_u64 as u8;
+
+    // Check root match BEFORE expensive Groth16 verification to save gas on stale proofs
+    let profile = dynamic_field::borrow_mut<address, ScoutProfileData>(&mut registry.id, scout);
+    assert!(proof_root == profile.merkle_root, EMerkleRootMismatch);
+
+    let pvk = groth16::prepare_verifying_key(&groth16::bn254(), &vkey.vkey_bytes);
+    let public_inputs = groth16::public_proof_inputs_from_bytes(public_inputs_bytes);
+    let proof_points = groth16::proof_points_from_bytes(proof_points_bytes);
+    assert!(
+        groth16::verify_groth16_proof(&groth16::bn254(), &pvk, &public_inputs, &proof_points),
+        EInvalidReputationProof,
+    );
+
+    let len = vector::length(&profile.reputation_claim_types);
+    let mut i = 0u64;
+    let mut found = false;
+    while (i < len) {
+        if (*vector::borrow(&profile.reputation_claim_types, i) == badge_type) {
+            let cur = *vector::borrow(&profile.reputation_claim_counts, i);
+            if (proven_count > cur) {
+                *vector::borrow_mut(&mut profile.reputation_claim_counts, i) = proven_count;
+            };
+            found = true;
+            break
+        };
+        i = i + 1;
+    };
+    if (!found) {
+        vector::push_back(&mut profile.reputation_claim_types, badge_type);
+        vector::push_back(&mut profile.reputation_claim_counts, proven_count);
+    };
+
+    event::emit(ReputationClaimVerified {
+        scout,
+        badge_type,
+        proven_count,
     });
 }
 
@@ -656,6 +1034,22 @@ public fun init_for_testing(ctx: &mut TxContext) {
 }
 
 #[test_only]
+public fun create_registry_for_testing(ctx: &mut TxContext): ScoutRegistry {
+    ScoutRegistry { id: object::new(ctx) }
+}
+
+#[test_only]
+public fun share_registry_for_testing(registry: ScoutRegistry) {
+    transfer::share_object(registry);
+}
+
+#[test_only]
+public fun destroy_registry_for_testing(registry: ScoutRegistry) {
+    let ScoutRegistry { id } = registry;
+    id.delete();
+}
+
+#[test_only]
 public fun set_location_proof_hash_for_testing(
     listing: &mut IntelListing,
     hash: vector<u8>,
@@ -708,4 +1102,33 @@ public fun set_jump_tx_digest_for_testing(listing: &mut IntelListing, digest: ve
 #[test_only]
 public fun set_killmail_tx_digest_for_testing(listing: &mut IntelListing, digest: vector<u8>) {
     listing.killmail_tx_digest = digest;
+}
+
+#[test_only]
+public fun set_merkle_root_for_testing(
+    registry: &mut ScoutRegistry,
+    scout: address,
+    root: u256,
+) {
+    let profile = dynamic_field::borrow_mut<address, ScoutProfileData>(&mut registry.id, scout);
+    profile.merkle_root = root;
+}
+
+#[test_only]
+public fun merkle_empty_root_for_testing(): u256 {
+    ZERO_HASH_10
+}
+
+/// Same leaf hash + insert as production verified paths (no Groth16); for Merkle unit tests.
+#[test_only]
+public fun insert_test_reputation_leaf(
+    registry: &mut ScoutRegistry,
+    scout: address,
+    system_id: u64,
+    intel_type: u8,
+    badge_type: u8,
+    timestamp: u64,
+) {
+    let profile = get_or_create_profile(registry, scout);
+    insert_leaf(profile, compute_leaf_hash(system_id, intel_type, badge_type, timestamp));
 }

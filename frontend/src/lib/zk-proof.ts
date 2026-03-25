@@ -379,3 +379,68 @@ export async function generatePresenceProof(
     targetSalt,
   }
 }
+
+const REPUTATION_WASM_URL = '/zk/reputation-attestation.wasm'
+const REPUTATION_ZKEY_URL = '/zk/reputation-attestation_final.zkey'
+
+const REPUTATION_MAX_CLAIM = 10
+const REPUTATION_DEPTH = 10
+
+/**
+ * Groth16 proof for reputation-attestation (Phase 4b): ≥ claimCount Merkle leaves of claimBadgeType.
+ * Pad unused slots with active=0; supply siblings from `buildReputationMerkleState`.
+ */
+export async function generateReputationProof(params: {
+  merkleRoot: string
+  claimBadgeType: number
+  claimCount: number
+  leaves: { systemId: string; intelType: number; badgeType: number; timestamp: string }[]
+  siblings: string[][]
+  leafIndices: number[]
+}): Promise<{ proofBytes: Uint8Array; publicInputsBytes: Uint8Array }> {
+  // @ts-expect-error snarkjs has no bundled types
+  const snarkjs = await import('snarkjs')
+
+  const paddedLeaves = Array.from({ length: REPUTATION_MAX_CLAIM }, (_, i) =>
+    i < params.leaves.length
+      ? [
+          params.leaves[i]!.systemId,
+          params.leaves[i]!.intelType.toString(),
+          params.leaves[i]!.badgeType.toString(),
+          params.leaves[i]!.timestamp,
+        ]
+      : ['0', '0', '0', '0'],
+  )
+  const paddedSiblings = Array.from({ length: REPUTATION_MAX_CLAIM }, (_, i) =>
+    i < params.siblings.length
+      ? params.siblings[i]!
+      : Array(REPUTATION_DEPTH).fill('0'),
+  )
+  const paddedIndices = Array.from({ length: REPUTATION_MAX_CLAIM }, (_, i) =>
+    i < params.leafIndices.length ? params.leafIndices[i]!.toString() : '0',
+  )
+  const active = Array.from({ length: REPUTATION_MAX_CLAIM }, (_, i) =>
+    i < params.leaves.length ? '1' : '0',
+  )
+
+  const circuitInput = {
+    merkleRoot: params.merkleRoot,
+    claimBadgeType: params.claimBadgeType.toString(),
+    claimCount: params.claimCount.toString(),
+    leaves: paddedLeaves,
+    siblings: paddedSiblings,
+    leafIndices: paddedIndices,
+    active,
+  }
+
+  const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+    circuitInput,
+    REPUTATION_WASM_URL,
+    REPUTATION_ZKEY_URL,
+  )
+
+  return {
+    proofBytes: snarkjsProofToArkworks(proof as SnarkjsProof),
+    publicInputsBytes: publicSignalsToBytes(publicSignals as string[]),
+  }
+}

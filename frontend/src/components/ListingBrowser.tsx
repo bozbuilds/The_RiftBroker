@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
 
-import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP, SEED_SCOUT_ADDRESS } from '../lib/constants'
+import { INTEL_TYPE_LABELS, INTEL_TYPE_LABEL_MAP, SCOUT_REGISTRY_ID, SEED_SCOUT_ADDRESS, TRUSTED_SCOUT_MIN_VERIFIED } from '../lib/constants'
 import { EMPTY_SYSTEM_MAP, EMPTY_REGION_COUNTS } from '../lib/empty-maps'
 import { isExpired, mistToSui, observedAgo, timeRemaining, truncateAddress } from '../lib/format'
 import { obfuscatedLocation } from '../lib/galaxy-data'
 import { getBadges, MAX_INLINE_BADGES } from '../lib/badge-verify'
+import { reputationSummary, totalVerified } from '../lib/scout-profile'
 import type { IntelListingFields } from '../lib/types'
 import { useListings } from '../hooks/useListings'
+import { useScoutProfiles } from '../hooks/useScoutProfile'
 import { useReceipts } from '../hooks/useReceipts'
 import { useGalaxyData } from '../providers/GalaxyDataProvider'
 
@@ -26,8 +28,10 @@ function priceSortLabel(sort: PriceSort): string {
 
 export function ListingBrowser({
   onSelect,
+  onOpenScoutProfile,
 }: {
   onSelect: (listing: IntelListingFields) => void
+  onOpenScoutProfile?: (scoutAddress: string) => void
 }) {
   const { data: listings, isLoading, error } = useListings()
   const { data: receiptData } = useReceipts()
@@ -36,6 +40,7 @@ export function ListingBrowser({
   const [regionFilter, setRegionFilter] = useState<string | null>(null)
   const [priceSort, setPriceSort] = useState<PriceSort>(null)
   const [verifiedOnly, setVerifiedOnly] = useState(false)
+  const [verifiedScoutsOnly, setVerifiedScoutsOnly] = useState(false)
 
   const systemMap = galaxy?.systemMap ?? EMPTY_SYSTEM_MAP
   const regionCounts = galaxy?.regionSystemCounts ?? EMPTY_REGION_COUNTS
@@ -61,7 +66,13 @@ export function ListingBrowser({
     return [...regions].sort()
   }, [typeFiltered, systemMap])
 
-  // Apply region filter + verified filter + price sort
+  const scoutAddresses = useMemo(
+    () => typeFiltered.map(l => l.scout),
+    [typeFiltered],
+  )
+  const { data: scoutProfiles } = useScoutProfiles(scoutAddresses)
+
+  // Apply region filter + verified filter + trusted-scout filter + price sort
   const filtered = useMemo(() => {
     let result = typeFiltered
     if (regionFilter) {
@@ -73,6 +84,12 @@ export function ListingBrowser({
     if (verifiedOnly) {
       result = result.filter((l) => l.isVerified)
     }
+    if (verifiedScoutsOnly && scoutProfiles) {
+      result = result.filter((l) => {
+        const profile = scoutProfiles.get(l.scout)
+        return profile && totalVerified(profile) >= TRUSTED_SCOUT_MIN_VERIFIED
+      })
+    }
     if (priceSort) {
       result = [...result].sort((a, b) => {
         const [x, y] = priceSort === 'asc'
@@ -82,7 +99,7 @@ export function ListingBrowser({
       })
     }
     return result
-  }, [typeFiltered, regionFilter, verifiedOnly, priceSort, systemMap])
+  }, [typeFiltered, regionFilter, verifiedOnly, verifiedScoutsOnly, scoutProfiles, priceSort, systemMap])
 
   // Reset region filter when it no longer applies
   if (regionFilter && !availableRegions.includes(regionFilter)) {
@@ -140,6 +157,16 @@ export function ListingBrowser({
         >
           Verified
         </button>
+
+        <button
+          type="button"
+          className={`filter-btn${verifiedScoutsOnly ? ' active' : ''}`}
+          onClick={() => setVerifiedScoutsOnly(!verifiedScoutsOnly)}
+          disabled={!SCOUT_REGISTRY_ID}
+          title={!SCOUT_REGISTRY_ID ? 'Set SCOUT_REGISTRY_ID after deploy' : undefined}
+        >
+          Trusted Scouts
+        </button>
       </div>
 
       <ul className="listing-list">
@@ -180,8 +207,29 @@ export function ListingBrowser({
                 {ago && (
                   <span className="listing-observed-badge">{ago}</span>
                 )}
+                {(() => {
+                  const profile = scoutProfiles?.get(listing.scout)
+                  if (!profile) return null
+                  const summary = reputationSummary(profile)
+                  if (!summary) return null
+                  return <span className="listing-scout-rep">{summary}</span>
+                })()}
                 <span className="listing-item-meta">
-                  {' '}&mdash; {obfuscatedLocation(listing.systemId, systemMap, regionCounts)} | {truncateAddress(listing.scout)}
+                  {' '}&mdash; {obfuscatedLocation(listing.systemId, systemMap, regionCounts)} |{' '}
+                  {onOpenScoutProfile && SCOUT_REGISTRY_ID
+                    ? (
+                        <button
+                          type="button"
+                          className="listing-scout-link"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onOpenScoutProfile(listing.scout)
+                          }}
+                        >
+                          {truncateAddress(listing.scout)}
+                        </button>
+                      )
+                    : truncateAddress(listing.scout)}
                 </span>
               </div>
               <div>

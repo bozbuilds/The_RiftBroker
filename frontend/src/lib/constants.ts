@@ -61,6 +61,15 @@ export const WORLD_PACKAGE_ID = WORLD_PACKAGE_STILLNESS
 /** PresenceVKey shared object ID — created by marketplace init(). */
 export const PRESENCE_VKEY_ID = '0x8f7fc8d6f07fbb9415683f65765a692dcb628f3d983063a0dc21c2452f5cdff0'
 
+/** ReputationVKey shared object ID — created by marketplace init() when Phase 4b package is deployed. */
+export const REPUTATION_VKEY_ID = ''
+
+/** ScoutRegistry shared object ID — created by marketplace init(). Set after deploy that includes Phase 4a. */
+export const SCOUT_REGISTRY_ID = ''
+
+/** Minimum total verified listings for a scout to pass the "Trusted Scouts" filter. */
+export const TRUSTED_SCOUT_MIN_VERIFIED = 5n
+
 export const DECRYPT_STATUS_LABELS: Record<string, string> = {
   signing: 'Sign session key in wallet...',
   downloading: 'Downloading encrypted intel...',

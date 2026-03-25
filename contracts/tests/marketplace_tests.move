@@ -5,7 +5,7 @@ use sui::test_scenario;
 use sui::coin;
 use sui::sui::SUI;
 use sui::clock;
-use rift_broker::marketplace::{Self, IntelListing, LocationVKey, DistanceVKey, PurchaseReceipt, PresenceVKey};
+use rift_broker::marketplace::{Self, IntelListing, LocationVKey, DistanceVKey, PurchaseReceipt, PresenceVKey, ReputationVKey, ScoutRegistry};
 
 const SCOUT: address = @0xA;
 const BUYER: address = @0xB;
@@ -16,11 +16,19 @@ const STRANGER: address = @0xC;
 #[test]
 fun listing_creation_works() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, // intel_type: resource
         42, // system_id
         500_000, // individual_price
@@ -30,6 +38,8 @@ fun listing_creation_works() {
         &clk,
         ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     scenario.next_tx(SCOUT);
     let listing = scenario.take_shared<IntelListing>();
@@ -50,13 +60,23 @@ fun listing_creation_works() {
 #[test]
 fun listing_holds_stake() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     scenario.next_tx(SCOUT);
     let listing = scenario.take_shared<IntelListing>();
@@ -73,13 +93,23 @@ fun listing_holds_stake() {
 #[test]
 fun delist_refunds_stake() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     scenario.next_tx(SCOUT);
     let mut listing = scenario.take_shared<IntelListing>();
@@ -104,13 +134,23 @@ fun delist_refunds_stake() {
 #[test, expected_failure(abort_code = marketplace::ENotScout)]
 fun delist_by_non_scout_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Switch to stranger and try to delist
     scenario.next_tx(STRANGER);
@@ -128,13 +168,23 @@ fun delist_by_non_scout_aborts() {
 #[test]
 fun purchase_creates_receipt() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Buyer purchases
     scenario.next_tx(BUYER);
@@ -161,13 +211,23 @@ fun purchase_creates_receipt() {
 #[test]
 fun purchase_pays_scout() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Buyer purchases
     scenario.next_tx(BUYER);
@@ -191,14 +251,24 @@ fun purchase_pays_scout() {
 #[test, expected_failure(abort_code = marketplace::EListingExpired)]
 fun purchase_expired_listing_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let mut clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 1, // 1 hour decay
         b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Advance clock past expiry (2 hours = 7_200_000 ms)
     clock::increment_for_testing(&mut clk, 7_200_000);
@@ -217,13 +287,23 @@ fun purchase_expired_listing_aborts() {
 #[test, expected_failure(abort_code = marketplace::EInsufficientPayment)]
 fun purchase_underpayment_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     scenario.next_tx(BUYER);
     let mut listing = scenario.take_shared<IntelListing>();
@@ -239,13 +319,23 @@ fun purchase_underpayment_aborts() {
 #[test, expected_failure(abort_code = marketplace::EListingDelisted)]
 fun purchase_delisted_listing_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Scout delists
     scenario.next_tx(SCOUT);
@@ -270,13 +360,23 @@ fun purchase_delisted_listing_aborts() {
 #[test]
 fun burn_receipt_works() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Buyer purchases
     scenario.next_tx(BUYER);
@@ -301,13 +401,23 @@ fun burn_receipt_works() {
 #[test, expected_failure(abort_code = marketplace::ENotBuyer)]
 fun burn_receipt_non_buyer_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Buyer purchases
     scenario.next_tx(BUYER);
@@ -335,13 +445,23 @@ fun burn_receipt_non_buyer_aborts() {
 #[test]
 fun seal_approve_works() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Buyer purchases
     scenario.next_tx(BUYER);
@@ -366,13 +486,23 @@ fun seal_approve_works() {
 #[test, expected_failure(abort_code = marketplace::ENotBuyer)]
 fun seal_approve_wrong_buyer_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Buyer purchases
     scenario.next_tx(BUYER);
@@ -403,13 +533,23 @@ fun seal_approve_wrong_buyer_aborts() {
 #[test, expected_failure(abort_code = marketplace::EWrongListing)]
 fun seal_approve_wrong_listing_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Buyer purchases
     scenario.next_tx(BUYER);
@@ -434,13 +574,23 @@ fun seal_approve_wrong_listing_aborts() {
 #[test]
 fun seal_approve_scout_works() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Scout calls seal_approve_scout on their own listing
     scenario.next_tx(SCOUT);
@@ -456,13 +606,23 @@ fun seal_approve_scout_works() {
 #[test, expected_failure(abort_code = marketplace::ENotScout)]
 fun seal_approve_scout_non_scout_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Stranger tries seal_approve_scout on someone else's listing
     scenario.next_tx(STRANGER);
@@ -480,14 +640,24 @@ fun seal_approve_scout_non_scout_aborts() {
 #[test]
 fun set_walrus_blob_id_works() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     // Create listing with empty blob_id
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Scout sets the blob_id
     scenario.next_tx(SCOUT);
@@ -505,13 +675,23 @@ fun set_walrus_blob_id_works() {
 #[test, expected_failure(abort_code = marketplace::ENotScout)]
 fun set_walrus_blob_id_non_scout_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Stranger tries to set blob_id
     scenario.next_tx(STRANGER);
@@ -527,13 +707,23 @@ fun set_walrus_blob_id_non_scout_aborts() {
 #[test, expected_failure(abort_code = marketplace::EBlobIdAlreadySet)]
 fun set_walrus_blob_id_already_set_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"initial_blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Scout tries to change an already-set blob_id
     scenario.next_tx(SCOUT);
@@ -551,15 +741,24 @@ fun set_walrus_blob_id_already_set_aborts() {
 #[test, expected_failure(abort_code = marketplace::EInvalidIntelType)]
 fun create_listing_invalid_intel_type_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         99, // invalid intel_type
         42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
 
+    test_scenario::return_shared(registry);
     clock::destroy_for_testing(clk);
     scenario.end();
 }
@@ -567,16 +766,25 @@ fun create_listing_invalid_intel_type_aborts() {
 #[test, expected_failure(abort_code = marketplace::EDecayTooLarge)]
 fun create_listing_excessive_decay_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000,
         10_000, // > MAX_DECAY_HOURS (8760 = 1 year)
         b"blob", stake, &clk, ctx,
     );
 
+    test_scenario::return_shared(registry);
     clock::destroy_for_testing(clk);
     scenario.end();
 }
@@ -584,16 +792,25 @@ fun create_listing_excessive_decay_aborts() {
 #[test, expected_failure(abort_code = marketplace::EDecayTooSmall)]
 fun test_create_listing_zero_decay_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000,
         0, // < MIN_DECAY_HOURS (1)
         b"blob", stake, &clk, ctx,
     );
 
+    test_scenario::return_shared(registry);
     clock::destroy_for_testing(clk);
     scenario.end();
 }
@@ -603,13 +820,23 @@ fun test_create_listing_zero_decay_aborts() {
 #[test, expected_failure(abort_code = marketplace::EAlreadyDelisted)]
 fun double_delist_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // First delist succeeds
     scenario.next_tx(SCOUT);
@@ -632,14 +859,24 @@ fun double_delist_aborts() {
 #[test]
 fun claim_expired_stake_by_scout() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let mut clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 1, // 1 hour decay
         b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Advance clock past expiry
     clock::increment_for_testing(&mut clk, 7_200_000);
@@ -667,13 +904,23 @@ fun claim_expired_stake_by_scout() {
 #[test]
 fun claim_expired_stake_by_stranger() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let mut clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 1, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Advance clock past expiry
     clock::increment_for_testing(&mut clk, 7_200_000);
@@ -702,13 +949,23 @@ fun claim_expired_stake_by_stranger() {
 #[test, expected_failure(abort_code = marketplace::EListingNotExpired)]
 fun claim_expired_stake_not_expired_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Try to claim before expiry
     scenario.next_tx(SCOUT);
@@ -724,13 +981,23 @@ fun claim_expired_stake_not_expired_aborts() {
 #[test, expected_failure(abort_code = marketplace::EAlreadyDelisted)]
 fun claim_expired_stake_already_delisted_aborts() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let mut clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 1, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Scout delists before expiry
     scenario.next_tx(SCOUT);
@@ -757,11 +1024,20 @@ fun test_create_listing_not_verified() {
     let mut scenario = test_scenario::begin(@0xA);
     {
         let ctx = test_scenario::ctx(&mut scenario);
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    test_scenario::next_tx(&mut scenario, @0xA);
+    {
+        let mut registry = test_scenario::take_shared<ScoutRegistry>(&scenario);
+        let ctx = test_scenario::ctx(&mut scenario);
         let clock = clock::create_for_testing(ctx);
         let coin = coin::mint_for_testing<SUI>(1_000_000_000, ctx);
         marketplace::create_listing(
+            &mut registry,
             1, 1001, 100, 24, b"blob", coin, &clock, ctx
         );
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clock);
     };
     test_scenario::next_tx(&mut scenario, @0xA);
@@ -785,6 +1061,7 @@ fun test_create_verified_listing_invalid_proof() {
     };
     test_scenario::next_tx(&mut scenario, @0xA);
     {
+        let mut registry = test_scenario::take_shared<ScoutRegistry>(&scenario);
         let vkey = test_scenario::take_shared<LocationVKey>(&scenario);
         let ctx = test_scenario::ctx(&mut scenario);
         let clock = clock::create_for_testing(ctx);
@@ -795,6 +1072,7 @@ fun test_create_verified_listing_invalid_proof() {
         let fake_proof = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         let fake_inputs = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         marketplace::create_verified_listing(
+            &mut registry,
             1, 1001, 100, 24, b"blob", coin,
             &vkey,
             fake_proof,
@@ -802,6 +1080,67 @@ fun test_create_verified_listing_invalid_proof() {
             &clock, ctx
         );
         clock::destroy_for_testing(clock);
+        test_scenario::return_shared(registry);
+        test_scenario::return_shared(vkey);
+    };
+    test_scenario::end(scenario);
+}
+
+#[test, expected_failure(abort_code = marketplace::EProfileNotFound)]
+fun test_reputation_proof_no_profile() {
+    let mut scenario = test_scenario::begin(@0xA);
+    {
+        let ctx = test_scenario::ctx(&mut scenario);
+        marketplace::init_for_testing(ctx);
+    };
+    test_scenario::next_tx(&mut scenario, @0xA);
+    {
+        let mut registry = test_scenario::take_shared<ScoutRegistry>(&scenario);
+        let vkey = test_scenario::take_shared<ReputationVKey>(&scenario);
+        let ctx = test_scenario::ctx(&mut scenario);
+        let fake_proof = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        let fake_inputs = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        marketplace::attach_reputation_proof(&mut registry, &vkey, fake_proof, fake_inputs, ctx);
+        test_scenario::return_shared(registry);
+        test_scenario::return_shared(vkey);
+    };
+    test_scenario::end(scenario);
+}
+
+#[test, expected_failure(abort_code = marketplace::EMerkleRootMismatch)]
+fun test_reputation_proof_invalid_proof() {
+    let mut scenario = test_scenario::begin(@0xA);
+    {
+        let ctx = test_scenario::ctx(&mut scenario);
+        marketplace::init_for_testing(ctx);
+    };
+    test_scenario::next_tx(&mut scenario, @0xA);
+    {
+        let mut registry = test_scenario::take_shared<ScoutRegistry>(&scenario);
+        let ctx = test_scenario::ctx(&mut scenario);
+        let clock = clock::create_for_testing(ctx);
+        let coin = coin::mint_for_testing<SUI>(1_000_000_000, ctx);
+        marketplace::create_listing(&mut registry, 1, 1001, 100, 24, b"blob", coin, &clock, ctx);
+        test_scenario::return_shared(registry);
+        clock::destroy_for_testing(clock);
+    };
+    test_scenario::next_tx(&mut scenario, @0xA);
+    {
+        let mut registry = test_scenario::take_shared<ScoutRegistry>(&scenario);
+        let vkey = test_scenario::take_shared<ReputationVKey>(&scenario);
+        let ctx = test_scenario::ctx(&mut scenario);
+        let fake_proof = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        // 3×32 LE: root=0, claimBadgeType=1, claimCount=1 — root mismatch caught before Groth16.
+        let mut fake_inputs = vector::empty<u8>();
+        let mut zi = 0u64;
+        while (zi < 96) {
+            vector::push_back(&mut fake_inputs, 0);
+            zi = zi + 1;
+        };
+        *vector::borrow_mut(&mut fake_inputs, 32) = 1;
+        *vector::borrow_mut(&mut fake_inputs, 64) = 1;
+        marketplace::attach_reputation_proof(&mut registry, &vkey, fake_proof, fake_inputs, ctx);
+        test_scenario::return_shared(registry);
         test_scenario::return_shared(vkey);
     };
     test_scenario::end(scenario);
@@ -815,9 +1154,17 @@ fun test_is_verified_getter() {
     let mut scenario = test_scenario::begin(@0xA);
     {
         let ctx = test_scenario::ctx(&mut scenario);
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    test_scenario::next_tx(&mut scenario, @0xA);
+    {
+        let mut registry = test_scenario::take_shared<ScoutRegistry>(&scenario);
+        let ctx = test_scenario::ctx(&mut scenario);
         let clock = clock::create_for_testing(ctx);
         let coin = coin::mint_for_testing<SUI>(1_000_000_000, ctx);
-        marketplace::create_listing(1, 1001, 100, 24, b"blob", coin, &clock, ctx);
+        marketplace::create_listing(&mut registry, 1, 1001, 100, 24, b"blob", coin, &clock, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clock);
     };
     test_scenario::next_tx(&mut scenario, @0xA);
@@ -833,13 +1180,23 @@ fun test_is_verified_getter() {
 #[test]
 fun purchase_overpayment_refunds_buyer() {
     let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
     let ctx = scenario.ctx();
     let clk = clock::create_for_testing(ctx);
 
     let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
     marketplace::create_listing(
+        &mut registry,
         0, 42, 500_000, 24, b"blob", stake, &clk, ctx,
     );
+
+    test_scenario::return_shared(registry);
 
     // Buyer pays 2x the price
     scenario.next_tx(BUYER);
@@ -875,10 +1232,12 @@ fun test_attach_distance_proof_requires_location_proof() {
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -901,9 +1260,17 @@ fun test_has_distance_proof_false_on_new_listing() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -925,10 +1292,12 @@ fun test_attach_distance_proof_rejects_non_scout() {
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -962,10 +1331,12 @@ fun test_attach_distance_proof_rejects_double_attach() {
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -997,9 +1368,17 @@ fun test_unverified_listing_empty_jump_tx_digest() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -1016,9 +1395,17 @@ fun test_presence_listing_stores_jump_tx_digest() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -1035,10 +1422,14 @@ fun test_presence_listing_stores_jump_tx_digest() {
 fun test_create_presence_verified_listing_invalid_proof() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
-        marketplace::init_presence_vkey_for_testing(scenario.ctx());
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+        marketplace::init_presence_vkey_for_testing(ctx);
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let vkey = scenario.take_shared<PresenceVKey>();
         let ctx = scenario.ctx();
         let clock = clock::create_for_testing(ctx);
@@ -1047,6 +1438,7 @@ fun test_create_presence_verified_listing_invalid_proof() {
         let fake_proof = x"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         let fake_inputs = x"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         marketplace::create_presence_verified_listing(
+            &mut registry,
             1, 42, 500_000, 24, b"blob", coin,
             &vkey,
             fake_proof,
@@ -1055,6 +1447,7 @@ fun test_create_presence_verified_listing_invalid_proof() {
             &clock, ctx,
         );
         clock::destroy_for_testing(clock);
+        test_scenario::return_shared(registry);
         test_scenario::return_shared(vkey);
     };
     scenario.end();
@@ -1067,9 +1460,17 @@ fun test_unverified_listing_observed_at_equals_created_at() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -1087,10 +1488,18 @@ fun test_expiry_uses_observed_at() {
     // Create listing at time T=172_800_000 (48h)
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let mut clk = clock::create_for_testing(ctx);
         clock::set_for_testing(&mut clk, 172_800_000);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -1129,10 +1538,12 @@ fun test_attach_distance_proof_invalid_proof_aborts() {
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -1163,9 +1574,17 @@ fun test_new_listing_empty_badge_digests() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -1184,15 +1603,27 @@ fun test_attach_killmail_badge() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let mut listing = scenario.take_shared<IntelListing>();
-        marketplace::attach_event_badge(&mut listing, 0, b"killmail_digest_abc", scenario.ctx());
+        let clk = clock::create_for_testing(scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 0, b"killmail_digest_abc", &clk, scenario.ctx());
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(registry);
         assert!(*marketplace::killmail_tx_digest(&listing) == b"killmail_digest_abc");
         assert!(marketplace::deposit_tx_digest(&listing).is_empty());
         assert!(marketplace::reveal_tx_digest(&listing).is_empty());
@@ -1206,15 +1637,27 @@ fun test_attach_deposit_badge() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let mut listing = scenario.take_shared<IntelListing>();
-        marketplace::attach_event_badge(&mut listing, 1, b"deposit_digest_xyz", scenario.ctx());
+        let clk = clock::create_for_testing(scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 1, b"deposit_digest_xyz", &clk, scenario.ctx());
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(registry);
         assert!(marketplace::killmail_tx_digest(&listing).is_empty());
         assert!(*marketplace::deposit_tx_digest(&listing) == b"deposit_digest_xyz");
         test_scenario::return_shared(listing);
@@ -1227,15 +1670,27 @@ fun test_attach_reveal_badge() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let mut listing = scenario.take_shared<IntelListing>();
-        marketplace::attach_event_badge(&mut listing, 2, b"reveal_digest_123", scenario.ctx());
+        let clk = clock::create_for_testing(scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 2, b"reveal_digest_123", &clk, scenario.ctx());
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(registry);
         assert!(*marketplace::reveal_tx_digest(&listing) == b"reveal_digest_123");
         test_scenario::return_shared(listing);
     };
@@ -1247,15 +1702,27 @@ fun test_attach_badge_invalid_type() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let mut listing = scenario.take_shared<IntelListing>();
-        marketplace::attach_event_badge(&mut listing, 3, b"bad", scenario.ctx());
+        let clk = clock::create_for_testing(scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 3, b"bad", &clk, scenario.ctx());
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(registry);
         test_scenario::return_shared(listing);
     };
     scenario.end();
@@ -1266,16 +1733,28 @@ fun test_attach_badge_double_attach() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let mut listing = scenario.take_shared<IntelListing>();
-        marketplace::attach_event_badge(&mut listing, 0, b"first", scenario.ctx());
-        marketplace::attach_event_badge(&mut listing, 0, b"second", scenario.ctx());
+        let clk = clock::create_for_testing(scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 0, b"first", &clk, scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 0, b"second", &clk, scenario.ctx());
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(registry);
         test_scenario::return_shared(listing);
     };
     scenario.end();
@@ -1286,15 +1765,27 @@ fun test_attach_badge_not_scout() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(BUYER);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let mut listing = scenario.take_shared<IntelListing>();
-        marketplace::attach_event_badge(&mut listing, 0, b"nope", scenario.ctx());
+        let clk = clock::create_for_testing(scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 0, b"nope", &clk, scenario.ctx());
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(registry);
         test_scenario::return_shared(listing);
     };
     scenario.end();
@@ -1305,9 +1796,17 @@ fun test_attach_badge_on_delisted() {
     let mut scenario = test_scenario::begin(SCOUT);
     {
         let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
         let clk = clock::create_for_testing(ctx);
         let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
-        marketplace::create_listing(1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
         clock::destroy_for_testing(clk);
     };
     scenario.next_tx(SCOUT);
@@ -1318,9 +1817,321 @@ fun test_attach_badge_on_delisted() {
     };
     scenario.next_tx(SCOUT);
     {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
         let mut listing = scenario.take_shared<IntelListing>();
-        marketplace::attach_event_badge(&mut listing, 0, b"too_late", scenario.ctx());
+        let clk = clock::create_for_testing(scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 0, b"too_late", &clk, scenario.ctx());
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(registry);
         test_scenario::return_shared(listing);
     };
+    scenario.end();
+}
+
+// === Scout reputation (Phase 4a) ===
+
+#[test]
+fun test_profile_created_on_first_listing() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+    let coin = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        &mut registry,
+        0, 30006118, 100, 24, vector[], coin, &clk, ctx,
+    );
+    assert!(marketplace::has_profile(&registry, SCOUT));
+    let profile = marketplace::borrow_profile(&registry, SCOUT);
+    assert!(marketplace::total_unverified(profile) == 1);
+    assert!(marketplace::total_verified(profile) == 0);
+    test_scenario::return_shared(registry);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test]
+fun test_zk_verified_counter_zero_for_unverified_listing() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+    let coin = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        &mut registry,
+        0, 42, 100, 24, b"blob", coin, &clk, ctx,
+    );
+    let profile = marketplace::borrow_profile(&registry, SCOUT);
+    assert!(marketplace::total_zk_verified(profile) == 0);
+    assert!(marketplace::total_unverified(profile) == 1);
+    test_scenario::return_shared(registry);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+// === Scout reputation Merkle tree (Phase 4a+) ===
+
+#[test]
+fun test_initial_merkle_root_is_empty() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+    let coin = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        &mut registry,
+        0, 42, 100, 24, b"blob", coin, &clk, ctx,
+    );
+    let profile = marketplace::borrow_profile(&registry, SCOUT);
+    assert!(marketplace::merkle_root(profile) == marketplace::merkle_empty_root_for_testing());
+    assert!(marketplace::leaf_count(profile) == 0);
+    test_scenario::return_shared(registry);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+/// Mirrors `create_verified_listing` Merkle leaf (badge 0xFE) without an in-tree Groth16 fixture.
+#[test]
+fun test_verified_listing_inserts_leaf() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
+    marketplace::insert_test_reputation_leaf(&mut registry, SCOUT, 99, 2, 0xFE, 1_700_000_000_000);
+    let profile = marketplace::borrow_profile(&registry, SCOUT);
+    assert!(marketplace::leaf_count(profile) == 1);
+    assert!(marketplace::merkle_root(profile) != marketplace::merkle_empty_root_for_testing());
+    test_scenario::return_shared(registry);
+    scenario.end();
+}
+
+#[test]
+fun test_multiple_leaves_different_roots() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
+    let ts = 1_700_000_000_000u64;
+    marketplace::insert_test_reputation_leaf(&mut registry, SCOUT, 10, 0, 0xFE, ts);
+    let root1 = marketplace::merkle_root(marketplace::borrow_profile(&registry, SCOUT));
+    marketplace::insert_test_reputation_leaf(&mut registry, SCOUT, 20, 0, 0xFE, ts);
+    let profile = marketplace::borrow_profile(&registry, SCOUT);
+    assert!(marketplace::leaf_count(profile) == 2);
+    assert!(marketplace::merkle_root(profile) != root1);
+    test_scenario::return_shared(registry);
+    scenario.end();
+}
+
+#[test]
+fun test_badge_inserts_leaf() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        let p = marketplace::borrow_profile(&registry, SCOUT);
+        assert!(marketplace::leaf_count(p) == 0);
+        assert!(marketplace::merkle_root(p) == marketplace::merkle_empty_root_for_testing());
+        test_scenario::return_shared(registry);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let mut listing = scenario.take_shared<IntelListing>();
+        let clk = clock::create_for_testing(scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 0, b"km", &clk, scenario.ctx());
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(registry);
+        test_scenario::return_shared(listing);
+    };
+    scenario.next_tx(SCOUT);
+    let registry = scenario.take_shared<ScoutRegistry>();
+    let profile = marketplace::borrow_profile(&registry, SCOUT);
+    assert!(marketplace::leaf_count(profile) == 1);
+    assert!(marketplace::merkle_root(profile) != marketplace::merkle_empty_root_for_testing());
+    test_scenario::return_shared(registry);
+    scenario.end();
+}
+
+#[test]
+fun test_badge_increments_correct_counter() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let ctx = scenario.ctx();
+        let clk = clock::create_for_testing(ctx);
+        let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+        marketplace::create_listing(&mut registry, 1, 42, 500_000, 24, b"blob", stake, &clk, ctx);
+        test_scenario::return_shared(registry);
+        clock::destroy_for_testing(clk);
+    };
+    scenario.next_tx(SCOUT);
+    {
+        let mut registry = scenario.take_shared<ScoutRegistry>();
+        let mut listing = scenario.take_shared<IntelListing>();
+        let clk = clock::create_for_testing(scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 0, b"km", &clk, scenario.ctx());
+        marketplace::attach_event_badge(&mut registry, &mut listing, 1, b"dep", &clk, scenario.ctx());
+        clock::destroy_for_testing(clk);
+        test_scenario::return_shared(registry);
+        test_scenario::return_shared(listing);
+    };
+    scenario.next_tx(SCOUT);
+    let registry = scenario.take_shared<ScoutRegistry>();
+    let profile = marketplace::borrow_profile(&registry, SCOUT);
+    assert!(marketplace::total_combat_verified(profile) == 1);
+    assert!(marketplace::total_activity_verified(profile) == 1);
+    assert!(marketplace::total_verified(profile) == 2);
+    assert!(marketplace::total_unverified(profile) == 1);
+    assert!(marketplace::leaf_count(profile) == 2);
+    assert!(marketplace::merkle_root(profile) != marketplace::merkle_empty_root_for_testing());
+    test_scenario::return_shared(registry);
+    scenario.end();
+}
+
+#[test]
+fun test_multiple_listings_accumulate() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+    let stake1 = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        &mut registry,
+        0, 42, 100, 24, b"blob", stake1, &clk, ctx,
+    );
+    let stake2 = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        &mut registry,
+        0, 42, 100, 24, b"blob", stake2, &clk, ctx,
+    );
+    let stake3 = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        &mut registry,
+        0, 42, 100, 24, b"blob", stake3, &clk, ctx,
+    );
+    let profile = marketplace::borrow_profile(&registry, SCOUT);
+    assert!(marketplace::total_unverified(profile) == 3);
+    test_scenario::return_shared(registry);
+    clock::destroy_for_testing(clk);
+    scenario.end();
+}
+
+#[test]
+fun test_separate_profiles_per_scout() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        &mut registry,
+        0, 42, 100, 24, b"blob", stake, &clk, ctx,
+    );
+    test_scenario::return_shared(registry);
+    clock::destroy_for_testing(clk);
+    scenario.next_tx(BUYER);
+    let mut registry = scenario.take_shared<ScoutRegistry>();
+    let ctx = scenario.ctx();
+    let clk = clock::create_for_testing(ctx);
+    let stake = coin::mint_for_testing<SUI>(1_000_000, ctx);
+    marketplace::create_listing(
+        &mut registry,
+        0, 43, 100, 24, b"blob", stake, &clk, ctx,
+    );
+    test_scenario::return_shared(registry);
+    clock::destroy_for_testing(clk);
+    scenario.next_tx(SCOUT);
+    let registry = scenario.take_shared<ScoutRegistry>();
+    assert!(marketplace::has_profile(&registry, SCOUT));
+    assert!(marketplace::has_profile(&registry, BUYER));
+    let ps = marketplace::borrow_profile(&registry, SCOUT);
+    let pb = marketplace::borrow_profile(&registry, BUYER);
+    assert!(marketplace::total_unverified(ps) == 1);
+    assert!(marketplace::total_unverified(pb) == 1);
+    test_scenario::return_shared(registry);
+    scenario.end();
+}
+
+#[test]
+fun test_has_profile_false_for_unknown() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let registry = scenario.take_shared<ScoutRegistry>();
+    assert!(!marketplace::has_profile(&registry, SCOUT));
+    test_scenario::return_shared(registry);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = marketplace::EProfileNotFound)]
+fun test_borrow_profile_aborts_unknown() {
+    let mut scenario = test_scenario::begin(SCOUT);
+    {
+        let ctx = scenario.ctx();
+        let reg = marketplace::create_registry_for_testing(ctx);
+        marketplace::share_registry_for_testing(reg);
+    };
+    scenario.next_tx(SCOUT);
+    let registry = scenario.take_shared<ScoutRegistry>();
+    let _p = marketplace::borrow_profile(&registry, SCOUT);
+    test_scenario::return_shared(registry);
     scenario.end();
 }

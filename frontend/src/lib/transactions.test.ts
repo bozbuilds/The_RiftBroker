@@ -12,11 +12,13 @@ import {
   buildBatchPurchaseTx,
   buildCreatePresenceVerifiedListingTx,
   buildAttachEventBadgeTx,
+  buildAttachReputationProofTx,
 } from './transactions'
 
 describe('buildCreateListingTx', () => {
   it('returns a Transaction', () => {
     const tx = buildCreateListingTx({
+      registryId: '0xregistry',
       intelType: 0,
       systemId: 42n,
       price: 500_000n,
@@ -31,6 +33,7 @@ describe('buildCreateListingTx', () => {
 describe('buildCreateVerifiedListingTx', () => {
   it('returns a Transaction', () => {
     const tx = buildCreateVerifiedListingTx({
+      registryId: '0xregistry',
       intelType: 0,
       systemId: 42n,
       individualPrice: 500_000n,
@@ -116,6 +119,7 @@ describe('buildBatchPurchaseTx', () => {
 describe('buildCreatePresenceVerifiedListingTx', () => {
   it('returns a Transaction', () => {
     const tx = buildCreatePresenceVerifiedListingTx({
+      registryId: '0xregistry',
       intelType: 1,
       systemId: 42n,
       individualPrice: 500_000n,
@@ -134,9 +138,22 @@ describe('buildCreatePresenceVerifiedListingTx', () => {
 describe('buildAttachEventBadgeTx', () => {
   it('returns a Transaction', () => {
     const tx = buildAttachEventBadgeTx({
+      registryId: '0xregistry',
       listingId: '0xLISTING',
       badgeType: 0,
       txDigest: new Uint8Array([65, 66, 67]),
+    })
+    expect(tx).toBeInstanceOf(Transaction)
+  })
+})
+
+describe('buildAttachReputationProofTx', () => {
+  it('returns a Transaction', () => {
+    const tx = buildAttachReputationProofTx({
+      registryId: '0xregistry',
+      reputationVkeyId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      proofPointsBytes: new Uint8Array(128),
+      publicInputsBytes: new Uint8Array(96),
     })
     expect(tx).toBeInstanceOf(Transaction)
   })

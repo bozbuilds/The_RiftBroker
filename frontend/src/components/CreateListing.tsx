@@ -3,7 +3,7 @@ import { SealClient } from '@mysten/seal'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo, useRef } from 'react'
 
-import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, PRESENCE_VKEY_ID, SEAL_KEY_SERVERS } from '../lib/constants'
+import { DISTANCE_VKEY_ID, INTEL_TYPE_LABELS, LOCATION_VKEY_ID, PRESENCE_VKEY_ID, SCOUT_REGISTRY_ID, SEAL_KEY_SERVERS } from '../lib/constants'
 import { fetchJumpEvents, fetchKillmails, fetchInventoryEvents, fetchLocationEvent, fetchLocationEvents, fetchStructuresInSystem, resolveCharacterId } from '../lib/events'
 import { mistToSui } from '../lib/format'
 import { intelPayloadSchema } from '../lib/intel-schemas'
@@ -170,6 +170,11 @@ export function CreateListing() {
     setProofStatus(null)
 
     try {
+      if (!SCOUT_REGISTRY_ID) {
+        setError('Scout registry not configured — deploy the contract with Phase 4a and set SCOUT_REGISTRY_ID in constants.')
+        return
+      }
+
       const assembled = buildPayload()
       const result = intelPayloadSchema.safeParse(assembled)
       if (!result.success) {
@@ -246,6 +251,7 @@ export function CreateListing() {
 
       const createTx = usePresenceVerified
         ? buildCreatePresenceVerifiedListingTx({
+            registryId: SCOUT_REGISTRY_ID,
             intelType,
             systemId: onChainSystemId,
             individualPrice: BigInt(price),
@@ -259,6 +265,7 @@ export function CreateListing() {
           })
         : useLocationVerified
         ? buildCreateVerifiedListingTx({
+            registryId: SCOUT_REGISTRY_ID,
             intelType,
             systemId: onChainSystemId,
             individualPrice: BigInt(price),
@@ -270,6 +277,7 @@ export function CreateListing() {
             publicInputsBytes: publicInputsBytes!,
           })
         : buildCreateListingTx({
+            registryId: SCOUT_REGISTRY_ID,
             intelType,
             systemId: onChainSystemId,
             price: BigInt(price),
@@ -356,25 +364,23 @@ export function CreateListing() {
       if (selectedStructure)
         badgesToAttach.push({ type: 2, digest: new TextEncoder().encode(selectedStructure.txDigest) })
 
-      console.log('[badge attach]', { listingId, badgesToAttach: badgesToAttach.map(b => ({ type: b.type, digestLen: b.digest.length })), selectedStructure: selectedStructure?.txDigest })
-
       if (badgesToAttach.length > 0) {
         setStatus('Attaching evidence badges...')
         for (const badge of badgesToAttach) {
           const badgeTx = buildAttachEventBadgeTx({
+            registryId: SCOUT_REGISTRY_ID,
             listingId,
             badgeType: badge.type,
             txDigest: badge.digest,
           })
-          console.log('[badge attach tx]', { badgeType: badge.type, digestLen: badge.digest.length, listingId })
           const badgeResult = await signAndExecute({ transaction: badgeTx })
-          console.log('[badge attach result]', badgeResult.digest)
           await suiClient.waitForTransaction({ digest: badgeResult.digest })
-          console.log('[badge attach confirmed]', badgeResult.digest)
         }
       }
 
       await queryClient.invalidateQueries({ queryKey: ['listings'] })
+      await queryClient.invalidateQueries({ queryKey: ['scout-profiles'] })
+      await queryClient.invalidateQueries({ queryKey: ['scout-profile'] })
       setStatus('Listing created successfully!')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')

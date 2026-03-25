@@ -40,6 +40,24 @@ export interface PurchaseReceiptFields {
   readonly paidAt: bigint
 }
 
+export interface ScoutProfileFields {
+  readonly scout: string
+  readonly totalZkVerified: bigint
+  readonly totalPresenceVerified: bigint
+  readonly totalCombatVerified: bigint
+  readonly totalActivityVerified: bigint
+  readonly totalStructureVerified: bigint
+  readonly totalUnverified: bigint
+  readonly firstVerifiedAt: bigint
+  readonly lastVerifiedAt: bigint
+  /** u256 Merkle root (decimal string from RPC). Phase 4a+; not shown in UI yet. */
+  readonly merkleRoot: string
+  readonly leafCount: bigint
+  /** Phase 4b: ZK-proven minimum counts per badge type (parallel arrays). */
+  readonly reputationClaimTypes: readonly number[]
+  readonly reputationClaimCounts: readonly bigint[]
+}
+
 export interface EnrichedReceipt {
   readonly receipt: PurchaseReceiptFields
   readonly listing: IntelListingFields

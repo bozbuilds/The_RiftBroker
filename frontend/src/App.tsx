@@ -7,6 +7,7 @@ import { CreateListing } from './components/CreateListing'
 import { FloatingPanel } from './components/FloatingPanel'
 import { IntelViewer } from './components/IntelViewer'
 import { ListingBrowser } from './components/ListingBrowser'
+import { ScoutProfilePanel } from './components/ScoutProfilePanel'
 import { MyIntel } from './components/MyIntel'
 import { MyListings } from './components/MyListings'
 import { PurchaseFlow } from './components/PurchaseFlow'
@@ -53,6 +54,7 @@ export function App() {
   const [showInfo, setShowInfo] = useState(
     () => !localStorage.getItem(STORAGE_KEY),
   )
+  const [scoutProfileAddress, setScoutProfileAddress] = useState<string | null>(null)
 
   // Aggregate system heat data into region-level data for the 3D scene
   // Uses real galaxy coordinates once loaded; no regions rendered while data is fetching
@@ -72,6 +74,7 @@ export function App() {
     setSelectedListing(null)
     setReceiptId(null)
     setDecryptedPayload(null)
+    setScoutProfileAddress(null)
   }, [])
 
   // Escape key closes the active panel
@@ -101,6 +104,7 @@ export function App() {
 
   function handleNavClick(kind: PanelState['kind']) {
     clearSelection()
+    setScoutProfileAddress(null)
     setPanel(kind === 'none' ? { kind: 'none' } : { kind } as PanelState)
   }
 
@@ -269,7 +273,19 @@ export function App() {
 
           {panel.kind === 'browse' && (
             <FloatingPanel title="Intel Marketplace" onClose={closePanel} footer={purchaseOrDecryptPanel}>
-              <ListingBrowser onSelect={selectListing} />
+              {scoutProfileAddress
+                ? (
+                    <ScoutProfilePanel
+                      scoutAddress={scoutProfileAddress}
+                      onClose={() => setScoutProfileAddress(null)}
+                    />
+                  )
+                : (
+                    <ListingBrowser
+                      onSelect={selectListing}
+                      onOpenScoutProfile={setScoutProfileAddress}
+                    />
+                  )}
             </FloatingPanel>
           )}
 

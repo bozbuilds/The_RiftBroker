@@ -3,6 +3,7 @@ import { Transaction } from '@mysten/sui/transactions'
 import { CLOCK_ID, PACKAGE_ID } from './constants'
 
 export function buildCreateListingTx(params: {
+  registryId: string
   intelType: number
   systemId: bigint
   price: bigint
@@ -15,6 +16,7 @@ export function buildCreateListingTx(params: {
   tx.moveCall({
     target: `${PACKAGE_ID}::marketplace::create_listing`,
     arguments: [
+      tx.object(params.registryId),
       tx.pure.u8(params.intelType),
       tx.pure.u64(params.systemId),
       tx.pure.u64(params.price),
@@ -69,6 +71,7 @@ export function buildBurnReceiptTx(receiptId: string): Transaction {
 }
 
 export function buildCreateVerifiedListingTx(params: {
+  registryId: string
   intelType: number
   systemId: bigint
   individualPrice: bigint
@@ -84,6 +87,7 @@ export function buildCreateVerifiedListingTx(params: {
   tx.moveCall({
     target: `${PACKAGE_ID}::marketplace::create_verified_listing`,
     arguments: [
+      tx.object(params.registryId),
       tx.pure.u8(params.intelType),
       tx.pure.u64(params.systemId),
       tx.pure.u64(params.individualPrice),
@@ -137,6 +141,7 @@ export function buildAttachDistanceProofTx(params: {
 }
 
 export function buildCreatePresenceVerifiedListingTx(params: {
+  registryId: string
   intelType: number
   systemId: bigint
   individualPrice: bigint
@@ -153,6 +158,7 @@ export function buildCreatePresenceVerifiedListingTx(params: {
   tx.moveCall({
     target: `${PACKAGE_ID}::marketplace::create_presence_verified_listing`,
     arguments: [
+      tx.object(params.registryId),
       tx.pure.u8(params.intelType),
       tx.pure.u64(params.systemId),
       tx.pure.u64(params.individualPrice),
@@ -169,7 +175,27 @@ export function buildCreatePresenceVerifiedListingTx(params: {
   return tx
 }
 
+export function buildAttachReputationProofTx(params: {
+  registryId: string
+  reputationVkeyId: string
+  proofPointsBytes: Uint8Array
+  publicInputsBytes: Uint8Array
+}): Transaction {
+  const tx = new Transaction()
+  tx.moveCall({
+    target: `${PACKAGE_ID}::marketplace::attach_reputation_proof`,
+    arguments: [
+      tx.object(params.registryId),
+      tx.object(params.reputationVkeyId),
+      tx.pure.vector('u8', Array.from(params.proofPointsBytes)),
+      tx.pure.vector('u8', Array.from(params.publicInputsBytes)),
+    ],
+  })
+  return tx
+}
+
 export function buildAttachEventBadgeTx(params: {
+  registryId: string
   listingId: string
   badgeType: number
   txDigest: Uint8Array
@@ -178,9 +204,11 @@ export function buildAttachEventBadgeTx(params: {
   tx.moveCall({
     target: `${PACKAGE_ID}::marketplace::attach_event_badge`,
     arguments: [
+      tx.object(params.registryId),
       tx.object(params.listingId),
       tx.pure.u8(params.badgeType),
       tx.pure.vector('u8', Array.from(params.txDigest)),
+      tx.object(CLOCK_ID),
     ],
   })
   return tx
